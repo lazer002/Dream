@@ -15,6 +15,9 @@ export default function AddProduct() {
   })
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [files, setFiles] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [uploadedUrls, setUploadedUrls] = useState([])
 
   async function submit(e) {
     e.preventDefault()
@@ -25,7 +28,7 @@ export default function AddProduct() {
         title: form.title.trim(),
         description: form.description.trim(),
         price: Number(form.price),
-        images: form.imagesText.split(/\n|,/).map(s => s.trim()).filter(Boolean),
+        images: [...uploadedUrls, ...form.imagesText.split(/\n|,/).map(s => s.trim()).filter(Boolean)],
         sku: form.sku.trim() || undefined,
         inventory: Number(form.inventory),
         tags: form.tagsText.split(',').map(s => s.trim()).filter(Boolean),
@@ -34,6 +37,8 @@ export default function AddProduct() {
       await api.post('/products', payload)
       setMsg('Product created')
       setForm({ title: '', description: '', price: '', imagesText: '', sku: '', inventory: 0, tagsText: '', published: true })
+      setFiles([])
+      setUploadedUrls([])
     } catch (e) {
       setMsg('Failed to create product')
     } finally {
@@ -42,6 +47,26 @@ export default function AddProduct() {
   }
 
   const input = 'w-full rounded-md'
+
+  async function uploadAll() {
+    if (!files.length) return
+    setUploading(true)
+    try {
+      const urls = []
+      for (const f of files) {
+        const fd = new FormData()
+        fd.append('file', f)
+        const { data } = await api.post('/admin/upload/image', fd, { headers: { 'Content-Type': 'multipart/form-data' } })
+        urls.push(data.url)
+      }
+      setUploadedUrls(urls)
+      setMsg('Uploaded images')
+    } catch (e) {
+      setMsg('Upload failed')
+    } finally {
+      setUploading(false)
+    }
+  }
 
   return (
     <div>
@@ -63,6 +88,21 @@ export default function AddProduct() {
           </div>
         </div>
         <div className="space-y-4">
+          <div>
+            <label className="block text-sm mb-1">Upload images</label>
+            <input type="file" multiple accept="image/*" onChange={(e) => setFiles(Array.from(e.target.files || []))} />
+            <button type="button" onClick={uploadAll} disabled={uploading || !files.length} className="mt-2 w-full px-3 py-2 bg-gray-900 text-white rounded-md disabled:opacity-50">{uploading ? 'Uploading...' : 'Upload to storage'}</button>
+            {(files.length > 0 || uploadedUrls.length > 0) && (
+              <div className="mt-3 grid grid-cols-4 gap-2">
+                {files.map((f, i) => (
+                  <div key={i} className="aspect-square bg-gray-100 rounded" />
+                ))}
+                {uploadedUrls.map((u, i) => (
+                  <img key={i} src={u} className="aspect-square object-cover rounded" />
+                ))}
+              </div>
+            )}
+          </div>
           <div>
             <label className="block text-sm mb-1">Price</label>
             <input className={input} type="number" step="0.01" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} required />

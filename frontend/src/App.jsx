@@ -1,76 +1,119 @@
-import { Routes, Route, Link, Navigate } from 'react-router-dom'
-import Home from './pages/Home.jsx'
-import Products from './pages/Products.jsx'
-import About from './pages/About.jsx'
-import Contact from './pages/Contact.jsx'
-import ProductDetail from './pages/ProductDetail.jsx'
-import Cart from './pages/Cart.jsx'
-import Login from './pages/Login.jsx'
-import Register from './pages/Register.jsx'
-import AdminDashboard from './pages/admin/Dashboard.jsx'
-import AdminUsers from './pages/admin/Users.jsx'
-import AdminProducts from './pages/admin/Products.jsx'
-import AdminLayout from './pages/admin/Layout.jsx'
-import AdminAddProduct from './pages/admin/AddProduct.jsx'
-import { AuthProvider, useAuth } from './state/AuthContext.jsx'
-import { CartProvider } from './state/CartContext.jsx'
+import { Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
+import Home from "./pages/Home.jsx";
+import Products from "./pages/Products.jsx";
+import About from "./pages/About.jsx";
+import Contact from "./pages/Contact.jsx";
+import ProductDetail from "./pages/ProductDetail.jsx";
+import Cart from "./pages/Cart.jsx";
+import Login from "./pages/Login.jsx";
+import Register from "./pages/Register.jsx";
+import AdminDashboard from "./pages/admin/Dashboard.jsx";
+import AdminUsers from "./pages/admin/Users.jsx";
+import AdminProducts from "./pages/admin/Products.jsx";
+import AdminLayout from "./pages/admin/Layout.jsx";
+import AdminAddProduct from "./pages/admin/AddProduct.jsx";
+import { AuthProvider, useAuth } from "./state/AuthContext.jsx";
+import { CartProvider } from "./state/CartContext.jsx";
 
+// Reusable navigation links for public header
+const navLinks = [
+  { name: "Home", path: "/" },
+  { name: "Products", path: "/products" },
+  { name: "About", path: "/about" },
+  { name: "Contact", path: "/contact" },
+];
+
+// Dynamic header component
 function Header() {
-  const { user, logout } = useAuth()
+  const { user, logout } = useAuth();
+
   return (
     <header className="border-b">
-      <div className="container-responsive h-16 flex items-center justify-between">
+      <div className="h-16 flex items-center justify-between container mx-auto px-4">
         <div className="flex items-center gap-8">
-          <Link to="/" className="font-semibold text-lg">Dream Shop</Link>
-          <div className="hidden md:flex items-center gap-6 text-sm">
-            <Link to="/" className="hover:text-brand-600">Home</Link>
-            <Link to="/products" className="hover:text-brand-600">Products</Link>
-            <Link to="/about" className="hover:text-brand-600">About</Link>
-            <Link to="/contact" className="hover:text-brand-600">Contact</Link>
-          </div>
+          <Link to="/" className="font-semibold text-lg">
+            Dream Shop
+          </Link>
+          <nav className="hidden md:flex items-center gap-6 text-sm">
+            {navLinks.map((link) => (
+              <Link key={link.name} to={link.path} className="hover:text-brand-600">
+                {link.name}
+              </Link>
+            ))}
+          </nav>
         </div>
-        <nav className="flex items-center gap-4">
-          <Link to="/cart" className="hover:text-brand-600">Cart</Link>
+        <nav className="flex items-center gap-4 text-sm">
+          <Link to="/cart" className="hover:text-brand-600">
+            Cart
+          </Link>
           {user ? (
             <>
-              {user.role === 'admin' && <Link to="/admin" className="hover:text-brand-600">Admin</Link>}
-              <button onClick={logout} className="text-sm text-gray-600 hover:text-gray-900">Logout</button>
+              {user.role === "admin" && (
+                <Link to="/admin" className="hover:text-brand-600">
+                  Admin
+                </Link>
+              )}
+              <button
+                onClick={logout}
+                className="text-gray-600 hover:text-gray-900"
+              >
+                Logout
+              </button>
             </>
           ) : (
             <>
-              <Link to="/login" className="hover:text-brand-600">Login</Link>
-              <Link to="/register" className="hover:text-brand-600">Sign up</Link>
+              <Link to="/login" className="hover:text-brand-600">
+                Login
+              </Link>
+              <Link to="/register" className="hover:text-brand-600">
+                Sign up
+              </Link>
             </>
           )}
         </nav>
       </div>
     </header>
-  )
+  );
 }
 
+// Protect admin routes
 function AdminRoute({ children }) {
-  const { user } = useAuth()
-  if (!user || user.role !== 'admin') return <Navigate to="/" replace />
-  return children
+  const { user } = useAuth();
+  return user?.role === "admin" ? children : <Navigate to="/" replace />;
 }
 
+// Main App
 export default function App() {
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith("/admin"); // Detect admin pages
+
   return (
     <AuthProvider>
       <CartProvider>
         <div className="min-h-screen flex flex-col">
-          <Header />
-          <main className="flex-1 container-responsive py-8">
+          {!isAdminRoute && <Header />} {/* Hide public header on admin pages */}
+
+          <main className="">
             <Routes>
+              {/* Public Routes */}
               <Route path="/" element={<Home />} />
-              <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/products" element={<Products />} />
+              <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
-              <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+
+              {/* Admin Routes */}
+              <Route
+                path="/admin"
+                element={
+                  <AdminRoute>
+                    <AdminLayout />
+                  </AdminRoute>
+                }
+              >
                 <Route index element={<AdminDashboard />} />
                 <Route path="products" element={<AdminProducts />} />
                 <Route path="products/new" element={<AdminAddProduct />} />
@@ -78,11 +121,14 @@ export default function App() {
               </Route>
             </Routes>
           </main>
-          <footer className="border-t py-6 text-center text-sm text-gray-500">© {new Date().getFullYear()} Dream Shop</footer>
+
+          {!isAdminRoute && (
+            <footer className="border-t py-6 text-center text-sm text-gray-500">
+              © {new Date().getFullYear()} Dream Shop
+            </footer>
+          )}
         </div>
       </CartProvider>
     </AuthProvider>
-  )
+  );
 }
-
-

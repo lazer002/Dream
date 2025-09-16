@@ -4,3 +4,6 @@
 // JWT_SECRET=change_me_dev_secret
 // JWT_REFRESH_SECRET=change_me_dev_refresh_secret
 // CLIENT_ORIGIN=http://localhost:5173
+// SUPABASE_URL=https://bzmvvcdngqoxwpbulakr.supabase.co
+// SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ6bXZ2Y2RuZ3FveHdwYnVsYWtyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwMTcyOTgsImV4cCI6MjA3MzU5MzI5OH0.Y2MWagRrxraS2ecKSqfe9p8LZ9YFEBic_qpcI1TSVRg
+// SUPABASE_BUCKET=product-images

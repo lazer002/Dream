@@ -1,0 +1,21 @@
+{
+  "name": "dream-shop",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Full-stack e-commerce (Node/Express, MongoDB/Mongoose, React/Tailwind) with admin panel and guest cart",
+  "workspaces": [
+    "backend",
+    "frontend"
+  ],
+  "scripts": {
+    "dev": "concurrently -n backend,frontend -c blue,green \"npm:dev -w backend\" \"npm:dev -w frontend\"",
+    "build": "npm run build -w backend && npm run build -w frontend",
+    "start": "npm run start -w backend",
+    "seed": "npm run seed -w backend"
+  },
+  "devDependencies": {
+    "concurrently": "^9.0.1"
+  }
+}
+
+

@@ -94,7 +94,7 @@ function Header() {
 // Protect admin routes
 function AdminRoute({ children }) {
   const { user } = useAuth();
-  return user?.role === "admin" ? children : <Navigate to="/" replace />;
+  return user?.role === "user" ? children : <Navigate to="/" replace />;
 }
 
 // Main App
@@ -137,11 +137,7 @@ export default function App() {
             </Routes>
           </main>
 
-          {!isAdminRoute && (
-            <footer className="border-t py-6 text-center text-sm text-gray-500">
-              © {new Date().getFullYear()} Dream Shop
-            </footer>
-          )}
+      
         </div>
       </CartProvider>
     </AuthProvider>

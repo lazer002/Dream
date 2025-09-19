@@ -1,20 +1,18 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { X } from "lucide-react";
 
-const DialogContext = createContext({ onClose: () => {} });
+const DialogContext = createContext({ onClose: () => {}, show: false });
 
 export function Dialog({ open, onOpenChange, children }) {
   const [isVisible, setIsVisible] = useState(open);
-
-  // track internal show state for animation
-  const [show, setShow] = useState(open);
+  const [show, setShow] = useState(open); // track animation state
 
   useEffect(() => {
     if (open) {
       setIsVisible(true);
-      setTimeout(() => setShow(true), 10); // trigger slide-in
+      setTimeout(() => setShow(true), 10); // slide in
     } else {
-      setShow(false); // trigger slide-out
+      setShow(false); // slide out
       setTimeout(() => setIsVisible(false), 300); // hide after animation
     }
   }, [open]);
@@ -30,23 +28,23 @@ export function Dialog({ open, onOpenChange, children }) {
   );
 }
 
-export function DialogContent({ className, children }) {
+export function DialogContent({ className = "", children }) {
   const { onClose, show } = useContext(DialogContext);
 
   return (
     <>
       {/* Overlay */}
       <div
-        className={`fixed inset-0 bg-black bg-opacity-50 transition-opacity duration-300 ${
+        className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ${
           show ? "opacity-100" : "opacity-0"
         }`}
         onClick={onClose}
       ></div>
 
-      {/* Sidebar / Content */}
+      {/* Main Content */}
       <div
-        className={`relative bg-white h-full transition-transform duration-300 ease-in-out ${
-          show ? "translate-x-0" : "-translate-x-full"
+        className={`relative m-auto w-full max-w-lg rounded-xl bg-white shadow-lg transition-transform duration-300 ease-in-out ${
+          show ? "scale-100 opacity-100" : "scale-95 opacity-0"
         } ${className}`}
       >
         {children}
@@ -55,29 +53,49 @@ export function DialogContent({ className, children }) {
   );
 }
 
-export function DialogHeader({ children, className }) {
-  return <div className={`flex justify-between items-center ${className}`}>{children}</div>;
+export function DialogHeader({ children, className = "" }) {
+  return (
+    <div
+      className={`flex items-center justify-between border-b px-4 py-3 ${className}`}
+    >
+      {children}
+    </div>
+  );
 }
 
-export function DialogTitle({ children, className }) {
-  return <h2 className={`text-lg font-semibold ${className}`}>{children}</h2>;
+export function DialogTitle({ children, className = "" }) {
+  return (
+    <h2 className={`text-lg font-semibold leading-none ${className}`}>
+      {children}
+    </h2>
+  );
 }
 
-// X icon close button
-export function DialogClose({ asChild }) {
+export function DialogFooter({ children, className = "" }) {
+  return (
+    <div
+      className={`flex flex-col-reverse gap-2 border-t px-4 py-3 sm:flex-row sm:justify-end ${className}`}
+    >
+      {children}
+    </div>
+  );
+}
+
+export function DialogClose({ asChild = false, children }) {
   const { onClose } = useContext(DialogContext);
 
   if (asChild) {
     return (
-      <span onClick={onClose} className="cursor-pointer">
-        <X className="h-6 w-6 text-gray-700 hover:text-black" />
-      </span>
+      <div onClick={onClose} className="cursor-pointer">
+        {children}
+      </div>
     );
   }
 
   return (
     <button onClick={onClose}>
-      <X className="h-6 w-6 text-gray-700 hover:text-black" />
+      {children ?? <X className="h-6 w-6 text-gray-700 hover:text-black" />}
     </button>
   );
 }
+

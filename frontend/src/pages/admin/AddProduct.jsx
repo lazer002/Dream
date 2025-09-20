@@ -1,4 +1,5 @@
-import { useState } from "react"
+import { useState,useRef } from "react"
+
 import { useAuth } from "../../state/AuthContext.jsx"
 import {
   Card,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/select"
 
 export default function AddProduct() {
+  const fileInputRef = useRef(null)
   const { api } = useAuth()
   const [form, setForm] = useState({
     title: "",
@@ -31,6 +33,7 @@ export default function AddProduct() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState("")
   const [files, setFiles] = useState([])
+  const [previews, setPreviews] = useState([])
 
   async function submit(e) {
     e.preventDefault()
@@ -77,12 +80,33 @@ export default function AddProduct() {
         published: true,
       })
       setFiles([])
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "" // 🔥 clears file input UI
+      }
     } catch (e) {
       setMsg("❌ Failed to create product")
     } finally {
       setSaving(false)
     }
   }
+
+  useEffect(() => {
+    if (!files.length) {
+      setPreviews([])
+      return
+    }
+  
+    const newPreviews = files.map((f) => ({
+      file: f,
+      url: URL.createObjectURL(f),
+    }))
+    setPreviews(newPreviews)
+  
+    // cleanup URLs on unmount or when files change
+    return () => {
+      newPreviews.forEach((p) => URL.revokeObjectURL(p.url))
+    }
+  }, [files])
 
   return (
     <div className="max-w-5xl mx-auto py-10">
@@ -129,28 +153,28 @@ export default function AddProduct() {
             <div className="space-y-4">
               {/* Image Upload */}
               <div>
-                <Label>Upload Images</Label>
-                <Input
-                  type="file"
-                  multiple
-                  accept="image/*"
-                  onChange={(e) =>
-                    setFiles(Array.from(e.target.files || []))
-                  }
-                />
-                {files.length > 0 && (
-                  <div className="mt-3 grid grid-cols-4 gap-2">
-                    {files.map((f, i) => (
-                      <img
-                        key={i}
-                        src={URL.createObjectURL(f)}
-                        alt="preview"
-                        className="aspect-square object-cover rounded border"
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
+  <Label>Upload Images</Label>
+  <Input
+    ref={fileInputRef}
+    type="file"
+    multiple
+    accept="image/*"
+    onChange={(e) => setFiles(Array.from(e.target.files || []))}
+  />
+  {previews.length > 0 && (
+    <div className="mt-3 grid grid-cols-4 gap-2">
+      {previews.map((p, i) => (
+        <img
+          key={i}
+          src={p.url}
+          alt={`preview-${i}`}
+          className="aspect-square object-cover rounded border"
+        />
+      ))}
+    </div>
+  )}
+</div>
+
 
               <div>
                 <Label>Price</Label>

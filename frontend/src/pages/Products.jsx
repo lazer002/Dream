@@ -80,49 +80,61 @@ export default function Products() {
       </div>
 
       {/* Products Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
+{/* Products Grid */}
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
   {products.map((p) => (
-    <Link to={`/product/${p._id}`} className="cursor-pointer">
-    <div
-      key={p._id}
-      className="bg-white rounded-lg lg:my-6  transition overflow-hidden"
-    >
-      {/* Image Container */}
-      <div className="relative w-full h-96 overflow-hidden">
-        <img
-          src={p.images[0]} // default image
-          alt={p.title}
-          className="w-full h-full object-cover transition-all duration-500 hover:opacity-0"
-        />
-        {p.images[1] && (
+    <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">
+      <div className="bg-white rounded-lg lg:my-6 transition overflow-hidden relative">
+        {/* Image Container */}
+        <div className="relative w-full h-96 overflow-hidden">
           <img
-            src={p.images[1]} // second image on hover
-            alt={p.title + ' hover'}
-            className="w-full h-full object-cover absolute top-0 left-0 opacity-0 hover:opacity-100 transition-all duration-500"
+            src={p.images[0]} // default image
+            alt={p.title}
+            className="w-full h-full object-cover transition-all duration-500 hover:opacity-0"
           />
-        )}
+          {p.images[1] && (
+            <img
+              src={p.images[1]} // second image on hover
+              alt={p.title + ' hover'}
+              className="w-full h-full object-cover absolute top-0 left-0 opacity-0 hover:opacity-100 transition-all duration-500"
+            />
+          )}
 
-        {/* Heart Icon */}
-        <button
-          onClick={() => toggleWishlist(p._id)}
-          className="absolute bottom-2 right-2 p-1 rounded-full  flex items-center justify-center w-7 h-7 hover:scale-110 transition"
-        >
-     {wishlist.includes(p._id) ? (
-    <Heart className="h-4 w-4 text-red-500 fill-red-500" />
-  ) : (
-    <HeartOutline className="h-4 w-4 text-black" />
-  )}
-        </button>
+          {/* New / Sale Badges */}
+          {p.isNew && (
+            <span className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
+              NEW
+            </span>
+          )}
+          {p.onSale && (
+            <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
+              SALE
+            </span>
+          )}
+
+          {/* Heart Icon */}
+          <button
+            onClick={() => toggleWishlist(p._id)}
+            className="absolute bottom-2 right-2 p-1 rounded-full flex items-center justify-center w-7 h-7 hover:scale-110 transition"
+          >
+            {wishlist.includes(p._id) ? (
+              <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+            ) : (
+              <HeartOutline className="h-4 w-4 text-black" />
+            )}
+          </button>
+        </div>
+
+        {/* Product Info */}
+        <div className="p-4 flex flex-col gap-1">
+          <h3 className="text-sm font-medium text-black hover:text-gray-400 transition">{p.title}</h3>
+          <span className="text-sm font-semibold text-[#042354]">₹{p.price}</span>
+        </div>
       </div>
-      {/* Product Info */}
-      <div className="p-4 flex flex-col gap-1">
-        <h3 className="text-sm font-medium text-black hover:text-gray-400 transition">{p.title}</h3>
-        <span className="text-sm font-semibold text-[#042354]">₹{p.price}</span>
-      </div>
-    </div>
-      </Link>
+    </Link>
   ))}
 </div>
+
 
 
 

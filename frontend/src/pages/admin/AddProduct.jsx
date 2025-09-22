@@ -1,11 +1,12 @@
-import { useState,useRef } from "react"
-
+import { useState, useRef, useEffect } from "react"
 import { useAuth } from "../../state/AuthContext.jsx"
+
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
+  CardFooter 
 } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -18,8 +19,10 @@ import {
   SelectContent,
   SelectItem,
 } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch.jsx"
 
 export default function AddProduct() {
+  const [categories, setCategories] = useState([])
   const fileInputRef = useRef(null)
   const { api } = useAuth()
   const [form, setForm] = useState({
@@ -27,8 +30,11 @@ export default function AddProduct() {
     description: "",
     price: "",
     inventory: 0,
-    category: "hoodies",
+    category: "",
     published: true,
+    isNewProduct: true,
+    onSale: true,
+
   })
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState("")
@@ -41,7 +47,6 @@ export default function AddProduct() {
     setMsg("")
 
     try {
-      // 1. Upload images
       let uploadedUrls = []
       if (files.length) {
         const urls = []
@@ -56,7 +61,6 @@ export default function AddProduct() {
         uploadedUrls = urls
       }
 
-      // 2. Payload (no SKU here, backend will auto-generate)
       const payload = {
         title: form.title.trim(),
         description: form.description.trim(),
@@ -65,9 +69,10 @@ export default function AddProduct() {
         inventory: Number(form.inventory),
         category: form.category,
         published: Boolean(form.published),
+        isNewProduct: Boolean(form.isNewProduct),
+        onSale: Boolean(form.onSale),
       }
 
-      // 3. Create product
       await api.post("/products", payload)
 
       setMsg("✅ Product created successfully")
@@ -76,13 +81,13 @@ export default function AddProduct() {
         description: "",
         price: "",
         inventory: 0,
-        category: "hoodies",
+        category: "",
         published: true,
+        isNewProduct: true,
+        onSale: true,
       })
       setFiles([])
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "" // 🔥 clears file input UI
-      }
+      if (fileInputRef.current) fileInputRef.current.value = ""
     } catch (e) {
       setMsg("❌ Failed to create product")
     } finally {
@@ -91,159 +96,181 @@ export default function AddProduct() {
   }
 
   useEffect(() => {
+    async function fetchCategories() {
+      try {
+        const { data } = await api.get("/admin/getCategory")
+        if (data.success) setCategories(data.categories)
+      } catch (err) {
+        console.error(err)
+      }
+    }
+    fetchCategories()
+  }, [])
+
+  useEffect(() => {
     if (!files.length) {
       setPreviews([])
       return
     }
-  
+
     const newPreviews = files.map((f) => ({
       file: f,
       url: URL.createObjectURL(f),
     }))
     setPreviews(newPreviews)
-  
-    // cleanup URLs on unmount or when files change
+
     return () => {
       newPreviews.forEach((p) => URL.revokeObjectURL(p.url))
     }
   }, [files])
 
   return (
-    <div className="max-w-5xl mx-auto py-10">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl">Add Product</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {msg && (
-            <div className="mb-4 text-sm px-3 py-2 rounded bg-gray-100 text-gray-700">
-              {msg}
-            </div>
-          )}
-
-          <form
-            onSubmit={submit}
-            className="grid grid-cols-1 md:grid-cols-3 gap-6"
-          >
+    <div className="max-w-5xl mx-auto p-6">
+    <Card>
+      {/* HEADER */}
+      <CardHeader className="border-b">
+        <CardTitle className="text-2xl font-semibold">Add Product</CardTitle>
+      </CardHeader>
+  
+      {/* CONTENT */}
+      <CardContent className="pt-6">
+        {msg && (
+          <div className="mb-6 text-sm px-4 py-3 rounded-md bg-muted text-muted-foreground border">
+            {msg}
+          </div>
+        )}
+  
+        <form onSubmit={submit} className="space-y-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             {/* LEFT SIDE */}
-            <div className="md:col-span-2 space-y-4">
+            <div className="space-y-6">
               <div>
                 <Label>Title</Label>
                 <Input
                   value={form.title}
-                  onChange={(e) =>
-                    setForm({ ...form, title: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, title: e.target.value })}
                   required
+                  placeholder="Enter product title"
                 />
               </div>
+  
               <div>
                 <Label>Description</Label>
                 <Textarea
                   rows={8}
                   value={form.description}
-                  onChange={(e) =>
-                    setForm({ ...form, description: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  placeholder="Write a short description..."
                 />
               </div>
-            </div>
-
-            {/* RIGHT SIDE */}
-            <div className="space-y-4">
-              {/* Image Upload */}
+  
               <div>
-  <Label>Upload Images</Label>
-  <Input
-    ref={fileInputRef}
-    type="file"
-    multiple
-    accept="image/*"
-    onChange={(e) => setFiles(Array.from(e.target.files || []))}
-  />
-  {previews.length > 0 && (
-    <div className="mt-3 grid grid-cols-4 gap-2">
-      {previews.map((p, i) => (
-        <img
-          key={i}
-          src={p.url}
-          alt={`preview-${i}`}
-          className="aspect-square object-cover rounded border"
-        />
-      ))}
-    </div>
-  )}
-</div>
-
-
+                <Label>Upload Images</Label>
+                <Input
+                  ref={fileInputRef}
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                />
+                {previews.length > 0 && (
+                  <div className="mt-4 grid grid-cols-4 gap-3">
+                    {previews.map((p, i) => (
+                      <img
+                        key={i}
+                        src={p.url}
+                        alt={`preview-${i}`}
+                        className="aspect-square object-cover rounded-lg border"
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+  
+            {/* RIGHT SIDE */}
+            <div className="space-y-6">
               <div>
                 <Label>Price</Label>
                 <Input
                   type="number"
                   step="0.01"
                   value={form.price}
-                  onChange={(e) =>
-                    setForm({ ...form, price: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, price: e.target.value })}
                   required
+                  placeholder="0.00"
                 />
               </div>
-
+  
               <div>
                 <Label>Inventory</Label>
                 <Input
                   type="number"
                   value={form.inventory}
-                  onChange={(e) =>
-                    setForm({ ...form, inventory: e.target.value })
-                  }
+                  onChange={(e) => setForm({ ...form, inventory: e.target.value })}
+                  placeholder="0"
                 />
               </div>
-
+  
               <div>
                 <Label>Category</Label>
                 <Select
                   value={form.category}
-                  onValueChange={(v) =>
-                    setForm({ ...form, category: v })
-                  }
+                  onValueChange={(v) => setForm({ ...form, category: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue />
+                    <SelectValue placeholder="Select a category" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="hoodies">Hoodies</SelectItem>
-                    <SelectItem value="jackets">Jackets</SelectItem>
-                    <SelectItem value="tshirts">T-Shirts</SelectItem>
-                    <SelectItem value="pants">Pants</SelectItem>
-                    <SelectItem value="accessories">Accessories</SelectItem>
+                    {categories.map((c) => (
+                      <SelectItem key={c._id} value={c.name}>
+                        {c.name}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
-
-              <div className="flex items-center gap-2">
-                <input
-                  id="published"
-                  type="checkbox"
-                  checked={form.published}
-                  onChange={(e) =>
-                    setForm({ ...form, published: e.target.checked })
-                  }
-                />
+  
+              {/* Toggles */}
+              <div className="flex items-center justify-between">
                 <Label htmlFor="published">Published</Label>
+                <Switch
+                  id="published"
+                  checked={form.published}
+                  onCheckedChange={(v) => setForm({ ...form, published: v })}
+                />
               </div>
-
-              <Button
-                type="submit"
-                disabled={saving}
-                className="w-full"
-              >
-                {saving ? "Saving..." : "Create Product"}
-              </Button>
+  
+              <div className="flex items-center justify-between">
+                <Label htmlFor="isNew">New Product?</Label>
+                <Switch
+                  id="isNew"
+                  checked={form.isNewProduct || false}
+                  onCheckedChange={(v) => setForm({ ...form, isNewProduct: v })}
+                />
+              </div>
+  
+              <div className="flex items-center justify-between">
+                <Label htmlFor="onSale">On Sale?</Label>
+                <Switch
+                  id="onSale"
+                  checked={form.onSale || false}
+                  onCheckedChange={(v) => setForm({ ...form, onSale: v })}
+                />
+              </div>
             </div>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+          </div>
+  
+          {/* FOOTER */}
+          <CardFooter className="border-t pt-6 flex justify-end">
+            <Button type="submit" disabled={saving}>
+              {saving ? "Saving..." : "Create Product"}
+            </Button>
+          </CardFooter>
+        </form>
+      </CardContent>
+    </Card>
+  </div>
+  
   )
 }

@@ -6,18 +6,18 @@ export default function Users() {
   const [users, setUsers] = useState([])
 
   async function load() {
-    const { data } = await api.get('/admin/users')
+    const { data } = await api.get('/admin')
     setUsers(data.items)
   }
   useEffect(() => { load() }, [])
 
   async function setRole(id, role) {
-    await api.patch(`/admin/users/${id}`, { role })
+    await api.patch(`/admin/${id}`, { role })
     await load()
   }
 
   async function remove(id) {
-    await api.delete(`/admin/users/${id}`)
+    await api.delete(`/admin/${id}`)
     await load()
   }
 

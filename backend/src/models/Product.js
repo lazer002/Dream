@@ -16,6 +16,8 @@ const productSchema = new mongoose.Schema(
 
     inventory: { type: Number, default: 0 },
     published: { type: Boolean, default: true },
+    onSale: { type: Boolean, default: false },
+    isNewProduct: { type: Boolean, default: false },
 
     // replace tags with category
     category: {

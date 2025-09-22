@@ -2,7 +2,7 @@
 
 import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMemo, useState } from 'react'
-import { Menu, LogOut, Search, Bell, LayoutGrid, Package, PlusSquare, Users } from 'lucide-react'
+import { Menu, LogOut, Search, Bell, LayoutGrid, Package, PlusSquare, Users,Tag  } from 'lucide-react'
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
@@ -13,6 +13,7 @@ export default function AdminLayout() {
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Add Product', href: '/admin/products/new', icon: PlusSquare },
     { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Category', href: '/admin/category', icon: Tag  },
   ]), [])
 
   // Check active tab

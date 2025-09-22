@@ -26,7 +26,7 @@ app.use('/api/auth', authRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/cart', cartRouter)
 app.use('/api/orders', ordersRouter)
-app.use('/api/admin/users', adminUsersRouter)
+app.use('/api/admin', adminUsersRouter)
 app.use('/api/admin/upload', uploadRouter)
 app.use('/api/admin/stats', statsRouter)
 

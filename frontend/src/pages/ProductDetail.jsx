@@ -1,6 +1,5 @@
 // src/pages/ProductDetail.jsx
 import { useState, useEffect } from "react"
-import ProductCard from "../components/ProductCard.jsx"
 import { useParams } from "react-router-dom"
 import { useCart } from "../state/CartContext.jsx"
 import { Button } from "@/components/ui/button"

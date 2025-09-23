@@ -1,4 +1,5 @@
 import { Routes, Route, Link, Navigate, useLocation } from "react-router-dom";
+
 import Home from "./pages/Home.jsx";
 import Products from "./pages/Products.jsx";
 import About from "./pages/About.jsx";
@@ -16,82 +17,16 @@ import AdminAddProduct from "./pages/admin/AddProduct.jsx";
 import { AuthProvider, useAuth } from "./state/AuthContext.jsx";
 import { CartProvider } from "./state/CartContext.jsx";
 import CategoriesAdmin from "./pages/admin/Category.jsx";
-import { Facebook, Instagram } from "lucide-react";
-// Reusable navigation links for public header
-const navLinks = [
-  { name: "Home", path: "/" },
-  { name: "Products", path: "/products" },
-  { name: "About", path: "/about" },
-  { name: "Contact", path: "/contact" },
-];
+import { Facebook, Instagram ,ShoppingCart,Search  } from "lucide-react";
+import { Menu, MenuItem, MenuContent, MenuTrigger } from "@/components/ui/menu";
+import { Button} from "@/components/ui/button.jsx";
+import React, {useState}from "react";
+import  Avatar  from "@/components/ui/avatar";
+import Header from "./components/Header.jsx";
 
-function Header() {
-  const { user, logout } = useAuth();
 
-  return (
-    <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
-      <div className="h-16 flex items-center justify-between container mx-auto px-4">
-        <div className="flex items-center gap-8">
-          <Link to="/" className="font-semibold text-lg">
-            Dream Shop
-          </Link>
-          <nav className="hidden md:flex items-center gap-6 text-sm">
-            {navLinks.map((link) => (
-              <Link
-                key={link.name}
-                to={link.path}
-                className="hover:text-brand-600 transition-colors"
-              >
-                {link.name}
-              </Link>
-            ))}
-          </nav>
-        </div>
-        <nav className="flex items-center gap-4 text-sm">
-          <Link
-            to="/cart"
-            className="hover:text-brand-600 transition-colors"
-          >
-            Cart
-          </Link>
-          {user ? (
-            <>
-              {user.role === "admin" && (
-                <Link
-                  to="/admin"
-                  className="hover:text-brand-600 transition-colors"
-                >
-                  Admin
-                </Link>
-              )}
-              <button
-                onClick={logout}
-                className="text-gray-600 hover:text-gray-900 transition-colors"
-              >
-                Logout
-              </button>
-            </>
-          ) : (
-            <>
-              <Link
-                to="/login"
-                className="hover:text-brand-600 transition-colors"
-              >
-                Login
-              </Link>
-              <Link
-                to="/register"
-                className="hover:text-brand-600 transition-colors"
-              >
-                Sign up
-              </Link>
-            </>
-          )}
-        </nav>
-      </div>
-    </header>
-  );
-}
+
+
 
 // Protect admin routes
 function AdminRoute({ children }) {

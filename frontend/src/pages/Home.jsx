@@ -178,20 +178,20 @@ export default function Home() {
       Shop by Category
     </h2>
 
-    <div className="grid grid-cols-2 md:grid-cols-2">
+    <div className="grid grid-cols-2">
       {categories.map((c, i) => (
         <Link
           key={i}
           to={c.link}
           className={`relative group overflow-hidden shadow hover:shadow-lg ${
-            i === categories.length - 1 ? "col-span-2 object-none" : "object-cover"
+            i === 2 ? "col-span-2" : "" // Make the 3rd category span both columns
           }`}
         >
           {/* Background Image */}
           <img
             src={c.image}
             alt={c.name}
-            className="w-full  group-hover:scale-110 transition-transform"
+            className="w-full  object-cover group-hover:scale-110 transition-transform"
           />
 
           {/* Overlay */}
@@ -207,6 +207,7 @@ export default function Home() {
     </div>
   </div>
 </section>
+
 
 
     {/* Featured / Best Selling */}
@@ -311,31 +312,6 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Testimonials / Social Proof */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <h2 className="text-3xl font-bold text-center mb-8">What Our Customers Say</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          <div className="p-6 bg-white rounded-2xl shadow hover:shadow-lg transition">
-            <p className="text-gray-700 mb-4">"Amazing quality and fast delivery. Totally recommend!"</p>
-            <h3 className="font-semibold">– Jane D.</h3>
-          </div>
-          <div className="p-6 bg-white rounded-2xl shadow hover:shadow-lg transition">
-            <p className="text-gray-700 mb-4">"I love the app, the exclusive discounts are awesome!"</p>
-            <h3 className="font-semibold">– Raj K.</h3>
-          </div>
-          <div className="p-6 bg-white rounded-2xl shadow hover:shadow-lg transition">
-            <p className="text-gray-700 mb-4">"Best shopping experience ever. Great customer support."</p>
-            <h3 className="font-semibold">– Priya S.</h3>
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Banner */}
-      <section className="bg-gradient-to-r from-pink-500 via-purple-500 to-indigo-500 py-16 text-white text-center rounded-3xl relative overflow-hidden">
-        <h2 className="text-4xl font-extrabold mb-4">Weekend Special: Flat 15% Off!</h2>
-        <p className="mb-6">On all your favorite streetwear picks. Limited time only.</p>
-        <Button className="bg-white text-purple-600 px-8 py-3 font-semibold hover:bg-gray-100">Shop Now</Button>
-      </section>
 
       <section className="bg-purple-50 py-16">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

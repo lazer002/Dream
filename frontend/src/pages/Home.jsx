@@ -223,7 +223,7 @@ export default function Home() {
         return (
           <Card
             key={p._id}
-            className="group overflow-hidden rounded-2xl shadow hover:shadow-lg transition relative"
+            className="group overflow-hidden  hover:shadow-lg transition relative"
           >
             <Link to={`/product/${p._id}`} className="relative">
               <img

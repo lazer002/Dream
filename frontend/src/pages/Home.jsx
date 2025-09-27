@@ -284,118 +284,119 @@ export default function Home() {
       </section>
 
 
-      <section className="bg-purple-50 py-16">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Heading & Intro */}
-        <div className="grid grid-cols-1 pb-10 gap-8 text-center">
-          <h2 className="text-3xl font-bold">Reach out to us</h2>
-          <div className="text-gray-700 space-y-2">
-            <p><strong>Got questions, ideas, or just wanna vibe with us?</strong></p>
-            <p>
-              At <strong>Dream</strong>, we’re all ears—whether you’ve got a sick T-shirt idea, need help with an order, or just wanna say hey. Hit us up and we’ll get back to you real quick. Your thoughts fuel our fire.
-            </p>
-          </div>
-        </div>
+      <section className="py-20 ">
+  <div className="max-w-4xl mx-auto px-6 lg:px-8">
+    {/* Heading */}
+    <div className="text-center mb-16">
+      <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
+        Reach Out To Us
+      </h2>
+      <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">
+        Got questions, ideas, or just wanna vibe with us? At <span className="font-bold">Dream</span>, we’re all ears.
+      </p>
+    </div>
 
-        {/* Contact Form */}
-        <div className="text-5xl font-bold">        Contact form          </div>
-        <form
-          method="post"
-          action="/contact#ContactForm"
-          className="mt-10 grid grid-cols-1 md:grid-cols-2 gap-6  rounded-lg "
+    {/* Form */}
+    <form method="post" action="/contact#ContactForm" className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+      {/* Name */}
+      <div className="relative">
+        <input
+          type="text"
+          name="contact[Name]"
+          id="ContactForm-name"
+          placeholder=" "
+          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-gray-700 rounded-md focus:border-pink-500 focus:outline-none transition"
+          required
+        />
+        <label
+          htmlFor="ContactForm-name"
+          className="absolute left-4 top-0 -translate-y-1 text-gray-400 text-sm transition-all duration-200
+          peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
+          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-pink-500 peer-focus:text-sm
+          peer-valid:top-0 peer-valid:-translate-y-1 peer-valid:text-pink-500 peer-valid:text-sm"
         >
-
-          {/* Name */}
-          <div className="relative">
-            <input
-              type="text"
-              name="contact[Name]"
-              id="ContactForm-name"
-              placeholder=" "
-              className="peer w-full px-4 pt-5 pb-2 border border-gray-300  focus:ring-2 focus:ring-purple-400 focus:outline-none"
-              required
-            />
-            <label
-              htmlFor="ContactForm-name"
-              className="absolute left-4 top-2 text-gray-400 text-sm transition-all 
-                         peer-placeholder-shown:top-5 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
-                         peer-focus:top-2 peer-focus:text-purple-700 peer-focus:text-sm"
-            >
-              Name
-            </label>
-          </div>
-
-          {/* Email */}
-          <div className="relative">
-            <input
-              type="email"
-              name="contact[email]"
-              id="ContactForm-email"
-              placeholder=" "
-              className="peer w-full px-4 pt-5 pb-2 border border-gray-300  focus:ring-2 focus:ring-purple-400 focus:outline-none"
-              required
-            />
-            <label
-              htmlFor="ContactForm-email"
-              className="absolute left-4 top-2 text-gray-400 text-sm transition-all 
-                         peer-placeholder-shown:top-5 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
-                         peer-focus:top-2 peer-focus:text-purple-700 peer-focus:text-sm"
-            >
-              Email
-            </label>
-          </div>
-
-          {/* Phone */}
-          <div className="relative col-span-2">
-            <input
-              type="tel"
-              name="contact[Phone number]"
-              id="ContactForm-phone"
-              placeholder=" "
-              pattern="[0-9\-]*"
-              className="peer w-full px-4 pt-5 pb-2 border border-gray-300  focus:ring-2 focus:ring-purple-400 focus:outline-none"
-            />
-            <label
-              htmlFor="ContactForm-phone"
-              className="absolute left-4 top-2 text-gray-400 text-sm transition-all 
-                         peer-placeholder-shown:top-5 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
-                         peer-focus:top-2 peer-focus:text-purple-700 peer-focus:text-sm"
-            >
-              Phone number
-            </label>
-          </div>
-
-          {/* Comment */}
-          <div className="relative md:col-span-2">
-            <textarea
-              name="contact[Comment]"
-              id="ContactForm-body"
-              rows={6}
-              placeholder=" "
-              className="peer w-full px-4 pt-5 pb-2 border border-gray-300  focus:ring-2 focus:ring-purple-400 focus:outline-none resize-none"
-            />
-            <label
-              htmlFor="ContactForm-body"
-              className="absolute left-4 top-2 text-gray-400 text-sm transition-all 
-                         peer-placeholder-shown:top-5 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
-                         peer-focus:top-2 peer-focus:text-purple-700 peer-focus:text-sm"
-            >
-              Comment
-            </label>
-          </div>
-
-          {/* Submit Button */}
-          <div className="text-start md:col-span-2">
-            <button
-              type="submit"
-              className="px-10 py-3 bg-purple-600 text-white font-semibold  hover:bg-purple-700 transition"
-            >
-              Send
-            </button>
-          </div>
-        </form>
+          Name
+        </label>
       </div>
-    </section>
+
+      {/* Email */}
+      <div className="relative">
+        <input
+          type="email"
+          name="contact[email]"
+          id="ContactForm-email"
+          placeholder=" "
+          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-gray-700 rounded-md focus:border-pink-500 focus:outline-none transition"
+          required
+        />
+        <label
+          htmlFor="ContactForm-email"
+          className="absolute left-4 top-0 -translate-y-1 text-gray-400 text-sm transition-all duration-200
+          peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
+          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-pink-500 peer-focus:text-sm
+          peer-valid:top-0 peer-valid:-translate-y-1 peer-valid:text-pink-500 peer-valid:text-sm"
+        >
+          Email
+        </label>
+      </div>
+
+      {/* Phone */}
+      <div className="relative md:col-span-2">
+        <input
+          type="tel"
+          name="contact[Phone number]"
+          id="ContactForm-phone"
+          pattern="[0-9\-]*"
+          placeholder=" "
+          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-gray-700 rounded-md focus:border-pink-500 focus:outline-none transition"
+        />
+        <label
+          htmlFor="ContactForm-phone"
+          className="absolute left-4 top-0 -translate-y-1 text-gray-400 text-sm transition-all duration-200
+          peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
+          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-pink-500 peer-focus:text-sm
+          peer-valid:top-0 peer-valid:-translate-y-1 peer-valid:text-pink-500 peer-valid:text-sm"
+        >
+          Phone number
+        </label>
+      </div>
+
+      {/* Comment */}
+      <div className="relative md:col-span-2">
+        <textarea
+          name="contact[Comment]"
+          id="ContactForm-body"
+          rows={5}
+          placeholder=" "
+          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-gray-700 rounded-md focus:border-pink-500 focus:outline-none resize-none transition"
+        />
+        <label
+          htmlFor="ContactForm-body"
+          className="absolute left-4 top-0 -translate-y-1 text-gray-400 text-sm transition-all duration-200
+          peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
+          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-pink-500 peer-focus:text-sm
+          peer-valid:top-0 peer-valid:-translate-y-1 peer-valid:text-pink-500 peer-valid:text-sm"
+        >
+          Comment
+        </label>
+      </div>
+
+      {/* Submit */}
+      <div className="md:col-span-2 text-center mt-4">
+        <button
+          type="submit"
+          className="px-12 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-purple-500 hover:to-pink-500 font-bold rounded-full transition-all shadow-xl hover:shadow-2xl"
+        >
+          Send
+        </button>
+      </div>
+    </form>
+  </div>
+</section>
+
+
+
 <FAQ />
 <FeaturesCarousel />
 

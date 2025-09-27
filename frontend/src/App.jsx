@@ -23,6 +23,7 @@ import { Button} from "@/components/ui/button.jsx";
 import React, {useState}from "react";
 import  Avatar  from "@/components/ui/avatar";
 import Header from "./components/Header.jsx";
+import Footer from "./components/Footer.jsx";
 
 
 
@@ -77,115 +78,7 @@ export default function App() {
           </main>
 
           {!isAdminRoute && (
- <footer className="bg-black text-gray-200 pt-12 pb-6">
- <div className=" mx-auto px-4 sm:px-6 lg:px-8">
-   {/* TOP */}
-   <div className="grid grid-cols-1 md:grid-cols-4 gap-10 border-b border-purple-700 pb-10">
-     {/* Brand Info */}
-     <div>
-       <img
-         src="/logo.png"
-         alt="Bowchika"
-         className="h-10 mb-4"
-       />
-       <h2 className="text-xl font-bold">Bowchika – Wear Your Vibe</h2>
-       <p className="text-sm mt-3">
-         From street chaos to spiritual sass, Bowchika’s tees are made for
-         the bold, the chill, and the unapologetically real. Designed in
-         India. Worn by rebels.
-       </p>
-       {/* Socials */}
-       <div className="flex gap-4 mt-4">
-         <a
-           href="https://www.facebook.com/profile.php?id=61577897545414"
-           target="_blank"
-           rel="noreferrer"
-           className="p-2 rounded-full bg-purple-800 hover:bg-purple-700 transition"
-         >
-           <Facebook className="w-5 h-5 text-white" />
-         </a>
-         <a
-           href="https://www.instagram.com/bowchikastore"
-           target="_blank"
-           rel="noreferrer"
-           className="p-2 rounded-full bg-purple-800 hover:bg-purple-700 transition"
-         >
-           <Instagram className="w-5 h-5 text-white" />
-         </a>
-       </div>
-     </div>
-
-     {/* Links */}
-     <div>
-       <h3 className="text-lg font-semibold mb-4">Know Bowchika</h3>
-       <ul className="space-y-2 text-sm">
-         <li>
-           <Link to="/pages/about-us" className="hover:text-white">
-             About Us
-           </Link>
-         </li>
-         <li>
-           <Link to="/pages/contact" className="hover:text-white">
-             Contact Us
-           </Link>
-         </li>
-       </ul>
-     </div>
-
-     <div>
-       <h3 className="text-lg font-semibold mb-4">Policies</h3>
-       <ul className="space-y-2 text-sm">
-         <li>
-           <Link to="/policies/privacy-policy" className="hover:text-white">
-             Privacy Policy
-           </Link>
-         </li>
-         <li>
-           <Link to="/policies/refund-policy" className="hover:text-white">
-             Refund Policy
-           </Link>
-         </li>
-         <li>
-           <Link to="/policies/shipping-policy" className="hover:text-white">
-             Shipping Policy
-           </Link>
-         </li>
-         <li>
-           <Link to="/policies/terms-of-service" className="hover:text-white">
-             Terms of Service
-           </Link>
-         </li>
-       </ul>
-     </div>
-
-     {/* Newsletter */}
-     <div>
-       <h3 className="text-lg font-semibold mb-4">Subscribe</h3>
-       <form className="flex flex-col sm:flex-row gap-2">
-         <input
-           type="email"
-           placeholder="Enter your email"
-           className="w-full px-3 py-2 rounded-md text-black focus:outline-none"
-         />
-         <button
-           type="submit"
-           className="px-4 py-2 bg-white text-purple-900 rounded-md hover:bg-gray-200 transition"
-         >
-           Subscribe
-         </button>
-       </form>
-     </div>
-   </div>
-
-   {/* BOTTOM */}
-   <div className="mt-8 flex flex-col md:flex-row items-center justify-between text-sm text-gray-400">
-     <p>© 2025 Bowchika. All rights reserved.</p>
-     <p className="mt-2 md:mt-0">
-       Powered by <span className="text-white">React + Tailwind</span>
-     </p>
-   </div>
- </div>
-</footer>
+<Footer />
           )}
         </div>
       </CartProvider>

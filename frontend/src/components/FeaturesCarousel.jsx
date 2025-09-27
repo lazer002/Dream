@@ -58,10 +58,10 @@ const FeaturesCarousel = () => {
                   }`}
               >
                 {feature.icon}
-                <h3 className="text-xl font-semibold text-gray-900 mt-4 mb-2">
+                <h3 className="text-xl font-bold text-[16px] text-gray-900 mt-4 mb-2 uppercase">
                   {feature.title}
                 </h3>
-                <p className="text-gray-700 text-sm">{feature.description}</p>
+                <p className="text-gray-700 font-bold text-[12px]">{feature.description}</p>
               </div>
             </SwiperSlide>
           ))}

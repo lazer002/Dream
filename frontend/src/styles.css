@@ -4,12 +4,20 @@
 
 :root {
   color-scheme: light;
+  box-sizing: none ;
 }
 
 body {
   @apply bg-white text-gray-900;
 }
 
+/* Remove all default focus outlines */
+
+/* Remove focus ring from buttons in Safari/Chrome */
+button:focus, input:focus, textarea:focus, select:focus {
+  outline: none !important;
+  box-shadow: none !important;
+}
 
 
 @layer base {
@@ -68,8 +76,6 @@ body {
   }
 }
 
-
-
 @layer base {
   * {
     @apply border-border;
@@ -77,5 +83,42 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+
+
+  input[type='text'],
+  input:not([type]),
+  input[type='email'],
+  input[type='url'],
+  input[type='password'],
+  input[type='number'],
+  input[type='date'],
+  input[type='datetime-local'],
+  input[type='month'],
+  input[type='search'],
+  input[type='tel'],
+  input[type='time'],
+  input[type='week'],
+  input[multiple],
+  textarea,
+  select {
+      -webkit-appearance: none !important;
+      -moz-appearance: none !important;
+      appearance: none !important;
+      background-color: transparent !important;
+      border-color: transparent !important;
+      border-width: 0px !important;
+      border-radius: 0px !important;
+      padding-top: 0.5rem !important;
+      padding-right: 0.75rem !important;
+      padding-bottom: 0.5rem !important;
+      padding-left: 0.75rem !important;
+      font-size: 1rem !important;
+      line-height: 1.5rem !important;
+      --tw-shadow: 0 0 #0000 !important;
+      outline: none !important;
+      box-shadow: none !important;
+  }
+  
+  
 }
 

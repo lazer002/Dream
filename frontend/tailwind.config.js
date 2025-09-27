@@ -4,6 +4,9 @@ export default {
 	content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
 	theme: {
 	  extend: {
+		outline: {
+			none: ['0', 'none'],
+		  },
 		colors: {
 		  // Replace brand 500 with your navy or add new navy
 		  brand: {
@@ -79,6 +82,23 @@ export default {
 		}
 	  }
 	},
-	plugins: [require('@tailwindcss/forms'), require("tailwindcss-animate")]
+	plugins: [require('@tailwindcss/forms'), require("tailwindcss-animate"),
+		function({ addBase }) {
+			addBase({
+			  'input, textarea, select, button': {
+				outline: 'none !important',
+				boxShadow: 'none !important',
+			  },
+			  '*:focus': {
+				outline: 'none !important',
+				boxShadow: 'none !important',
+			  },
+			  'input:-webkit-autofill': {
+				'-webkit-box-shadow': '0 0 0px 1000px #1B1A1A inset !important',
+				'-webkit-text-fill-color': '#fff !important',
+			  },
+			})
+		  }
+	]
   }
   

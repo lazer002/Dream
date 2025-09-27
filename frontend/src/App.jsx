@@ -77,8 +77,8 @@ export default function App() {
           </main>
 
           {!isAdminRoute && (
- <footer className="bg-purple-900 text-gray-200 pt-12 pb-6">
- <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+ <footer className="bg-black text-gray-200 pt-12 pb-6">
+ <div className=" mx-auto px-4 sm:px-6 lg:px-8">
    {/* TOP */}
    <div className="grid grid-cols-1 md:grid-cols-4 gap-10 border-b border-purple-700 pb-10">
      {/* Brand Info */}

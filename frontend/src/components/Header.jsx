@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { ShoppingCart, Search, User, Menu, ChevronDown } from "lucide-react";
-import {Link} from "react-router-dom";
+import { Link } from "react-router-dom";
 
 const navItems = [
   {
@@ -26,6 +26,18 @@ const navItems = [
         ],
       },
     ],
+    promos: [
+      {
+        title: "Drift Jacket",
+        img: "https://mypepr.com/cdn/shop/files/Drift_Jacket.webp",
+        url: "/products/drift-jacket",
+      },
+      {
+        title: "Drift Joggers",
+        img: "https://mypepr.com/cdn/shop/files/Drift_Joggers.webp",
+        url: "/products/drift-joggers",
+      },
+    ],
   },
   {
     title: "WOMEN",
@@ -46,6 +58,13 @@ const navItems = [
           { title: "Pants", url: "/collections/her-pants" },
           { title: "Joggers", url: "/products/her-drift-joggers" },
         ],
+      },
+    ],
+    promos: [
+      {
+        title: "Her Tank",
+        img: "https://mypepr.com/cdn/shop/files/HER_Tank_3.webp",
+        url: "/products/her-tank",
       },
     ],
   },
@@ -86,25 +105,46 @@ export default function Header() {
                     {item.title}
                     <ChevronDown className="w-4 h-4" />
                   </button>
-                  {/* Mega Menu */}
-                  <div className="absolute left-0 top-full bg-white shadow-lg p-6 hidden group-hover:grid grid-cols-2 gap-8">
-                    {item.mega.map((col) => (
-                      <div key={col.heading}>
-                        <h3 className="font-bold mb-2">{col.heading}</h3>
-                        <ul className="space-y-1">
-                          {col.links.map((link) => (
-                            <li key={link.title}>
-                              <Link
-                                href={link.url}
-                                className="text-gray-600 hover:text-black text-sm"
-                              >
-                                {link.title}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    ))}
+                  {/* Full Width Mega Menu */}
+                  <div className="absolute left-0 top-full w-screen bg-white shadow-lg border-t border-gray-100 hidden group-hover:block">
+                    <div className="max-w-7xl mx-auto grid grid-cols-4 gap-8 p-8">
+                      {/* Subcategories */}
+                      {item.mega.map((col) => (
+                        <div key={col.heading}>
+                          <h3 className="font-bold mb-2">{col.heading}</h3>
+                          <ul className="space-y-1">
+                            {col.links.map((link) => (
+                              <li key={link.title}>
+                                <Link
+                                  to={link.url}
+                                  className="text-gray-600 hover:text-black text-sm"
+                                >
+                                  {link.title}
+                                </Link>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ))}
+
+                      {/* Promo product images */}
+                      {item.promos?.map((promo) => (
+                        <Link
+                          key={promo.title}
+                          to={promo.url}
+                          className="block group overflow-hidden"
+                        >
+                          <img
+                            src={promo.img}
+                            alt={promo.title}
+                            className="w-full h-40 object-cover rounded-md group-hover:opacity-90 transition"
+                          />
+                          <p className="mt-2 text-sm text-gray-700 group-hover:underline">
+                            {promo.title}
+                          </p>
+                        </Link>
+                      ))}
+                    </div>
                   </div>
                 </div>
               ) : item.dropdown ? (
@@ -119,7 +159,7 @@ export default function Header() {
                       {item.dropdown.map((d) => (
                         <li key={d.title}>
                           <Link
-                            href={d.url}
+                            to={d.url}
                             className="text-gray-600 hover:text-black text-sm"
                           >
                             {d.title}
@@ -132,7 +172,7 @@ export default function Header() {
               ) : (
                 <Link
                   key={item.title}
-                  href={item.url}
+                  to={item.url}
                   className="font-semibold hover:text-black"
                 >
                   {item.title}
@@ -143,19 +183,19 @@ export default function Header() {
         </div>
 
         {/* Logo */}
-        <Link href="/" className="font-bold text-2xl">
+        <Link to="/" className="font-bold text-2xl">
           PEPR
         </Link>
 
         {/* Right Icons */}
         <div className="flex items-center gap-4">
-          <Link href="/search">
+          <Link to="/search">
             <Search className="w-6 h-6" />
           </Link>
-          <Link href="/account">
+          <Link to="/account">
             <User className="w-6 h-6" />
           </Link>
-          <Link href="/cart" className="relative">
+          <Link to="/cart" className="relative">
             <ShoppingCart className="w-6 h-6" />
             <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               0
@@ -177,7 +217,7 @@ export default function Header() {
             <ul className="space-y-4">
               {navItems.map((item) => (
                 <li key={item.title}>
-                  <Link href={item.url || "#"}>{item.title}</Link>
+                  <Link to={item.url || "#"}>{item.title}</Link>
                 </li>
               ))}
             </ul>

@@ -3,6 +3,8 @@ import { Link } from "react-router-dom";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import FAQ from "@/components/Faq";
+import FeaturesCarousel from "@/components/FeaturesCarousel";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
@@ -21,109 +23,170 @@ export default function Home() {
       name: "Hoodies",
       image: "/images/3.avif",
       link: "/category/hoodies",
+      description:
+        "Stay cozy and stylish with our premium hoodies, designed for comfort and everyday wear.",
     },
     {
       name: "Jackets",
       image: "/images/4.avif",
       link: "/category/jackets",
+      description:
+        "Our jackets combine style and functionality, keeping you warm and trendy in all seasons.",
     },
     {
       name: "T-Shirts",
       image: "/images/1.avif",
       link: "/category/tshirts",
+      description:
+        "Versatile t-shirts crafted for comfort and style, perfect for casual outings or layering.",
     },
-    {
-      name: "Pants",
-      image: "/images/2.avif",
-      link: "/category/pants",
-    },
+    // {
+    //   name: "Pants",
+    //   image: "/images/2.avif",
+    //   link: "/category/pants",
+    //   description:
+    //     "Comfortable and durable pants designed for both work and leisure, keeping you confident all day.",
+    // },
     {
       name: "Shirts",
       image: "/images/5.avif",
       link: "/category/shirts",
+      description:
+        "Smart and crisp shirts for every occasion, offering a perfect blend of elegance and ease.",
     },
   ];
-
+  
   return (
     <div className="space-y-20">
+      {/* Hero Banner */}
+      <div className="relative w-full overflow-hidden text-center">
+        {/* Desktop Image */}
+        <img
+          className="hidden md:block w-full"
+          src="/images/banner_web.webp"
+          alt="Hero Banner"
+        />
 
+        {/* Mobile Image */}
+        <img
+          className="block md:hidden w-full"
+          src="/images/banner_pon.webp"
+          alt="Hero Banner Mobile"
+        />
 
-<div className="relative w-full overflow-hidden text-center">
-      {/* Desktop Image */}
-      <img
-        className="hidden md:block w-full"
-        src="/images/banner_web.webp"
-        alt="Hero Banner"
-      />
+        {/* Content */}
+        <div className="absolute inset-0 flex flex-col items-start max-w-7xl mx-auto justify-center text-white px-4">
+          <h2 className="text-3xl md:text-7xl font-semibold mb-4 w-1/2 text-left">
+            Drip in Comfort, Slay in Style
+          </h2>
 
-      {/* Mobile Image */}
-      <img
-        className="block md:hidden w-full"
-        src="/images/banner_pon.webp"
-        alt="Hero Banner Mobile"
-      />
+          <span className="block w-20 h-1 bg-gradient-to-r from-orange-500 to-pink-600 mb-6"></span>
 
-      {/* Content */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center text-white px-4">
-        <h2 className="text-3xl md:text-5xl font-semibold mb-4">
-          Celebrate Comfort in Motion
-        </h2>
-
-        <span className="block w-20 h-1 bg-gradient-to-r from-orange-500 to-pink-600 mb-6"></span>
-
-        <div>
-          <a
-            href="/collections/drift-collection"
-            className="inline-block bg-black hover:bg-pink-600 transition text-white px-6 py-3 rounded font-medium"
-          >
-            Shop Drift
-          </a>
+          <div>
+            <a
+              href="/collections/drift-collection"
+              className="inline-block bg-black hover:bg-pink-600 transition text-white px-6 py-3 rounded font-medium"
+            >
+              Shop The Drip
+            </a>
+          </div>
         </div>
       </div>
-    </div>
 
-<section className="bg-purple-50 py-16">
-  <div>
-    <h2 className="text-3xl font-bold text-center mb-10">
-      Shop by Category
-    </h2>
 
-    <div className="grid grid-cols-2">
-      {categories.map((c, i) => (
-        <Link
-          key={i}
-          to={c.link}
-          className={`relative group overflow-hidden shadow hover:shadow-lg ${
-            i === 2 ? "col-span-2" : "" // Make the 3rd category span both columns
-          }`}
-        >
-          {/* Background Image */}
-          <img
-            src={c.image}
-            alt={c.name}
-            className="w-full  object-cover group-hover:scale-110 transition-transform"
-          />
+{/* Explore Categories */}
 
-          {/* Overlay */}
-          <div className="absolute inset-0 bg-black/40 group-hover:bg-black/50 transition" />
+      <section className=" py-20">
+      <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl text-center">
+        <div className="text-4xl font-extrabold text-center mb-16 tracking-wide w-2/3">
+        Every step forward, however gentle, carries relentless progress and inner peace, shaping who you are meant to be
+        </div>
 
-          {/* Text */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-white px-4">
-            <h3 className="text-xl font-semibold">{c.name}</h3>
-            <p className="text-sm opacity-80 mt-1">Explore More</p>
-          </div>
-        </Link>
-      ))}
-    </div>
-  </div>
-</section>
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2">
+          {categories.map((c, i) => (
+            <Link
+              key={i}
+              to={c.link}
+              className="relative group perspective cursor-pointer"
+            >
+              {/* Card */}
+              <div className="relative bg-gray-800 rounded-xl overflow-hidden shadow-2xl transform transition-transform duration-500 group-hover:rotate-3 group-hover:scale-105">
+                {/* Image */}
+                <img
+                  src={c.image}
+                  alt={c.name}
+                  className="w-full h-[80vh] object-cover brightness-90 transition duration-500 group-hover:brightness-110"
+                />
+
+                {/* Glowing Border */}
+                <div className="absolute inset-0 border-4 border-transparent rounded-xl group-hover:border-gray-500/70 animate-pulse"></div>
+
+                {/* Text Overlay */}
+                <div className="absolute inset-0 flex flex-col justify-end p-6 bg-gradient-to-t from-black/70 to-transparent">
+                  <h3 className="text-2xl font-bold text-white mb-2">{c.name}</h3>
+                  <p className="text-sm text-gray-300 mb-4">{c.description}</p>
+
+                  {/* Floating Button */}
+                  <Button className="bg-gray-900 text-white font-semibold px-6 py-2 rounded-full shadow-lg hover:bg-gray-800 transition transform hover:-translate-y-1">
+                    Explore
+                  </Button>
+                </div>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </div>
+    </section>
+
+
+
+
+
 
 
 
     {/* Featured / Best Selling */}
-<section className="bg-purple-50 pt-12 pb-16">
+    <section className="bg-purple-50 pt-12 pb-16">
   <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-    <h2 className="text-3xl font-bold mb-6 text-center">Featured Products</h2>
+    {/* Section Header */}
+    <div className="flex flex-col md:flex-row items-center justify-between mb-8">
+      <div className="flex items-center gap-4 mb-4 md:mb-0">
+        <h2 className="text-3xl font-bold">FEATURED</h2>
+        {/* Category Buttons */}
+        <button
+          onClick={() => hidediv("men-product")}
+          className="px-4 py-2 rounded-md border border-gray-300 bg-gray-100 text-gray-800 hover:bg-gray-200 transition"
+        >
+          MEN
+        </button>
+        <button
+          onClick={() => hidediv("women-product")}
+          className="px-4 py-2 rounded-md border border-gray-900 bg-gray-900 text-white hover:bg-gray-700 transition"
+        >
+          WOMEN
+        </button>
+      </div>
+
+      {/* Discover More */}
+      <a
+        href="/collections/bestseller"
+        className="flex items-center gap-2 text-sm font-semibold text-gray-900 hover:text-purple-600 transition"
+      >
+        DISCOVER MORE
+        <svg
+          role="presentation"
+          focusable="false"
+          width="5"
+          height="8"
+          className="stroke-current"
+          viewBox="0 0 5 8"
+        >
+          <path d="m.75 7 3-3-3-3" fill="none" stroke="currentColor" strokeWidth="1.5"></path>
+        </svg>
+      </a>
+    </div>
+
+    {/* Products Grid */}
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
       {products.slice(0, 8).map((p) => {
         const discountPercent = p.originalPrice
@@ -133,13 +196,11 @@ export default function Home() {
         return (
           <Card
             key={p._id}
-            className="group overflow-hidden  hover:shadow-lg transition relative"
+            className="group overflow-hidden rounded-lg hover:shadow-lg transition relative bg-white"
           >
             <Link to={`/product/${p._id}`} className="relative">
-              <img
-                src={p.images?.[0] || "https://via.placeholder.com/400x400?text=No+Image"}
-                alt={p.title}
-                className="w-full h-56 object-cover group-hover:scale-105 transition-transform"
+              <div className="w-full h-56 bg-cover bg-center group-hover:scale-105 transition-transform"
+                   style={{ backgroundImage: `url(${p.images?.[0] || "https://via.placeholder.com/400x400?text=No+Image"})` }}
               />
 
               {/* Badges */}
@@ -335,7 +396,8 @@ export default function Home() {
         </form>
       </div>
     </section>
-
+<FAQ />
+<FeaturesCarousel />
 
     </div>
   );

@@ -1,115 +1,189 @@
+"use client";
 import { useState } from "react";
-import { Button } from "@/components/ui/button";
-import  Avatar  from "@/components/ui/avatar";
-import { ShoppingCart, Search } from "lucide-react";
+import { ShoppingCart, Search, User, Menu, ChevronDown } from "lucide-react";
+import {Link} from "react-router-dom";
 
-export default function Header() {
-    const cartCount  =3
-    
-  const categories = [
-  { title: "Hoodies", url: "/products/hoodies" },
-  { title: "T-Shirts", url: "/products/tshirts" },
-  { title: "Shirt", url: "/products/shirt" },
-  { title: "Pants", url: "/products/pants" },
-  { title: "Jacket", url: "/products/jacket" },
+const navItems = [
+  {
+    title: "MEN",
+    url: "/collections/men",
+    mega: [
+      {
+        heading: "TOPWEAR",
+        links: [
+          { title: "Drift Hoodie", url: "/products/drift-hoodie" },
+          { title: "Linen Shirt", url: "/products/linen-shirt" },
+          { title: "Crew Tee", url: "/collections/crew-tee" },
+          { title: "Polo", url: "/collections/polo-tee" },
+        ],
+      },
+      {
+        heading: "BOTTOMWEAR",
+        links: [
+          { title: "Shorts", url: "/collections/shorts" },
+          { title: "Pants", url: "/collections/pants" },
+          { title: "Joggers", url: "/products/drift-joggers" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "WOMEN",
+    url: "/collections/women",
+    mega: [
+      {
+        heading: "TOPWEAR",
+        links: [
+          { title: "Crew", url: "/collections/her-crew" },
+          { title: "Tank", url: "/collections/her-tank" },
+          { title: "Polo", url: "/collections/her-polo" },
+        ],
+      },
+      {
+        heading: "BOTTOMWEAR",
+        links: [
+          { title: "Shorts", url: "/collections/shorts-women" },
+          { title: "Pants", url: "/collections/her-pants" },
+          { title: "Joggers", url: "/products/her-drift-joggers" },
+        ],
+      },
+    ],
+  },
+  {
+    title: "COLLECTIONS",
+    dropdown: [
+      { title: "Drift - Relaxed Fits", url: "/collections/drift-collection" },
+      { title: "Linen Collection", url: "/collections/linen" },
+      { title: "Caelum - For Movement", url: "/collections/caelum" },
+      { title: "Basics - Wardrobe Essentials", url: "/collections/basics" },
+    ],
+  },
+  { title: "CLEARANCE", url: "/pages/clearance-sale" },
 ];
 
-    
+export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-// Flat category menu
+    <header className="sticky top-0 z-50 bg-white shadow-sm">
+      <div className="flex items-center justify-between px-6 py-3">
+        {/* Left: Mobile Menu + Nav */}
+        <div className="flex items-center gap-4">
+          {/* Mobile Hamburger */}
+          <button
+            className="lg:hidden"
+            onClick={() => setMobileOpen(!mobileOpen)}
+          >
+            <Menu className="w-6 h-6" />
+          </button>
 
-<header className="bg-white shadow-md relative z-10">
-  {/* Top Bar */}
-  <div className="container mx-auto flex items-center justify-between py-2 px-4 md:px-6">
-    {/* Left: Hamburger */}
-    <Button
-      variant="ghost"
-      onClick={() => setMobileOpen(!mobileOpen)}
-      className="md:hidden"
-    >
-      <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-      </svg>
-    </Button>
+          {/* Desktop Nav */}
+          <nav className="hidden lg:flex gap-6">
+            {navItems.map((item) =>
+              item.mega ? (
+                <div key={item.title} className="relative group">
+                  <button className="flex items-center gap-1 font-semibold">
+                    {item.title}
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {/* Mega Menu */}
+                  <div className="absolute left-0 top-full bg-white shadow-lg p-6 hidden group-hover:grid grid-cols-2 gap-8">
+                    {item.mega.map((col) => (
+                      <div key={col.heading}>
+                        <h3 className="font-bold mb-2">{col.heading}</h3>
+                        <ul className="space-y-1">
+                          {col.links.map((link) => (
+                            <li key={link.title}>
+                              <Link
+                                href={link.url}
+                                className="text-gray-600 hover:text-black text-sm"
+                              >
+                                {link.title}
+                              </Link>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : item.dropdown ? (
+                <div key={item.title} className="relative group">
+                  <button className="flex items-center gap-1 font-semibold">
+                    {item.title}
+                    <ChevronDown className="w-4 h-4" />
+                  </button>
+                  {/* Dropdown */}
+                  <div className="absolute left-0 top-full bg-white shadow-lg p-4 hidden group-hover:block">
+                    <ul className="space-y-2">
+                      {item.dropdown.map((d) => (
+                        <li key={d.title}>
+                          <Link
+                            href={d.url}
+                            className="text-gray-600 hover:text-black text-sm"
+                          >
+                            {d.title}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                </div>
+              ) : (
+                <Link
+                  key={item.title}
+                  href={item.url}
+                  className="font-semibold hover:text-black"
+                >
+                  {item.title}
+                </Link>
+              )
+            )}
+          </nav>
+        </div>
 
-    {/* Center: Logo */}
-    <a href="/" className="text-xl font-bold">
-      MyShop
-    </a>
+        {/* Logo */}
+        <Link href="/" className="font-bold text-2xl">
+          PEPR
+        </Link>
 
-    {/* Right: Search + Profile + Cart */}
-    <div className="flex items-center space-x-4">
-      <Button variant="ghost" >
-        <Search className="w-5 h-5" />
-      </Button>
-      <Avatar src="/avatar.png" alt="User" />
-      <Button variant="ghost" className="relative">
-        <ShoppingCart />
-        {cartCount > 0 && (
-          <span className="absolute -top-2 -right-2 rounded-full bg-red-500 text-white text-xs w-5 h-5 flex items-center justify-center">
-            {cartCount}
-          </span>
-        )}
-      </Button>
-    </div>
-  </div>
-
-  {/* Tabs / Category bar */}
-  <div className="border-t border-gray-200 bg-gray-50">
-    <div className="container mx-auto flex flex-wrap justify-center space-x-4 px-4 md:px-6 py-2">
-      {categories.map((cat) => (
-        <a
-          key={cat.title}
-          href={cat.url}
-          className="py-1 px-2 rounded-md hover:bg-gray-100 text-sm md:text-base"
-        >
-          {cat.title}
-        </a>
-      ))}
-    </div>
-  </div>
-
-
-    <div
-        className={`fixed inset-0 z-50 bg-black/40 transition-opacity duration-400 ${
-          mobileOpen ? "opacity-100 visible" : "opacity-0 invisible"
-        }`}
-        onClick={() => setMobileOpen(false)}
-      ></div>
-
-      {/* Sidebar */}
-      <div
-        className={`fixed left-0 top-0 h-full w-64 bg-white shadow-lg z-50 transform transition-transform duration-300 ease-in-out ${
-          mobileOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        {/* Close Button */}
-        <button
-          className="absolute top-3 right-3 text-gray-600 hover:text-black"
-          onClick={() => setMobileOpen(false)}
-        >
-          ✕
-        </button>
-
-        {/* Links */}
-        <ul className="flex flex-col space-y-3 mt-12 p-4">
-          {categories.map((cat) => (
-            <li key={cat.title}>
-              <a
-                href={cat.url}
-                className="block py-2 px-3 rounded hover:bg-gray-100"
-                onClick={() => setMobileOpen(false)}
-              >
-                {cat.title}
-              </a>
-            </li>
-          ))}
-        </ul>
+        {/* Right Icons */}
+        <div className="flex items-center gap-4">
+          <Link href="/search">
+            <Search className="w-6 h-6" />
+          </Link>
+          <Link href="/account">
+            <User className="w-6 h-6" />
+          </Link>
+          <Link href="/cart" className="relative">
+            <ShoppingCart className="w-6 h-6" />
+            <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              0
+            </span>
+          </Link>
+        </div>
       </div>
 
-</header>
-
+      {/* Mobile Sidebar */}
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-40 z-40">
+          <div className="bg-white w-64 h-full p-6">
+            <button
+              onClick={() => setMobileOpen(false)}
+              className="mb-4 font-bold"
+            >
+              Close
+            </button>
+            <ul className="space-y-4">
+              {navItems.map((item) => (
+                <li key={item.title}>
+                  <Link href={item.url || "#"}>{item.title}</Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </header>
   );
 }

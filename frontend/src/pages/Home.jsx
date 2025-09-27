@@ -47,130 +47,40 @@ export default function Home() {
   return (
     <div className="space-y-20">
 
- {/* Hero Section */}
-<section className="relative overflow-hidden bg-gradient-to-r from-purple-500 via-pink-500 to-red-500 text-white">
-  {/* Animated Blobs / Background Shapes */}
-  <div className="absolute top-0 left-0 w-full h-full -z-10">
-    <div className="absolute -top-32 -left-32 w-96 h-96 bg-pink-400 rounded-full opacity-40 animate-blob"></div>
-    <div className="absolute top-10 right-0 w-72 h-72 bg-yellow-400 rounded-full opacity-30 animate-blob animation-delay-2000"></div>
-    <div className="absolute bottom-0 left-20 w-80 h-80 bg-purple-600 rounded-full opacity-30 animate-blob animation-delay-4000"></div>
-  </div>
 
-  <div className="px-8 py-24 sm:px-12 lg:px-16 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-10">
-    {/* Text Content */}
-    <div className="flex-1 space-y-6">
-      <h1 className="text-5xl sm:text-6xl font-extrabold tracking-tight drop-shadow-lg animate-fade-in-up">
-        Elevate Your <span className="text-yellow-300">Style</span>
-      </h1>
-      <p className="text-lg sm:text-xl max-w-xl text-white/90 animate-fade-in-up delay-500">
-        Discover the latest streetwear trends and premium essentials designed to make a statement.
-      </p>
-      <div className="flex gap-4 mt-6 animate-fade-in-up delay-700">
-        <a
-          href="/products"
-          className="px-6 py-3 bg-white text-purple-600 font-semibold rounded-lg shadow-lg hover:scale-105 transition transform"
-        >
-          Shop Now
-        </a>
-        <a
-          href="#app"
-          className="px-6 py-3 border border-white text-white font-semibold rounded-lg hover:bg-white hover:text-purple-600 transition transform hover:scale-105"
-        >
-          Explore App
-        </a>
-      </div>
-    </div>
-
-    {/* Hero Media (Video / Carousel) */}
-    <div className="flex-1 relative animate-fade-in delay-1000">
-      <video
-        src="https://player.vimeo.com/progressive_redirect/playback/720745027/rendition/720p/file.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="w-full max-w-md rounded-xl shadow-2xl object-cover border-4 border-white"
+<div className="relative w-full overflow-hidden text-center">
+      {/* Desktop Image */}
+      <img
+        className="hidden md:block w-full"
+        src="/images/banner_web.webp"
+        alt="Hero Banner"
       />
-      {/* Optional floating product cards / icons */}
-      <div className="absolute -top-10 -left-10 w-24 h-24 bg-white/20 rounded-lg rotate-12 animate-pulse"></div>
-      <div className="absolute bottom-0 right-0 w-32 h-32 bg-yellow-300/30 rounded-lg rotate-6 animate-pulse delay-500"></div>
-    </div>
-  </div>
 
-  {/* Tailwind Animations */}
-  <style>
-    {`
-      @keyframes blob {
-        0%, 100% { transform: translate(0px, 0px) scale(1); }
-        33% { transform: translate(30px, -50px) scale(1.1); }
-        66% { transform: translate(-20px, 20px) scale(0.9); }
-      }
-      .animate-blob { animation: blob 8s infinite; }
-      .animation-delay-2000 { animation-delay: 2s; }
-      .animation-delay-4000 { animation-delay: 4s; }
+      {/* Mobile Image */}
+      <img
+        className="block md:hidden w-full"
+        src="/images/banner_pon.webp"
+        alt="Hero Banner Mobile"
+      />
 
-      @keyframes fadeInUp {
-        0% { opacity: 0; transform: translateY(20px); }
-        100% { opacity: 1; transform: translateY(0); }
-      }
-      .animate-fade-in-up { animation: fadeInUp 1s forwards; }
-      .delay-500 { animation-delay: 0.5s; }
-      .delay-700 { animation-delay: 0.7s; }
-      .delay-1000 { animation-delay: 1s; }
-    `}
-  </style>
-</section>
+      {/* Content */}
+      <div className="absolute inset-0 flex flex-col items-center justify-center text-white px-4">
+        <h2 className="text-3xl md:text-5xl font-semibold mb-4">
+          Celebrate Comfort in Motion
+        </h2>
 
+        <span className="block w-20 h-1 bg-gradient-to-r from-orange-500 to-pink-600 mb-6"></span>
 
-    
-
-
-{/* <section className="max-w-7xl mx-auto  py-12">
-      <h2 className="text-3xl font-bold mb-8 text-center">Featured Products</h2>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2">
-        {products.map((p) => (
-          <Link
-            key={p._id}
-            to={`/product/${p._id}`}
-            className="group relative bg-white overflow-hidden transition"
+        <div>
+          <a
+            href="/collections/drift-collection"
+            className="inline-block bg-black hover:bg-pink-600 transition text-white px-6 py-3 rounded font-medium"
           >
-            <div className="relative w-full h-96 overflow-hidden">
-              <img
-                src={p.images?.[0] || "https://via.placeholder.com/400x600"}
-                alt={p.title}
-                className="w-full h-full object-cover transition-opacity duration-500 group-hover:opacity-0"
-              />
-              {p.images?.[1] && (
-                <img
-                  src={p.images[1]}
-                  alt={p.title + " hover"}
-                  className="w-full h-full object-cover absolute top-0 left-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500"
-                />
-              )}
-
-              {p.isNew && (
-                <span className="absolute top-3 left-3 bg-green-500 text-white text-xs font-bold px-2 py-1 rounded">
-                  NEW
-                </span>
-              )}
-              {p.onSale && (
-                <span className="absolute top-3 right-3 bg-red-500 text-white text-xs font-bold px-2 py-1 rounded">
-                  SALE
-                </span>
-              )}
-            </div>
-
-            <div className="p-4 flex flex-col gap-1">
-              <h3 className="text-sm font-medium text-gray-900 truncate hover:text-gray-500 transition">
-                {p.title}
-              </h3>
-              <span className="text-purple-600 font-bold">₹{p.price}</span>
-            </div>
-          </Link>
-        ))}
+            Shop Drift
+          </a>
+        </div>
       </div>
-    </section> */}
+    </div>
 
 <section className="bg-purple-50 py-16">
   <div>

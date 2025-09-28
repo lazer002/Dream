@@ -17,11 +17,7 @@ import AdminAddProduct from "./pages/admin/AddProduct.jsx";
 import { AuthProvider, useAuth } from "./state/AuthContext.jsx";
 import { CartProvider } from "./state/CartContext.jsx";
 import CategoriesAdmin from "./pages/admin/Category.jsx";
-import { Facebook, Instagram ,ShoppingCart,Search  } from "lucide-react";
-import { Menu, MenuItem, MenuContent, MenuTrigger } from "@/components/ui/menu";
-import { Button} from "@/components/ui/button.jsx";
 import React, {useState}from "react";
-import  Avatar  from "@/components/ui/avatar";
 import Header from "./components/Header.jsx";
 import Footer from "./components/Footer.jsx";
 

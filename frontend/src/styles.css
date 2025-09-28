@@ -100,6 +100,7 @@ button:focus, input:focus, textarea:focus, select:focus {
   input[type='week'],
   input[multiple],
   textarea,
+
   select {
       -webkit-appearance: none !important;
       -moz-appearance: none !important;
@@ -118,7 +119,12 @@ button:focus, input:focus, textarea:focus, select:focus {
       outline: none !important;
       box-shadow: none !important;
   }
-  
-  
-}
 
+  input[type='checkbox']:checked {
+  background-color: black !important; /* Sets the checked color */
+  }
+      input[type='radio']:checked {
+  background-color: black !important; /* Sets the checked color */
+      }
+
+}

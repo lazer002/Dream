@@ -46,7 +46,7 @@ export default function App() {
         <div className="min-h-screen flex flex-col">
           {!isAdminRoute && <Header />} {/* Hide public header on admin pages */}
 
-          <main className="">
+          <main className="h-full flex-grow">
             <Routes>
               {/* Public Routes */}
               <Route path="/" element={<Home />} />

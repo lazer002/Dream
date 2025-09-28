@@ -7,7 +7,7 @@ const navItems = [
   { title: "HOME", url: "/" },
   {
     title: "MEN",
-    url: "/collections/men",
+    url: "/products",
     mega: [
       {
         heading: "TOPWEAR",
@@ -30,12 +30,12 @@ const navItems = [
     promos: [
       {
         title: "Drift Jacket",
-        img: "https://mypepr.com/cdn/shop/files/Drift_Jacket.webp",
+        img: "/images/2.avif",
         url: "/products/drift-jacket",
       },
       {
         title: "Drift Joggers",
-        img: "https://mypepr.com/cdn/shop/files/Drift_Joggers.webp",
+        img: "/images/3.avif",
         url: "/products/drift-joggers",
       },
     ],
@@ -98,97 +98,106 @@ export default function Header() {
       </button>
 
       {/* Desktop Nav */}
-      <nav className="hidden lg:flex gap-6">
-        {navItems.map((item) =>
-          item.mega ? (
-            <div key={item.title} className="relative group ">
-              <button className="flex items-center gap-1 font-bold text-[14px]">
-                {item.title}
-              </button>
-              {/* Full Width Mega Menu */}
-              <div
-                className="fixed left-0 top-[50px] w-screen bg-white shadow-lg border-t border-gray-100 
-                           opacity-0 invisible translate-y-2 
-                           group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
-                           transition-all duration-300 ease-in-out z-40"
-              >
-                <div className="max-w-7xl mx-auto grid grid-cols-4 gap-8 p-8">
-                  {/* Subcategories */}
-                  {item.mega.map((col) => (
-                    <div key={col.heading}>
-                      <h3 className="font-bold mb-2">{col.heading}</h3>
-                      <ul className="space-y-1">
-                        {col.links.map((link) => (
-                          <li key={link.title}>
-                            <Link
-                              to={link.url}
-                              className="text-gray-600 hover:text-black text-sm"
-                            >
-                              {link.title}
-                            </Link>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  ))}
+   <nav className="hidden lg:flex gap-6">
+  {navItems.map((item) =>
+    item.mega ? (
+      <div key={item.title} className="relative group">
+        {/* Parent link */}
+        <Link
+          to={item.url}
+          className="flex items-center gap-1 font-bold text-[14px]"
+        >
+          {item.title}
+        </Link>
 
-                  {/* Promo product images */}
-                  {item.promos?.map((promo) => (
-                    <Link
-                      key={promo.title}
-                      to={promo.url}
-                      className="block group overflow-hidden"
-                    >
-                      <img
-                        src={promo.img}
-                        alt={promo.title}
-                        className="w-full h-40 object-cover rounded-md group-hover:opacity-90 transition"
-                      />
-                      <p className="mt-2 text-sm text-gray-700 group-hover:underline">
-                        {promo.title}
-                      </p>
-                    </Link>
-                  ))}
-                </div>
-              </div>
-            </div>
-          ) : item.dropdown ? (
-            <div key={item.title} className="relative group">
-              <button className="flex items-center gap-1 font-bold text-[14px]">
-                {item.title}
-              </button>
-              {/* Dropdown */}
-              <div
-                className="fixed left-0 top-[50px] w-screen bg-white shadow-lg border-t border-gray-100 
-                           opacity-0 invisible translate-y-2 
-                           group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
-                           transition-all duration-300 ease-in-out z-40"
-              >
-                <ul className="max-w-7xl mx-auto flex gap-8 p-6">
-                  {item.dropdown.map((d) => (
-                    <li key={d.title}>
+        {/* Full Width Mega Menu */}
+        <div
+          className="fixed left-0 top-[50px] w-screen bg-white shadow-lg border-t border-gray-100 
+                     opacity-0 invisible translate-y-2 
+                     group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
+                     transition-all duration-300 ease-in-out z-40"
+        >
+          <div className="max-w-7xl mx-auto grid grid-cols-4 gap-8 p-8">
+            {item.mega.map((col) => (
+              <div key={col.heading}>
+                <h3 className="font-bold mb-2">{col.heading}</h3>
+                <ul className="space-y-1">
+                  {col.links.map((link) => (
+                    <li key={link.title}>
                       <Link
-                        to={d.url}
+                        to={link.url}
                         className="text-gray-600 hover:text-black text-sm"
                       >
-                        {d.title}
+                        {link.title}
                       </Link>
                     </li>
                   ))}
                 </ul>
               </div>
-            </div>
-          ) : (
-            <Link
-              key={item.title}
-              to={item.url}
-              className="font-bold text-[14px] hover:text-black"
-            >
-              {item.title}
-            </Link>
-          )
-        )}
-      </nav>
+            ))}
+
+            {item.promos?.map((promo) => (
+              <Link
+                key={promo.title}
+                to={promo.url}
+                className="block group overflow-hidden"
+              >
+                <img
+                  src={promo.img}
+                  alt={promo.title}
+                  className="w-full h-fit object-cover rounded-md group-hover:opacity-90 transition"
+                />
+                <p className="mt-2 text-sm text-gray-700 group-hover:underline">
+                  {promo.title}
+                </p>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </div>
+    ) : item.dropdown ? (
+      <div key={item.title} className="relative group">
+        {/* Parent link */}
+        <Link
+          to={item.url}
+          className="flex items-center gap-1 font-bold text-[14px]"
+        >
+          {item.title}
+        </Link>
+
+        {/* Dropdown */}
+        <div
+          className="fixed left-0 top-[50px] w-screen bg-white shadow-lg border-t border-gray-100 
+                     opacity-0 invisible translate-y-2 
+                     group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
+                     transition-all duration-300 ease-in-out z-40"
+        >
+          <ul className="max-w-7xl mx-auto flex gap-8 p-6">
+            {item.dropdown.map((d) => (
+              <li key={d.title}>
+                <Link
+                  to={d.url}
+                  className="text-gray-600 hover:text-black text-sm"
+                >
+                  {d.title}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    ) : (
+      <Link
+        key={item.title}
+        to={item.url}
+        className="font-bold text-[14px] hover:text-black"
+      >
+        {item.title}
+      </Link>
+    )
+  )}
+</nav>
+
     </div>
 
     {/* Logo */}

@@ -284,21 +284,25 @@ export default function Home() {
       </section>
 
 
-      <section className="py-20 ">
+<section className="py-20 bg-white text-black">
   <div className="max-w-4xl mx-auto px-6 lg:px-8">
     {/* Heading */}
     <div className="text-center mb-16">
-      <h2 className="text-4xl md:text-5xl font-extrabold tracking-tight mb-4">
+      <h2 className="text-4xl md:text-5xl font-extrabold uppercase mb-4">
         Reach Out To Us
       </h2>
-      <p className="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto">
-        Got questions, ideas, or just wanna vibe with us? At <span className="font-bold">Dream</span>, we’re all ears.
+      <p className="text-gray-700 text-lg md:text-xl max-w-2xl mx-auto">
+        Got questions, ideas, or just wanna vibe with us? At{" "}
+        <span className="font-bold uppercase">Dream</span>, we’re all ears.
       </p>
     </div>
 
     {/* Form */}
-    <form method="post" action="/contact#ContactForm" className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
+    <form
+      method="post"
+      action="/contact#ContactForm"
+      className="grid grid-cols-1 md:grid-cols-2 gap-6"
+    >
       {/* Name */}
       <div className="relative">
         <input
@@ -306,15 +310,14 @@ export default function Home() {
           name="contact[Name]"
           id="ContactForm-name"
           placeholder=" "
-          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-gray-700 rounded-md focus:border-pink-500 focus:outline-none transition"
+          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-black focus:border-black focus:outline-none transition uppercase"
           required
         />
         <label
           htmlFor="ContactForm-name"
-          className="absolute left-4 top-0 -translate-y-1 text-gray-400 text-sm transition-all duration-200
+          className="absolute left-4 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
           peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
-          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-pink-500 peer-focus:text-sm
-          peer-valid:top-0 peer-valid:-translate-y-1 peer-valid:text-pink-500 peer-valid:text-sm"
+          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-black peer-focus:text-xs"
         >
           Name
         </label>
@@ -327,15 +330,14 @@ export default function Home() {
           name="contact[email]"
           id="ContactForm-email"
           placeholder=" "
-          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-gray-700 rounded-md focus:border-pink-500 focus:outline-none transition"
+          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-black focus:border-black focus:outline-none transition uppercase"
           required
         />
         <label
           htmlFor="ContactForm-email"
-          className="absolute left-4 top-0 -translate-y-1 text-gray-400 text-sm transition-all duration-200
+          className="absolute left-4 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
           peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
-          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-pink-500 peer-focus:text-sm
-          peer-valid:top-0 peer-valid:-translate-y-1 peer-valid:text-pink-500 peer-valid:text-sm"
+          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-black peer-focus:text-xs"
         >
           Email
         </label>
@@ -349,16 +351,15 @@ export default function Home() {
           id="ContactForm-phone"
           pattern="[0-9\-]*"
           placeholder=" "
-          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-gray-700 rounded-md focus:border-pink-500 focus:outline-none transition"
+          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-black focus:border-black focus:outline-none transition uppercase"
         />
         <label
           htmlFor="ContactForm-phone"
-          className="absolute left-4 top-0 -translate-y-1 text-gray-400 text-sm transition-all duration-200
+          className="absolute left-4 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
           peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
-          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-pink-500 peer-focus:text-sm
-          peer-valid:top-0 peer-valid:-translate-y-1 peer-valid:text-pink-500 peer-valid:text-sm"
+          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-black peer-focus:text-xs"
         >
-          Phone number
+          Phone Number
         </label>
       </div>
 
@@ -369,14 +370,13 @@ export default function Home() {
           id="ContactForm-body"
           rows={5}
           placeholder=" "
-          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-gray-700 rounded-md focus:border-pink-500 focus:outline-none resize-none transition"
+          className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-black focus:border-black focus:outline-none resize-none transition uppercase"
         />
         <label
           htmlFor="ContactForm-body"
-          className="absolute left-4 top-0 -translate-y-1 text-gray-400 text-sm transition-all duration-200
+          className="absolute left-4 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
           peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
-          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-pink-500 peer-focus:text-sm
-          peer-valid:top-0 peer-valid:-translate-y-1 peer-valid:text-pink-500 peer-valid:text-sm"
+          peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-black peer-focus:text-xs"
         >
           Comment
         </label>
@@ -386,7 +386,7 @@ export default function Home() {
       <div className="md:col-span-2 text-center mt-4">
         <button
           type="submit"
-          className="px-12 py-3 bg-gradient-to-r from-pink-500 to-purple-500 hover:from-purple-500 hover:to-pink-500 font-bold rounded-full transition-all shadow-xl hover:shadow-2xl"
+          className="px-12 py-3 bg-black text-white font-bold uppercase tracking-wide transition hover:bg-gray-900"
         >
           Send
         </button>

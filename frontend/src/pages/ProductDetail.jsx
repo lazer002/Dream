@@ -9,7 +9,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
-import { ChevronLeft, ChevronRight, X } from "lucide-react"
+import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
 
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api"
 
@@ -21,6 +21,7 @@ export default function ProductDetail() {
   const [quantity, setQuantity] = useState(1)
   const [activeImage, setActiveImage] = useState(0)
   const [openZoom, setOpenZoom] = useState(false)
+  const [wishlisted, setWishlisted] = useState(false)
 
   useEffect(() => {
     fetch(`${API_URL}/products/${id}`)
@@ -42,7 +43,8 @@ export default function ProductDetail() {
   }
 
   return (
-    <div className="flex flex-col md:flex-row gap-12 min-h-screen p-6">
+    <>
+    <div className="flex flex-col md:flex-row gap-12 min-h-screen p-6 relative">
       {/* Left: Images */}
       <div className="md:w-1/2 flex flex-col gap-3">
         <div className="sticky top-24">
@@ -61,9 +63,8 @@ export default function ProductDetail() {
                 key={idx}
                 src={img}
                 alt={`${product.title} ${idx}`}
-                className={`w-20 h-20 object-cover rounded-md cursor-pointer flex-shrink-0 border transition ${
-                  activeImage === idx ? "border-brand-600" : "border-gray-200"
-                }`}
+                className={`w-20 h-20 object-cover rounded-md cursor-pointer flex-shrink-0 border transition ${activeImage === idx ? "border-brand-600" : "border-gray-200"
+                  }`}
                 onClick={() => setActiveImage(idx)}
               />
             ))}
@@ -73,13 +74,14 @@ export default function ProductDetail() {
 
       {/* Right: Info */}
       <div className="md:w-1/2 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 48px)" }}>
-        <h1 className="text-3xl font-bold text-gray-900">{product.title}</h1>
+        <h1 className="text-2xl font-bold text-gray-900">{product.title}</h1>
         <div className="flex items-center gap-3">
-          <span className="text-2xl font-semibold text-brand-600">₹{product.price?.toFixed(2)}</span>
+          <span className="text-[16px] font-bold text-brand-600">MRP ₹ {product.price?.toFixed(2)}</span>
+          <span className="text-gray-400 text-[13px]">Inclusive of all taxes</span>
           {product.discount && <Badge variant="secondary">{product.discount}% OFF</Badge>}
         </div>
 
-        <p className="text-gray-700 leading-relaxed">
+        <p className="text-[13px] text-gray-700 leading-relaxed">
           Elevate your style with the <strong>{product.title}</strong>. Crafted from premium 100% cotton, this piece
           ensures unmatched comfort while maintaining a breathable, relaxed fit.
         </p>
@@ -87,23 +89,33 @@ export default function ProductDetail() {
         <Separator className="my-4" />
 
         {/* Size Selection */}
+        {/* Size Selection with Pills */}
         {product.sizes && (
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <label className="font-medium">Size:</label>
-            <Select value={selectedSize} onValueChange={setSelectedSize}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select size" />
-              </SelectTrigger>
-              <SelectContent>
-                {product.sizes.map((size) => (
-                  <SelectItem key={size} value={size}>
+
+            {/* Pills */}
+            <div className="flex gap-2 flex-wrap">
+              {["S", "M", "L", "XL"].map((size) => {
+                const isAvailable = product.sizes.includes(size)
+                return (
+                  <button
+                    key={size}
+                    onClick={() => isAvailable && setSelectedSize(size)}
+                    className={`px-4 py-2 rounded-full border transition 
+              ${selectedSize === size ? "bg-brand-600 text-white border-brand-600" : ""}
+              ${!isAvailable ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50" : "bg-white text-gray-700 border-gray-300 hover:border-brand-600"}`}
+                    disabled={!isAvailable}
+                  >
                     {size}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
+
+
 
         {/* Quantity */}
         <div className="flex flex-col gap-2 mt-2">
@@ -118,17 +130,76 @@ export default function ProductDetail() {
         </div>
 
         {/* Action Buttons */}
+        {/* Action Buttons */}
         <div className="mt-4 flex flex-col gap-3">
-          <Button className="w-full" onClick={() => add(product._id, quantity)}>
-            Add to Cart
-          </Button>
-          <Button variant="outline" className="w-full border-brand-600 text-brand-600 hover:bg-brand-50">
+          {/* Row 1: Cart + Wishlist */}
+          <div className="flex gap-3">
+            <Button
+              className="w-1/2 flex items-center justify-center gap-2"
+              onClick={() => add(product._id, quantity)}
+            >
+              <ShoppingCart className="w-5 h-5" />
+              Add to Cart
+            </Button>
+
+            <Button
+              variant="outline"
+              className={`w-1/2 flex items-center justify-center gap-2 border-black text-black hover:bg-pink-50`}
+              onClick={() => setWishlisted(!wishlisted)}
+            >
+              <Heart
+                className={`w-5 h-5 ${wishlisted ? "fill-black text-black" : ""}`}
+              />
+              Wishlist
+            </Button>
+          </div>
+
+          {/* Row 2: Buy Now */}
+          <Button
+            variant="outline"
+            className="w-full flex items-center justify-center gap-2 border-brand-600 text-brand-600 hover:bg-brand-50"
+          >
+            <CreditCard className="w-5 h-5" />
             Buy Now
           </Button>
         </div>
 
+
+
+        <div className="mt-3 flex flex-col gap-3">
+          <p className="text-sm font-semibold text-black">Offers For You</p>
+
+          {/* Offer 1 */}
+{/* Offer Box with slow blinking animation */}
+<div className="border rounded-lg p-3 flex items-center gap-3 hover:bg-gray-50 transition animate-blink">
+  <div className="p-2 bg-brand-100 rounded-full">
+    <Gift className="w-6 h-6 text-brand-600 " />
+  </div>
+  <div className="flex flex-col">
+    <p className="text-[12px] font-medium text-gray-800">
+      EXTRA 10% OFF ON PURCHASE OF ₹ 2999
+    </p>
+    <p className="text-[12px] text-gray-600">NORETURN</p>
+  </div>
+</div>
+
+
+          {/* Offer 2 */}
+          <div className="border rounded-lg p-3 flex items-center gap-3 hover:bg-gray-50 transition">
+            <div className="p-2 bg-brand-100 rounded-full">
+              <Gift className="w-6 h-6 text-brand-600" />
+            </div>
+            <div className="flex flex-col">
+              <p className="text-[12px] font-medium text-gray-800">EXTRA 10% OFF ON PURCHASE OF ₹ 3299</p>
+              <p className="text-[12px] text-gray-600">LEVI10</p>
+            </div>
+          </div>
+        </div>
+
+
+
         {/* Accordion */}
-        <Accordion type="single" collapsible className="mt-6 w-full">
+        <Accordion type="single" collapsible className=" w-full">
           <AccordionItem value="wash-care">
             <AccordionTrigger>Wash Care</AccordionTrigger>
             <AccordionContent>
@@ -170,51 +241,93 @@ export default function ProductDetail() {
         </Accordion>
       </div>
 
+
       {/* Fullscreen Image Zoom Modal */}
       <Dialog open={openZoom} onOpenChange={setOpenZoom}>
-  <DialogContent className="relative w-screen h-screen max-w-full max-h-full p-0 bg-black flex items-center justify-center">
-    
-    {/* ✅ Close Button (always top-right, outside carousel) */}
-    <DialogClose asChild>
-      <button
-        className="absolute top-4 right-4 z-50 p-2 rounded-full bg-white/20 hover:bg-white/40 transition"
+        <DialogContent
+          className="fixed inset-0 w-screen h-screen max-w-none max-h-none p-0 bg-black flex items-center justify-center rounded-none"
+        >
+          {/* ✅ Close Button */}
+          <DialogClose asChild>
+            <button className="absolute top-4 right-4 z-50 p-2 rounded-full bg-gray-200 hover:bg-gray-400 transition">
+              <X className="w-6 h-6 text-black" />
+            </button>
+          </DialogClose>
+
+          {/* ✅ Carousel Container */}
+          <div className="relative flex items-center justify-center w-full h-full">
+            {/* Image */}
+            <img
+              src={product.images[activeImage]}
+              alt={product.title}
+              className="max-h-full max-w-full object-contain"
+            />
+
+            {/* Left Arrow */}
+            {product.images.length > 1 && (
+              <button
+                onClick={prevImage}
+                className="absolute left-6 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-gray-200 hover:bg-gray-400"
+              >
+                <ChevronLeft className="w-7 h-7 text-black" />
+              </button>
+            )}
+
+            {/* Right Arrow */}
+            {product.images.length > 1 && (
+              <button
+                onClick={nextImage}
+                className="absolute right-6 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-gray-200 hover:bg-gray-400"
+              >
+                <ChevronRight className="w-7 h-7 text-black" />
+              </button>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
+    </div>
+
+
+{/* You Might Be Interested Section */}
+<section className="mt-12 container px-6 pb-12">
+  <h2 className="text-2xl font-bold text-gray-900 mb-6">You Might Be Interested</h2>
+
+  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+    {[1, 2, 3].map((prod) => (
+      <div
+        key={prod}
+        className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition cursor-pointer"
       >
-        <X className="w-6 h-6 text-black" />
-      </button>
-    </DialogClose>
+        {/* Product Image */}
+        <div className="relative w-full h-32">
+          <img
+            src={`/images/1.avif`}
+            alt={`Recommended Product ${prod}`}
+            className="w-full h-full object-cover rounded-t-md"
+          />
+        </div>
 
-    {/* ✅ Carousel Container */}
-    <div className="relative flex items-center justify-center w-full h-full">
-      {/* Image */}
-      <img
-        src={product.images[activeImage]}
-        alt={product.title}
-        className="max-h-[90vh] max-w-full object-contain mx-auto"
-      />
+        {/* Product Info */}
+        <div className="p-4 flex flex-col gap-2">
+          <h3 className="text-gray-900 font-semibold text-lg truncate">
+            Recommended Product {prod}
+          </h3>
+          <div className="flex items-center gap-2">
+            <span className="text-brand-600 font-bold text-sm">₹ {1999 + prod * 100}</span>
+            <span className="text-gray-400 text-xs">Inclusive of taxes</span>
+          </div>
+        </div>
+      </div>
+    ))}
+  </div>
+</section>
 
-      {/* Left Arrow */}
-      {product.images.length > 1 && (
-        <button
-          onClick={prevImage}
-          className="absolute left-6 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-white/20 hover:bg-white/40"
-        >
-          <ChevronLeft className="w-7 h-7 text-black" />
-        </button>
-      )}
 
-      {/* Right Arrow */}
-      {product.images.length > 1 && (
-        <button
-          onClick={nextImage}
-          className="absolute right-6 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-white/20 hover:bg-white/40"
-        >
-          <ChevronRight className="w-7 h-7 text-black" />
-        </button>
-      )}
-    </div>
-  </DialogContent>
-</Dialog>
 
-    </div>
+
+
+</>
   )
 }

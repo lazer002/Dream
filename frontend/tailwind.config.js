@@ -4,6 +4,7 @@ export default {
 	content: ["./index.html", "./src/**/*.{js,jsx,ts,tsx}"],
 	theme: {
 	  extend: {
+	
 		outline: {
 			none: ['0', 'none'],
 		  },
@@ -79,8 +80,18 @@ export default {
 		animation: {
 		  'accordion-down': 'accordion-down 0.2s ease-out',
 		  'accordion-up': 'accordion-up 0.2s ease-out'
-		}
-	  }
+		},
+			 keyframes: {
+        blink: {
+          '0%, 100%': { backgroundColor: 'white' },
+          '50%': { backgroundColor: 'antiquewhite' },
+        },
+      },
+      animation: {
+        blink: 'blink 4s infinite',
+      },
+	  
+	   }
 	},
 	plugins: [require('@tailwindcss/forms'), require("tailwindcss-animate"),
 		function({ addBase }) {

@@ -43,23 +43,42 @@ router.post('/update', async (req, res) => {
   const item = await CartItem.findOneAndUpdate({ ...key, product: productId }, { $set: { quantity } }, { new: true })
   res.json(item)
 })
+router.post('/remove', async (req, res) => {
+  const key = cartKey(req)
+  const { productId } = req.body
 
-// Merge guest cart into user after login
-router.post('/merge', requireAuth, async (req, res) => {
-  const { guestId } = req.body
-  if (!guestId) return res.status(400).json({ error: 'Missing guestId' })
-  const guestItems = await CartItem.find({ guestId })
-  for (const gi of guestItems) {
-    await CartItem.findOneAndUpdate(
-      { user: req.user.id, product: gi.product },
-      { $inc: { quantity: gi.quantity } },
-      { upsert: true, new: true }
-    )
+  if (!key || !productId) {
+    return res.status(400).json({ error: 'Missing fields' })
   }
-  await CartItem.deleteMany({ guestId })
-  const items = await CartItem.find({ user: req.user.id }).populate('product')
-  res.json({ items })
+
+  const result = await CartItem.findOneAndDelete({ ...key, product: productId })
+
+  if (!result) {
+    return res.status(404).json({ error: 'Cart item not found' })
+  }
+
+  res.json({ message: 'Product removed from cart', item: result })
 })
+  router.post('/merge', requireAuth, async (req, res) => {
+    console.log('Merging guest cart', req.body)
+    const { guestId } = req.body
+    if (!guestId) return res.status(400).json({ error: 'Missing guestId' })
+    const guestItems = await CartItem.find({ guestId })
+    for (const gi of guestItems) {
+      await CartItem.findOneAndUpdate(
+        { user: req.user.id, product: gi.product },
+        { $inc: { quantity: gi.quantity } },
+        { upsert: true, new: true }
+      )
+    }
+    await CartItem.deleteMany({ guestId })
+    const items = await CartItem.find({ user: req.user.id }).populate('product')
+    res.json({ items })
+  })
+
+// Remove item from cart
+
+
 
 export default router
 

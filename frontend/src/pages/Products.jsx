@@ -1,14 +1,9 @@
 // src/pages/Products.jsx
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-
-import ProductCard from "../components/ProductCard.jsx";
-import { Heart, Filter, ArrowUpDown ,Heart as HeartOutline} from "lucide-react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
+import { Heart,ShoppingBag  , Filter, ArrowUpDown ,Heart as HeartOutline} from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-
+import { useCart } from "../state/CartContext.jsx"
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
 export default function Products() {
@@ -80,8 +75,10 @@ export default function Products() {
   </div>
 
   {/* Products Grid */}
-  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4">
-    {products.map((p) => (
+<div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4">
+  {products.map((p) => {
+    const { add } = useCart()
+    return (
       <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">
         <div className="bg-white border border-gray-200 transition overflow-hidden relative">
           <div className="relative w-full h-96 overflow-hidden">
@@ -118,14 +115,25 @@ export default function Products() {
               )}
             </button>
           </div>
+
           <div className="p-4 flex flex-col gap-1">
-            <h3 className="text-sm font-bold text-black uppercase">{p.title}</h3>
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-bold text-black uppercase">{p.title}</h3>
+              <button
+                onClick={(e) => { e.preventDefault(); add(p._id, 1) }}
+                className="p-1 w-7 h-7 flex items-center justify-center   transition"
+                title="Add to Cart"
+              >
+                <ShoppingBag  className="w-4 h-4" />
+              </button>
+            </div>
             <span className="text-sm font-bold text-[#042354]">₹{p.price}</span>
           </div>
         </div>
       </Link>
-    ))}
-  </div>
+    )
+  })}
+</div>
 
   {products.length === 0 && <div className="text-center text-gray-500 mt-20">No products found</div>}
 

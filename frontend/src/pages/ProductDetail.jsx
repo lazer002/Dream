@@ -10,7 +10,6 @@ import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
-
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api"
 
 export default function ProductDetail() {
@@ -18,7 +17,7 @@ export default function ProductDetail() {
   const { add } = useCart()
   const [product, setProduct] = useState(null)
   const [selectedSize, setSelectedSize] = useState("")
-  const [quantity, setQuantity] = useState(1)
+
   const [activeImage, setActiveImage] = useState(0)
   const [openZoom, setOpenZoom] = useState(false)
   const [wishlisted, setWishlisted] = useState(false)
@@ -117,17 +116,7 @@ export default function ProductDetail() {
 
 
 
-        {/* Quantity */}
-        <div className="flex flex-col gap-2 mt-2">
-          <label className="font-medium">Quantity:</label>
-          <input
-            type="number"
-            min={1}
-            value={quantity}
-            onChange={(e) => setQuantity(Number(e.target.value))}
-            className="border rounded-md w-24 px-2 py-1"
-          />
-        </div>
+   
 
         {/* Action Buttons */}
         {/* Action Buttons */}
@@ -136,7 +125,7 @@ export default function ProductDetail() {
           <div className="flex gap-3">
             <Button
               className="w-1/2 flex items-center justify-center gap-2"
-              onClick={() => add(product._id, quantity)}
+              onClick={() => add(product._id)}
             >
               <ShoppingCart className="w-5 h-5" />
               Add to Cart
@@ -298,31 +287,32 @@ export default function ProductDetail() {
     {[1, 2, 3].map((prod) => (
       <div
         key={prod}
-        className="border border-gray-200 rounded-lg overflow-hidden hover:shadow-md transition cursor-pointer"
+        className="group relative rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition"
       >
-        {/* Product Image */}
-        <div className="relative w-full h-32">
+        {/* Product Image with Hover Zoom */}
+        <div className="relative w-full h-56 overflow-hidden">
           <img
             src={`/images/1.avif`}
             alt={`Recommended Product ${prod}`}
-            className="w-full h-full object-cover rounded-t-md"
+            className="w-full h-full object-cover transform group-hover:scale-105 transition duration-500"
           />
+          {/* Overlay Gradient */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-70 group-hover:opacity-80 transition" />
         </div>
 
-        {/* Product Info */}
-        <div className="p-4 flex flex-col gap-2">
-          <h3 className="text-gray-900 font-semibold text-lg truncate">
-            Recommended Product {prod}
-          </h3>
+        {/* Text Overlay */}
+        <div className="absolute bottom-4 left-4 right-4 text-white">
+          <h3 className="font-semibold text-lg truncate">Recommended Product {prod}</h3>
           <div className="flex items-center gap-2">
-            <span className="text-brand-600 font-bold text-sm">₹ {1999 + prod * 100}</span>
-            <span className="text-gray-400 text-xs">Inclusive of taxes</span>
+            <span className="text-brand-100 font-bold text-sm">₹ {1999 + prod * 100}</span>
+            <span className="text-gray-200 text-xs">Inclusive of taxes</span>
           </div>
         </div>
       </div>
     ))}
   </div>
 </section>
+
 
 
 

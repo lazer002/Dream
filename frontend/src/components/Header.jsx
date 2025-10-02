@@ -2,7 +2,7 @@
 import { useState } from "react";
 import { ShoppingCart, Search, User, Menu, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
-
+import { useCart } from "../state/CartContext.jsx"; 
 const navItems = [
   { title: "HOME", url: "/" },
   {
@@ -83,7 +83,7 @@ const navItems = [
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
-
+const { items } = useCart()
   return (
 <header className="sticky top-0 z-50 bg-white shadow-sm">
   <div className="flex items-center justify-between px-6 py-3">
@@ -215,9 +215,11 @@ export default function Header() {
       </Link>
       <Link to="/cart" className="relative">
         <ShoppingCart className="w-6 h-6" />
-        <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-          0
-        </span>
+              {items.length > 0 && (
+              <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {items.reduce((total, item) => total + item.quantity, 0)}
+              </span>
+            )}
       </Link>
     </div>
   </div>

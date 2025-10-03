@@ -108,7 +108,7 @@ button:focus, input:focus, textarea:focus, select:focus {
       background-color: transparent !important;
       border-color: transparent !important;
       border-width: 0px !important;
-      border-radius: 0px !important;
+      /* border-radius: 0px !important; */
       padding-top: 0.5rem !important;
       padding-right: 0.75rem !important;
       padding-bottom: 0.5rem !important;

@@ -240,6 +240,10 @@ const { items } = useCart()
               <Link to={item.url || "#"}>{item.title}</Link>
             </li>
           ))}
+          <li>
+            <Link to="/wishlist">Wishlist</Link>
+          </li>
+        
         </ul>
       </div>
     </div>

@@ -97,7 +97,7 @@ export default function Home() {
 {/* Explore Categories */}
 
 <section className="py-20 bg-white text-black">
-  <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl text-center">
+  <div className="mx-auto px-4 sm:px-6 lg:px-8  text-center">
     <div className="text-4xl font-extrabold uppercase mb-16 tracking-wide max-w-3xl mx-auto">
       Every step forward, however gentle, carries relentless progress and inner peace, shaping who you are meant to be
     </div>
@@ -144,7 +144,7 @@ export default function Home() {
 
 {/* Featured / Best Selling */}
 <section className="bg-white pt-12 pb-16 text-black">
-  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+  <div className=" mx-auto px-4 sm:px-6 lg:px-8">
     {/* Section Header */}
     <div className="flex flex-col md:flex-row items-center justify-between mb-8">
       <div className="flex items-center gap-4 mb-4 md:mb-0">

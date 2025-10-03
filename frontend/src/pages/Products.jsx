@@ -49,7 +49,7 @@ export default function Products() {
   return (
 <div className="bg-white min-h-screen text-black relative">
   {/* Top Controls */}
-  <div className="max-w-7xl mx-auto px-4 py-10 flex flex-wrap gap-4 items-center justify-between">
+  <div className=" mx-auto px-4 py-10 flex flex-wrap gap-4 items-center justify-between">
     <button
       onClick={() => setIsFilterOpen(true)}
       className="flex items-center gap-2 px-4 py-2 bg-black text-white font-bold uppercase hover:bg-black transition"

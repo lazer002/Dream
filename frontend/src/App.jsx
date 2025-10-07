@@ -23,6 +23,7 @@ import Footer from "./components/Footer.jsx";
 
 import { Toaster } from "react-hot-toast";
 import Checkout from "./pages/Checkout.jsx";
+import AuthCallback from "./pages/AuthCallback.jsx";
 
 // Protect admin routes
 function AdminRoute({ children }) {
@@ -53,6 +54,8 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/checkout" element={<Checkout />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
+             
 
               {/* Admin Routes */}
               <Route

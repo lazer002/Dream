@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
-// import { GoogleIcon } from "../components/Icons.jsx"; // replace with your Google icon
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
@@ -17,7 +16,7 @@ export default function Login() {
     e.preventDefault();
     try {
       await login(form.email, form.password);
-      nav("/");
+      // nav("/");
     } catch (e) {
       setError("Invalid credentials");
     }
@@ -42,13 +41,13 @@ export default function Login() {
         {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
 
         {/* Google Login */}
-        <button
-          onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-2 py-3 mb-6 border border-black font-bold uppercase hover:bg-gray-100 transition"
-        >
-          {/* <GoogleIcon className="w-5 h-5" /> */}
-          Sign in with Google
-        </button>
+ <button
+  onClick={handleGoogleLogin}
+  className="w-full flex items-center justify-center gap-2 py-3 mb-6 border border-black font-bold uppercase hover:bg-gray-100 transition"
+>
+  <img src="/images/icons8-google-logo-100.png" alt="Google" className="w-5 h-5" />
+  Sign in with Google
+</button>
 
         <div className="flex items-center mb-6">
           <span className="flex-grow border-t border-gray-300"></span>
@@ -114,3 +113,6 @@ export default function Login() {
     </div>
   );
 }
+
+
+

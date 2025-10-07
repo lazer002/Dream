@@ -210,7 +210,7 @@ const { items } = useCart()
       <Link to="/search">
         <Search className="w-6 h-6" />
       </Link>
-      <Link to="/account">
+      <Link to="/login">
         <User className="w-6 h-6" />
       </Link>
       <Link to="/cart" className="relative">

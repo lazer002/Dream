@@ -24,14 +24,15 @@ import Footer from "./components/Footer.jsx";
 import { Toaster } from "react-hot-toast";
 import Checkout from "./pages/Checkout.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
+import Profile from "./pages/Profile.jsx";
 
-// Protect admin routes
+// ✅ Protect admin routes
 function AdminRoute({ children }) {
   const { user } = useAuth();
   return user?.role === "admin" ? children : <Navigate to="/" replace />;
 }
 
-// Main App
+// ✅ Main App Component
 export default function App() {
   const location = useLocation();
   const isAdminRoute = location.pathname.startsWith("/admin");
@@ -39,25 +40,28 @@ export default function App() {
   return (
     <AuthProvider>
       <CartProvider>
-        <div className="min-h-screen flex flex-col">
+        <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
+          {/* Hide header/footer for admin routes */}
           {!isAdminRoute && <Header />}
 
-          <main className="min-h-screen flex-grow">
+          <main className="flex-grow">
             <Routes>
-              {/* Public Routes */}
+              {/* 🏠 Public Routes */}
               <Route path="/" element={<Home />} />
               <Route path="/products" element={<Products />} />
               <Route path="/product/:id" element={<ProductDetail />} />
               <Route path="/about" element={<About />} />
               <Route path="/contact" element={<Contact />} />
               <Route path="/cart" element={<Cart />} />
-              <Route path="/login" element={<Login />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
-             
+              
+              {/* 👤 User Profile */}
+              <Route path="/profile" element={<Profile />} />
 
-              {/* Admin Routes */}
+              {/* 🔐 Admin Routes */}
               <Route
                 path="/admin"
                 element={
@@ -78,12 +82,12 @@ export default function App() {
           {!isAdminRoute && <Footer />}
         </div>
 
-        {/* Global toaster - one time only */}
+        {/* ✅ Global toaster */}
         <Toaster
           position="bottom-center"
           toastOptions={{
             style: {
-              background: "#111", // match your theme
+              background: "#111",
               color: "#fff",
               fontSize: "14px",
               borderRadius: "10px",

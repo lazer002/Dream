@@ -1,6 +1,7 @@
 import express from 'express'
 import { User } from '../models/User.js'
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js'
+import { googleLogin } from '../utils/gauth.js'
 
 const router = express.Router()
 
@@ -52,6 +53,8 @@ router.post('/refresh', async (req, res) => {
     res.status(401).json({ error: 'Invalid refresh token' })
   }
 })
+
+router.post("/google", googleLogin);
 
 export default router
 

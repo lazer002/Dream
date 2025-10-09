@@ -5,7 +5,21 @@
 :root {
   color-scheme: light;
   box-sizing: none ;
+  
 }
+
+div.nsm7Bb-HzV7m-LgbsSe {
+  border: none !important;       /* remove border */
+  box-shadow: none !important;   /* remove shadow */
+  background: transparent !important; /* optional */
+}
+
+/* Optional: remove hover effect */
+div.nsm7Bb-HzV7m-LgbsSe:hover {
+  box-shadow: none !important;
+  background: transparent !important;
+}
+
 
 body {
   @apply bg-white text-gray-900;

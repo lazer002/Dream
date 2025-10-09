@@ -3,6 +3,8 @@ import { useState } from "react";
 import { ShoppingCart, Search, User, Menu, ChevronDown } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCart } from "../state/CartContext.jsx"; 
+import { useAuth } from "../state/AuthContext.jsx";
+
 const navItems = [
   { title: "HOME", url: "/" },
   {
@@ -83,6 +85,7 @@ const navItems = [
 
 export default function Header() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { user } = useAuth();
 const { items } = useCart()
   return (
 <header className="sticky top-0 z-50 bg-white shadow-sm">
@@ -206,22 +209,31 @@ const { items } = useCart()
     </Link>
 
     {/* Right Icons */}
-    <div className="flex items-center gap-4">
-      <Link to="/search">
-        <Search className="w-6 h-6" />
-      </Link>
-      <Link to="/login">
-        <User className="w-6 h-6" />
-      </Link>
-      <Link to="/cart" className="relative">
-        <ShoppingCart className="w-6 h-6" />
-              {items.length > 0 && (
-              <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {items.reduce((total, item) => total + item.quantity, 0)}
-              </span>
-            )}
-      </Link>
-    </div>
+ <div className="flex items-center gap-4">
+  <Link to="/search">
+    <Search className="w-6 h-6" />
+  </Link>
+
+  {/* User Icon: show /login only if not logged in */}
+  {user ? (
+    <Link to="/profile">
+      <User className="w-6 h-6" />
+    </Link>
+  ) : (
+    <Link to="/login">
+      <User className="w-6 h-6" />
+    </Link>
+  )}
+
+  <Link to="/cart" className="relative">
+    <ShoppingCart className="w-6 h-6" />
+    {items.length > 0 && (
+      <span className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+        {items.reduce((total, item) => total + item.quantity, 0)}
+      </span>
+    )}
+  </Link>
+</div>
   </div>
 
   {/* Mobile Sidebar */}

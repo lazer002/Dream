@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 
@@ -7,28 +7,62 @@ export default function Login() {
   const nav = useNavigate();
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const googleBtnRef = useRef(null); // ✅ useRef for Google button
+ const innerBtnRef = useRef(null);
+  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await login(form.email, form.password);
-      // nav("/");
+      nav("/");
     } catch (e) {
       setError("Invalid credentials");
     }
   };
 
-  const handleGoogleLogin = async () => {
+  // Handle Google credential response
+  const handleGoogleLogin = async (res) => {
+    if (!res.credential) return console.error("No credential returned from Google");
+
     try {
-      await loginWithGoogle();
+      const data = await loginWithGoogle(res.credential);
+      console.log("Backend response:", data);
       nav("/");
-    } catch (e) {
+    } catch (err) {
+      console.error("Login with Google failed:", err);
       setError("Google login failed");
     }
+  };
+
+  useEffect(() => {
+    /* global google */
+    if (!window.google || !googleBtnRef.current) return;
+
+    // Initialize Google client
+    window.google.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback: handleGoogleLogin,
+    });
+
+    window.google.accounts.id.renderButton(googleBtnRef.current, {
+   theme: "outline",       // "outline" | "filled_blue" | "filled_black"
+  size: "large",          // "small" | "medium" | "large"
+  width: "100%",
+    });
+    const innerDiv = googleBtnRef.current.querySelector("div[role='button']");
+    if (innerDiv) {
+      innerBtnRef.current = innerDiv;
+      // Remove inner hover/background
+      innerDiv.style.background = "transparent";
+      innerDiv.style.width = "100%"; // optional
+    };
+  }, []);
+
+  
+  const handleOuterClick = () => {
+    // Trigger inner SDK div click
+    if (innerBtnRef.current) innerBtnRef.current.click();
   };
 
   return (
@@ -40,24 +74,25 @@ export default function Login() {
 
         {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
 
-        {/* Google Login */}
- <button
-  onClick={handleGoogleLogin}
-  className="w-full flex items-center justify-center gap-2 py-3 mb-6 border border-black font-bold uppercase hover:bg-gray-100 transition"
->
-  <img src="/images/icons8-google-logo-100.png" alt="Google" className="w-5 h-5" />
-  Sign in with Google
-</button>
-
+        {/* Google Login Button */}
+        
+    <div
+      onClick={handleOuterClick}
+      className="w-full flex items-center justify-center gap-2 border border-black rounded hover:bg-gray-100 transition cursor-pointer p-2"
+    >
+      <img src="/images/icons8-google-logo-100.png" className="w-5 h-5 filter saturate-[8.5]" alt="Google" />
+      <span>Sign in with Google</span>
+      {/* Google SDK button rendered here */}
+      <div ref={googleBtnRef} className="absolute opacity-0 pointer-events-none"></div>
+    </div>
         <div className="flex items-center mb-6">
           <span className="flex-grow border-t border-gray-300"></span>
           <span className="mx-3 text-gray-500 font-semibold uppercase">or</span>
           <span className="flex-grow border-t border-gray-300"></span>
         </div>
 
-        {/* Form */}
+        {/* Email / Password Form */}
         <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-          {/* Email */}
           <div className="relative">
             <input
               type="email"
@@ -76,7 +111,6 @@ export default function Login() {
             </label>
           </div>
 
-          {/* Password */}
           <div className="relative">
             <input
               type="password"
@@ -113,6 +147,3 @@ export default function Login() {
     </div>
   );
 }
-
-
-

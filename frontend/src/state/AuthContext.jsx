@@ -1,84 +1,110 @@
-import  { createContext, useContext, useEffect, useMemo, useState } from 'react'
-import axios from 'axios'
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import axios from "axios";
 
-const AuthContext = createContext(null)
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:4000/api'
+const AuthContext = createContext(null);
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
-    const raw = localStorage.getItem('ds_user')
-    return raw ? JSON.parse(raw) : null
-  })
-  const [accessToken, setAccessToken] = useState(localStorage.getItem('ds_access') || null)
-  const [refreshToken, setRefreshToken] = useState(localStorage.getItem('ds_refresh') || null)
+    const raw = localStorage.getItem("ds_user");
+    return raw ? JSON.parse(raw) : null;
+  });
+  const [accessToken, setAccessToken] = useState(localStorage.getItem("ds_access") || null);
+  const [refreshToken, setRefreshToken] = useState(localStorage.getItem("ds_refresh") || null);
+
+  // persist state
+  useEffect(() => {
+    if (user) localStorage.setItem("ds_user", JSON.stringify(user));
+    else localStorage.removeItem("ds_user");
+  }, [user]);
 
   useEffect(() => {
-    if (user) localStorage.setItem('ds_user', JSON.stringify(user))
-    else localStorage.removeItem('ds_user')
-  }, [user])
-  useEffect(() => {
-    if (accessToken) localStorage.setItem('ds_access', accessToken)
-    else localStorage.removeItem('ds_access')
-  }, [accessToken])
-  useEffect(() => {
-    if (refreshToken) localStorage.setItem('ds_refresh', refreshToken)
-    else localStorage.removeItem('ds_refresh')
-  }, [refreshToken])
+    if (accessToken) localStorage.setItem("ds_access", accessToken);
+    else localStorage.removeItem("ds_access");
+  }, [accessToken]);
 
+  useEffect(() => {
+    if (refreshToken) localStorage.setItem("ds_refresh", refreshToken);
+    else localStorage.removeItem("ds_refresh");
+  }, [refreshToken]);
+
+  // axios instance with interceptors
   const api = useMemo(() => {
-    const instance = axios.create({ baseURL: API_URL })
+    const instance = axios.create({ baseURL: API_URL });
     instance.interceptors.request.use((config) => {
-      if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`
-      return config
-    })
+      if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
+      return config;
+    });
     instance.interceptors.response.use(
       (res) => res,
       async (error) => {
         if (error.response?.status === 401 && refreshToken) {
           try {
-            const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken })
-            setAccessToken(data.accessToken)
-            error.config.headers.Authorization = `Bearer ${data.accessToken}`
-            return axios(error.config)
+            const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+            setAccessToken(data.accessToken);
+            error.config.headers.Authorization = `Bearer ${data.accessToken}`;
+            return axios(error.config);
           } catch (e) {
-            setUser(null)
-            setAccessToken(null)
-            setRefreshToken(null)
+            setUser(null);
+            setAccessToken(null);
+            setRefreshToken(null);
           }
         }
-        return Promise.reject(error)
+        return Promise.reject(error);
       }
-    )
-    return instance
-  }, [accessToken, refreshToken])
+    );
+    return instance;
+  }, [accessToken, refreshToken]);
 
+  // 🔐 Standard Login
   const login = async (email, password) => {
-    const { data } = await axios.post(`${API_URL}/auth/login`, { email, password })
-    setUser(data.user)
-    setAccessToken(data.accessToken)
-    setRefreshToken(data.refreshToken)
-    return data
-  }
+    const { data } = await axios.post(`${API_URL}/auth/login`, { email, password });
+    setUser(data.user);
+    setAccessToken(data.accessToken);
+    setRefreshToken(data.refreshToken);
+    return data;
+  };
 
+  // 🆕 Register
   const register = async (name, email, password) => {
-    const { data } = await axios.post(`${API_URL}/auth/register`, { name, email, password })
-    setUser(data.user)
-    setAccessToken(data.accessToken)
-    setRefreshToken(data.refreshToken)
-    return data
-  }
+    const { data } = await axios.post(`${API_URL}/auth/register`, { name, email, password });
+    setUser(data.user);
+    setAccessToken(data.accessToken);
+    setRefreshToken(data.refreshToken);
+    return data;
+  };
 
+
+const loginWithGoogle = async (googleToken) => {
+  try {
+    console.log("Sending token to backend:", googleToken);
+
+const { data } = await axios.post(`${API_URL}/auth/google`, { token: googleToken }, { withCredentials: true });
+
+    console.log("Received from backend:", data);
+    setUser(data.user);
+    setAccessToken(data.accessToken);
+    setRefreshToken(data.refreshToken);
+
+    return data;
+  } catch (err) {
+    console.error("Google login failed at backend:", err.response?.data || err.message);
+    throw err;
+  }
+};
+
+
+  // 🚪 Logout
   const logout = () => {
-    setUser(null)
-    setAccessToken(null)
-    setRefreshToken(null)
-  }
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+  };
 
-  const value = { user, api, login, register, logout }
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
+  const value = { user, api, login, register, loginWithGoogle, logout };
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  return useContext(AuthContext)
+  return useContext(AuthContext);
 }

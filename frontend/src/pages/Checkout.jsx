@@ -132,7 +132,7 @@ export default function CheckoutPage() {
   </div>
 
   {/* Billing Address */}
-  <div className="bg-white shadow rounded-xl p-6 space-y-4 border border-gray-200">
+  {/* <div className="bg-white shadow rounded-xl p-6 space-y-4 border border-gray-200">
     <h2 className="text-xl font-semibold border-b pb-2">Billing Address</h2>
     <RadioGroup
       value={billingSame ? "same" : "different"}
@@ -148,7 +148,7 @@ export default function CheckoutPage() {
         <Label htmlFor="different">Use a different billing address</Label>
       </div>
     </RadioGroup>
-  </div>
+  </div> */}
 </div>
 
 

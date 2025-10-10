@@ -42,6 +42,38 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
   res.json({ ok: true })
 })
 
+router.get("/search", async (req, res) => {
+  try {
+    const { q } = req.query;
+
+    if (!q || q.trim() === "") {
+      return res.status(400).json({ error: "Query parameter 'q' is required" });
+    }
+
+    const regex = new RegExp(q, "i");
+
+    const products = await Product.find({
+      published: true,
+      $or: [
+        { title: regex },
+        { category: regex },
+        { description: regex },
+      ],
+    })
+      .select("title price images category sku") // return only essential fields
+      .limit(20)
+      .lean();
+
+    if (products.length === 0) {
+      return res.status(404).json({ message: "No matching products found" });
+    }
+
+    res.status(200).json(products);
+  } catch (error) {
+    console.error("Search API error:", error);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 export default router
 
 

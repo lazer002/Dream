@@ -1,131 +1,202 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../state/AuthContext.jsx";
 
 export default function Signup() {
-  const GoogleIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    width="20"
-    height="20"
-    viewBox="0 0 48 48"
-  >
-    <path fill="#4285F4" d="M23.5 12.27v8.27h11.85c-.52 3.06-3.53 8.97-11.85 8.97-7.14 0-12.97-5.88-12.97-13.11S16.36 12.27 23.5 12.27z"/>
-    <path fill="#34A853" d="M11.03 24c0 1.55.28 3.03.76 4.41l7.04-5.44c-.18-.52-.28-1.08-.28-1.66s.1-1.14.28-1.66l-7.04-5.44a12.956 12.956 0 0 0-.76 9.79z"/>
-    <path fill="#FBBC05" d="M23.5 35.51c-5.08 0-9.4-1.68-12.57-4.57l-7.04 5.44C6.94 42.43 14.86 46 23.5 46c8.33 0 14.34-4.41 17.14-10.67H23.5v.18z"/>
-    <path fill="#EA4335" d="M35.64 28.7c-.54 1.47-1.36 2.79-2.4 3.96l7.04 5.44c3.15-3.01 4.97-7.18 4.97-12.1s-1.82-9.08-4.97-12.1l-7.04 5.44c1.04 1.17 1.86 2.49 2.4 3.96z"/>
-  </svg>
-);
+  const { signup, signupWithGoogle } = useAuth();
+  const navigate = useNavigate();
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
+  const [error, setError] = useState("");
 
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
+  const googleBtnRef = useRef(null);
+  const innerBtnRef = useRef(null);
 
-  const handleSubmit = (e) => {
+  const handleChange = (e) =>
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log("Signup data:", form);
-    // Add your API call here
+    try {
+      await signup(form.name, form.email, form.password);
+      navigate("/");
+    } catch {
+      setError("Signup failed");
+    }
   };
 
-  const handleGoogleLogin = () => {
-    console.log("Google login clicked");
-    // Implement Google OAuth here
+  const handleGoogleLogin = async (res) => {
+    if (!res?.credential) return;
+    try {
+      await signupWithGoogle(res.credential);
+      navigate("/");
+    } catch {
+      setError("Google signup failed");
+    }
   };
+
+  useEffect(() => {
+    if (!window.google || !googleBtnRef.current) return;
+    window.google.accounts.id.initialize({
+      client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
+      callback: handleGoogleLogin,
+    });
+    window.google.accounts.id.renderButton(googleBtnRef.current, {
+      theme: "outline",
+      size: "large",
+      width: "100%",
+    });
+
+    const inner = googleBtnRef.current.querySelector("div[role='button']");
+    if (inner) {
+      innerBtnRef.current = inner;
+      inner.style.background = "transparent";
+      inner.style.width = "100%";
+    }
+  }, []);
+
+  const handleOuterClick = () => {
+    if (innerBtnRef.current) innerBtnRef.current.click();
+  };
+
+  // Autofill fix
+  useEffect(() => {
+    const inputs = document.querySelectorAll(".auto-floating input");
+    const updateFilledState = () => {
+      inputs.forEach((input) => {
+        if (input.value.trim() !== "") input.dataset.filled = "true";
+        else delete input.dataset.filled;
+      });
+    };
+    updateFilledState();
+
+    const observer = new MutationObserver(updateFilledState);
+    inputs.forEach((input) => {
+      observer.observe(input, { attributes: true, attributeFilter: ["value"] });
+      input.addEventListener("input", updateFilledState);
+    });
+
+    const timeout = setTimeout(updateFilledState, 500);
+    return () => {
+      observer.disconnect();
+      inputs.forEach((input) =>
+        input.removeEventListener("input", updateFilledState)
+      );
+      clearTimeout(timeout);
+    };
+  }, []);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-white text-black px-4">
+    <div className="min-h-screen flex items-center justify-center bg-white px-4">
       <div className="w-full max-w-md">
         <h1 className="text-3xl font-bold mb-6 text-center tracking-wide uppercase">
           Sign Up
         </h1>
 
-        <button
-          onClick={handleGoogleLogin}
-          className="w-full flex items-center justify-center gap-2 py-3 mb-6 border border-black font-bold uppercase hover:bg-gray-100 transition"
-        >
-        <GoogleIcon />
-          Sign up with Google
-        </button>
+        {error && <div className="text-red-600 text-sm mb-4">{error}</div>}
 
-        <div className="flex items-center mb-6">
-          <span className="flex-grow border-t border-gray-300"></span>
-          <span className="mx-3 text-gray-500 font-semibold uppercase">or</span>
-          <span className="flex-grow border-t border-gray-300"></span>
+        {/* Google Signup */}
+        <div
+          onClick={handleOuterClick}
+          className="w-full flex items-center justify-center gap-2 border border-black rounded-lg cursor-pointer p-2 mb-6 relative hover:bg-gray-100 transition"
+        >
+          <img
+            src="/images/icons8-google-logo-100.png"
+            className="w-5 h-5 filter saturate-[8.5]"
+            alt="Google"
+          />
+          <span>Sign up with Google</span>
+          <div
+            ref={googleBtnRef}
+            className="absolute opacity-0 pointer-events-none inset-0"
+          />
         </div>
 
-     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-  {/* Name */}
-  <div className="relative">
-    <input
-      type="text"
-      name="name"
-      value={form.name}
-      onChange={handleChange}
-      placeholder=" "
-      className="peer w-full px-3 pt-4 pb-2 border border-black focus:outline-none focus:border-black text-black"
-      required
-    />
-    <label
-      className={`absolute left-3 text-gray-500 text-sm transition-all
-        ${form.name ? "-top-3 text-black text-sm" : "top-3 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base peer-focus:-top-3 peer-focus:text-black peer-focus:text-sm"}`}
-    >
-      Name
-    </label>
-  </div>
+        {/* Divider */}
+        <div className="flex items-center my-6">
+          <div className="flex-grow h-px bg-gray-300"></div>
+          <span className="mx-3 text-gray-500 text-xs font-bold uppercase">
+            or
+          </span>
+          <div className="flex-grow h-px bg-gray-300"></div>
+        </div>
 
-  {/* Email */}
-  <div className="relative">
-    <input
-      type="email"
-      name="email"
-      value={form.email}
-      onChange={handleChange}
-      placeholder=" "
-      className="peer w-full px-3 pt-4 pb-2 border border-black focus:outline-none focus:border-black text-black"
-      required
-    />
-    <label
-      className={`absolute left-3 text-gray-500 text-sm transition-all
-        ${form.email ? "-top-3 text-black text-sm" : "top-3 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base peer-focus:-top-3 peer-focus:text-black peer-focus:text-sm"}`}
-    >
-      Email
-    </label>
-  </div>
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Name */}
+          <div className="relative auto-floating">
+            <input
+              type="text"
+              name="name"
+              value={form.name}
+              onChange={handleChange}
+              placeholder=" "
+              autoComplete="new-name"
+              className="peer w-full border border-black rounded px-3 pt-5 pb-2 bg-transparent text-black focus:outline-none focus:border-black autofill:bg-white"
+            />
+            <label
+              className={`absolute left-3 text-gray-500 transition-all duration-200 pointer-events-none
+                peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
+                peer-focus:-top-2 peer-focus:text-sm peer-focus:text-black
+                ${form.name ? "-top-2 text-sm text-black" : ""}`}
+            >
+              Name
+            </label>
+          </div>
 
-  {/* Password */}
-  <div className="relative">
-    <input
-      type="password"
-      name="password"
-      value={form.password}
-      onChange={handleChange}
-      placeholder=" "
-      className="peer w-full px-3 pt-4 pb-2 border border-black focus:outline-none focus:border-black text-black"
-      required
-    />
-    <label
-      className={`absolute left-3 text-gray-500 text-sm transition-all
-        ${form.password ? "-top-3 text-black text-sm" : "top-3 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base peer-focus:-top-3 peer-focus:text-black peer-focus:text-sm"}`}
-    >
-      Password
-    </label>
-  </div>
+          {/* Email */}
+          <div className="relative auto-floating">
+            <input
+              type="email"
+              name="email"
+              value={form.email}
+              onChange={handleChange}
+              placeholder=" "
+              autoComplete="new-email"
+              className="peer w-full border border-black rounded px-3 pt-5 pb-2 bg-transparent text-black focus:outline-none focus:border-black autofill:bg-white"
+            />
+            <label
+              className={`absolute left-3 text-gray-500 transition-all duration-200 pointer-events-none
+                peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
+                peer-focus:-top-2 peer-focus:text-sm peer-focus:text-black
+                ${form.email ? "-top-2 text-sm text-black" : ""}`}
+            >
+              Email
+            </label>
+          </div>
 
-  <button
-    type="submit"
-    className="w-full py-3 bg-black text-white font-bold uppercase hover:bg-gray-900 transition"
-  >
-    Sign Up
-  </button>
-</form>
+          {/* Password */}
+          <div className="relative auto-floating">
+            <input
+              type="password"
+              name="password"
+              value={form.password}
+              onChange={handleChange}
+              placeholder=" "
+              autoComplete="new-password"
+              className="peer w-full border border-black rounded px-3 pt-5 pb-2 bg-transparent text-black focus:outline-none focus:border-black autofill:bg-white"
+            />
+            <label
+              className={`absolute left-3 text-gray-500 transition-all duration-200 pointer-events-none
+                peer-placeholder-shown:top-3 peer-placeholder-shown:text-gray-400 peer-placeholder-shown:text-base
+                peer-focus:-top-2 peer-focus:text-sm peer-focus:text-black
+                ${form.password ? "-top-2 text-sm text-black" : ""}`}
+            >
+              Password
+            </label>
+          </div>
 
+          <button className="w-full py-3 bg-black text-white font-bold uppercase rounded-lg hover:bg-gray-900 transition">
+            Sign Up
+          </button>
+        </form>
 
         <p className="mt-6 text-center text-gray-600 text-sm">
-          Already have an account?{" "}
-          <a href="/login" className="font-bold text-black hover:underline">
+          Already have an account?
+          <Link className="font-bold text-black underline ml-1" to="/login">
             Log in
-          </a>
+          </Link>
         </p>
       </div>
     </div>

@@ -10,6 +10,8 @@ import ordersRouter from './routes/orders.js'
 import adminUsersRouter from './routes/adminUsers.js'
 import uploadRouter from './routes/upload.js'
 import statsRouter from './routes/stats.js'
+import searchRouter from './routes/search.js'
+
 
 dotenv.config()
 
@@ -24,6 +26,7 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRouter)
 app.use('/api/products', productsRouter)
+app.use("/api/search", searchRouter); // search & filter routes
 app.use('/api/cart', cartRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/admin', adminUsersRouter)

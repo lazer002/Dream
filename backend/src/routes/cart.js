@@ -21,16 +21,26 @@ router.get('/', async (req, res) => {
 })
 
 router.post('/add', async (req, res) => {
+  console.log(req.body )
   const key = cartKey(req)
-  const { productId, quantity = 1 } = req.body
-  if (!key || !productId) return res.status(400).json({ error: 'Missing fields' })
+  const { productId, quantity = 1, size } = req.body // added size
+
+  if (!key || !productId || !size) 
+    return res.status(400).json({ error: 'Missing fields: productId or size' })
+
   const product = await Product.findById(productId)
-  if (!product || !product.published) return res.status(404).json({ error: 'Product not found' })
-  const filter = { ...key, product: productId }
+  if (!product || !product.published) 
+    return res.status(404).json({ error: 'Product not found' })
+
+  // Include size in the filter so different sizes are separate items
+  const filter = { ...key, product: productId, size }
+
   const update = { $inc: { quantity: Number(quantity) } }
   const item = await CartItem.findOneAndUpdate(filter, update, { new: true, upsert: true })
+
   res.json(item)
 })
+
 
 router.post('/update', async (req, res) => {
   const key = cartKey(req)

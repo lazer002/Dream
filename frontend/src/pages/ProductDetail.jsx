@@ -5,13 +5,12 @@ import { useCart } from "../state/CartContext.jsx"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
+import axios from "axios"
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api"
-
 export default function ProductDetail() {
   const { id } = useParams()
   const { add } = useCart()
@@ -22,14 +21,19 @@ export default function ProductDetail() {
   const [openZoom, setOpenZoom] = useState(false)
   const [wishlisted, setWishlisted] = useState(false)
 
-  useEffect(() => {
-    fetch(`${API_URL}/products/${id}`)
-      .then((res) => res.json())
-      .then((data) => {
-        setProduct(data)
-        if (data.sizes?.length) setSelectedSize(data.sizes[0])
-      })
-  }, [id])
+useEffect(() => {
+  const getProduct = async () => {
+    try {
+      const { data } = await axios.get(`${API_URL}/products/${id}`);
+      setProduct(data);
+    
+    } catch (error) {
+      console.error("Failed to fetch product:", error);
+    }
+  };
+
+  getProduct();
+}, [id]);
 
   if (!product) return <div className="p-8 text-center text-gray-500">Loading...</div>
 
@@ -40,6 +44,7 @@ export default function ProductDetail() {
   const prevImage = () => {
     setActiveImage((prev) => (prev - 1 + product.images.length) % product.images.length)
   }
+
 
   return (
     <>
@@ -89,30 +94,38 @@ export default function ProductDetail() {
 
         {/* Size Selection */}
         {/* Size Selection with Pills */}
-        {product.sizes && (
-          <div className="flex flex-col gap-3">
-            <label className="font-medium">Size:</label>
+  {product.sizes && (
+  <div className="flex flex-col gap-3">
+    <label className="font-medium">Size:</label>
 
-            {/* Pills */}
-            <div className="flex gap-2 flex-wrap">
-              {["S", "M", "L", "XL"].map((size) => {
-                const isAvailable = product.sizes.includes(size)
-                return (
-                  <button
-                    key={size}
-                    onClick={() => isAvailable && setSelectedSize(size)}
-                    className={`px-4 py-2 rounded-full border transition 
+    {/* Pills */}
+    <div className="flex gap-2 flex-wrap">
+      {["XS","S", "M", "L", "XL","XXL"].map((size) => {
+        const isAvailable = product.sizes.includes(size)
+        return (
+          <button
+            key={size}
+            onClick={() => isAvailable && setSelectedSize(size)}
+            className={`px-4 py-2 rounded-full border transition 
               ${selectedSize === size ? "bg-brand-600 text-white border-brand-600" : ""}
               ${!isAvailable ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50" : "bg-white text-gray-700 border-gray-300 hover:border-brand-600"}`}
-                    disabled={!isAvailable}
-                  >
-                    {size}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
+            disabled={!isAvailable}
+          >
+            {size}
+          </button>
+        )
+      })}
+    </div>
+
+    {/* Show selected size */}
+    {selectedSize && (
+      <p className="text-sm text-gray-700 mt-1">
+        Selected Size: <span className="font-semibold">{selectedSize}</span>
+      </p>
+    )}
+  </div>
+)}
+
 
 
 
@@ -125,7 +138,7 @@ export default function ProductDetail() {
           <div className="flex gap-3">
             <Button
               className="w-1/2 flex items-center justify-center gap-2"
-              onClick={() => add(product._id)}
+              onClick={() => add(product._id,selectedSize)}
             >
               <ShoppingCart className="w-5 h-5" />
               Add to Cart

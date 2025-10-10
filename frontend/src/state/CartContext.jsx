@@ -60,24 +60,40 @@ export function CartProvider({ children }) {
   }, [user])
 
   // Optimistic updates for add/update/remove
-  const add = async (productId, quantity = 1) => {
-    const existing = items.find(i => i.product._id === productId)
-    if (existing) {
-      setItems(prev => prev.map(i => i.product._id === productId ? { ...i, quantity: i.quantity + quantity } : i))
-    } else {
-      setItems(prev => [...prev, { product: { _id: productId }, quantity }])
-    }
-
-    try {
-      await client.post('/add', { productId, quantity })
-      await refresh()
-      toast.success("Added to cart")
-    } catch (err) {
-      console.error(err)
-      toast.error("Failed to add item")
-      refresh()
-    }
+const add = async (productId, size, quantity = 1) => {
+  if (!size) {
+    toast.error("Please select a size!");
+    return;
   }
+
+  // Check if the product with the same size already exists
+  const existing = items.find(
+    i => i.product._id === productId && i.size === size
+  );
+
+  if (existing) {
+    setItems(prev =>
+      prev.map(i =>
+        i.product._id === productId && i.size === size
+          ? { ...i, quantity: i.quantity + quantity }
+          : i
+      )
+    );
+  } else {
+    setItems(prev => [...prev, { product: { _id: productId }, size, quantity }]);
+  }
+
+  try {
+    await client.post('/add', { productId, size, quantity });
+    await refresh();
+    toast.success("Added to cart");
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to add item");
+    refresh();
+  }
+};
+
 
   const update = async (productId, quantity) => {
     setItems(prev => prev.map(i => i.product._id === productId ? { ...i, quantity } : i))
@@ -92,18 +108,18 @@ export function CartProvider({ children }) {
     }
   }
 
-  const remove = async (productId) => {
-    setItems(prev => prev.filter(i => i.product._id !== productId))
-    try {
-      await client.post('/remove', { productId })
-      await refresh()
-      toast.success("Product removed from cart")
-    } catch (err) {
-      console.error(err)
-      toast.error("Failed to remove item")
-      refresh()
-    }
+const remove = async (productId) => {
+  setItems(prev => prev.filter(i => i.product._id !== productId))
+  try {
+    await client.post('/remove', { productId })
+    await refresh()
+    toast.success("Product removed from cart")
+  } catch (err) {
+    console.error(err)
+    toast.error("Failed to remove item")
+    refresh()
   }
+}
 
   const value = { items, add, update, remove, refresh, mergeGuestCart }
 

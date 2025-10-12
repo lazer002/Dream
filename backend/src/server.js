@@ -2,6 +2,7 @@ import express from 'express'
 import dotenv from 'dotenv'
 import cors from 'cors'
 import morgan from 'morgan'
+import os from 'os' // <-- new import
 import { connectToDatabase } from './utils/db.js'
 import authRouter from './routes/auth.js'
 import productsRouter from './routes/products.js'
@@ -11,12 +12,28 @@ import adminUsersRouter from './routes/adminUsers.js'
 import uploadRouter from './routes/upload.js'
 import statsRouter from './routes/stats.js'
 import searchRouter from './routes/search.js'
-
+import publicRouter from './routes/public.js'
 
 dotenv.config()
 
 const app = express()
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || true, credentials: true }))
+const allowedOrigins = [
+  process.env.CLIENT_ORIGIN_WEB,
+  process.env.CLIENT_ORIGIN_APP,
+  process.env.LOCAL_NETWORK
+]
+
+app.use(cors({
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  credentials: true,
+}));
 app.use(express.json())
 app.use(morgan(process.env.NODE_ENV === 'production' ? 'combined' : 'dev'))
 
@@ -26,24 +43,38 @@ app.get('/api/health', (_req, res) => {
 
 app.use('/api/auth', authRouter)
 app.use('/api/products', productsRouter)
-app.use("/api/search", searchRouter); // search & filter routes
+app.use("/api/search", searchRouter)
 app.use('/api/cart', cartRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/admin', adminUsersRouter)
 app.use('/api/admin/upload', uploadRouter)
 app.use('/api/admin/stats', statsRouter)
+app.use('/api', publicRouter)
 
 const port = process.env.PORT || 4000
+
+// Function to get local network IP
+function getLocalExternalIP() {
+  const interfaces = os.networkInterfaces()
+  for (const name of Object.keys(interfaces)) {
+    for (const iface of interfaces[name]) {
+      if (iface.family === 'IPv4' && !iface.internal) {
+        return iface.address
+      }
+    }
+  }
+  return 'localhost'
+}
 
 connectToDatabase()
   .then(() => {
     app.listen(port, () => {
-      console.log(`API listening on http://localhost:${port}`)
+      const localIP = getLocalExternalIP()
+      console.log(`API running on: http://${localIP}:${port}`)
+      console.log(`Also accessible on localhost:${port}`)
     })
   })
   .catch((err) => {
     console.error('Failed to start server:', err)
     process.exit(1)
   })
-
-

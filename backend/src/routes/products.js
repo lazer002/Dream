@@ -15,10 +15,12 @@ router.get('/', async (req, res) => {
     .skip((Number(page) - 1) * Number(limit))
     .limit(Number(limit))
   const total = await Product.countDocuments(filter)
+  // console.log(products,'products')
   res.json({ items: products, total })
 })
 
 router.get('/:id', async (req, res) => {
+  console.log(req.body)
   const product = await Product.findById(req.params.id)
   if (!product || !product.published) return res.status(404).json({ error: 'Not found' })
   res.json(product)

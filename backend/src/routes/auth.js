@@ -53,6 +53,79 @@ router.post('/refresh', async (req, res) => {
     res.status(401).json({ error: 'Invalid refresh token' })
   }
 })
+router.post('/otp/send', async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ error: 'Email required' });
+
+    // Create user if not exists
+    let user = await User.findOne({ email });
+    if (!user) {
+      user = await User.create({ email, name: 'New User' });
+    }
+
+    // Generate OTP and hash it
+    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    const otpHash = await bcrypt.hash(otp, 10);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 5 min expiry
+
+    // Save OTP in OTP collection
+    await OTP.create({ email, otpHash, expiresAt });
+
+    // Send OTP email
+    await sendOtpMail(email, otp);
+
+    res.json({ message: 'OTP sent to email' });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'Failed to send OTP' });
+  }
+});
+
+
+router.post('/otp/verify', async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
+
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ error: 'User not found' });
+
+    // Find latest OTP for this email
+    const otpEntry = await OTP.findOne({ email }).sort({ createdAt: -1 });
+    if (!otpEntry) return res.status(401).json({ error: 'OTP not found or expired' });
+console.log("Input OTP:", otp);
+console.log("OTP hash from DB:", otpEntry.otpHash);
+console.log("Expires at:", otpEntry.expiresAt);
+console.log("Now:", new Date());
+
+    // Check expiry
+    if (otpEntry.expiresAt < new Date()) {
+      await OTP.deleteOne({ _id: otpEntry._id }); // remove expired OTP
+      return res.status(401).json({ error: 'OTP expired' });
+    }
+
+    // Verify OTP
+    const isValid = await otpEntry.verifyOtp(otp);
+    if (!isValid) return res.status(401).json({ error: 'Invalid OTP' });
+
+    // OTP verified: delete entry and update user
+    await OTP.deleteOne({ _id: otpEntry._id });
+    user.isVerified = true;
+    user.lastLogin = new Date();
+    await user.save();
+
+    const payload = { id: user._id.toString(), role: user.role, email: user.email, name: user.name };
+    res.json({
+      user: { id: payload.id, email: user.email, name: user.name, role: user.role },
+      accessToken: signAccessToken(payload),
+      refreshToken: signRefreshToken(payload),
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'OTP verification failed' });
+  }
+});
 
 router.post("/google", googleLogin);
 

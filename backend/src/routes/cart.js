@@ -5,7 +5,7 @@ import { requireAuth } from '../middleware/auth.js'
 
 const router = express.Router()
 
-// Helper to get key (user or guest)
+// Helper to get cart key (user or guest)
 function cartKey(req) {
   if (req.user?.id) return { user: req.user.id }
   const guestId = req.headers['x-guest-id']
@@ -13,83 +13,84 @@ function cartKey(req) {
   return { guestId }
 }
 
+// Get cart items
 router.get('/', async (req, res) => {
   const key = cartKey(req)
   if (!key) return res.json({ items: [] })
+
   const items = await CartItem.find(key).populate('product')
   res.json({ items })
 })
 
+// Add to cart with size support
 router.post('/add', async (req, res) => {
-  console.log(req.body )
   const key = cartKey(req)
-  const { productId, quantity = 1, size } = req.body // added size
+  const { productId, quantity = 1, size } = req.body
 
-  if (!key || !productId || !size) 
+  if (!key || !productId || !size)
     return res.status(400).json({ error: 'Missing fields: productId or size' })
 
   const product = await Product.findById(productId)
-  if (!product || !product.published) 
+  if (!product || !product.published)
     return res.status(404).json({ error: 'Product not found' })
 
-  // Include size in the filter so different sizes are separate items
+  // Include size in filter so each size is a separate cart item
   const filter = { ...key, product: productId, size }
-
   const update = { $inc: { quantity: Number(quantity) } }
-  const item = await CartItem.findOneAndUpdate(filter, update, { new: true, upsert: true })
 
+  const item = await CartItem.findOneAndUpdate(filter, update, { new: true, upsert: true })
   res.json(item)
 })
 
-
+// Update quantity
 router.post('/update', async (req, res) => {
   const key = cartKey(req)
-  const { productId, quantity } = req.body
-  if (!key || !productId || !quantity) return res.status(400).json({ error: 'Missing fields' })
+  const { productId, size, quantity } = req.body
+  if (!key || !productId || !size || quantity == null) 
+    return res.status(400).json({ error: 'Missing fields' })
+
   if (quantity <= 0) {
-    await CartItem.findOneAndDelete({ ...key, product: productId })
+    await CartItem.findOneAndDelete({ ...key, product: productId, size })
     return res.json({ ok: true })
   }
-  const item = await CartItem.findOneAndUpdate({ ...key, product: productId }, { $set: { quantity } }, { new: true })
+
+  const item = await CartItem.findOneAndUpdate(
+    { ...key, product: productId, size },
+    { $set: { quantity } },
+    { new: true }
+  )
   res.json(item)
 })
+
+// Remove item
 router.post('/remove', async (req, res) => {
   const key = cartKey(req)
-  const { productId } = req.body
+  const { productId, size } = req.body
+  if (!key || !productId || !size) return res.status(400).json({ error: 'Missing fields' })
 
-  if (!key || !productId) {
-    return res.status(400).json({ error: 'Missing fields' })
-  }
-
-  const result = await CartItem.findOneAndDelete({ ...key, product: productId })
-
-  if (!result) {
-    return res.status(404).json({ error: 'Cart item not found' })
-  }
+  const result = await CartItem.findOneAndDelete({ ...key, product: productId, size })
+  if (!result) return res.status(404).json({ error: 'Cart item not found' })
 
   res.json({ message: 'Product removed from cart', item: result })
 })
-  router.post('/merge', requireAuth, async (req, res) => {
-    console.log('Merging guest cart', req.body)
-    const { guestId } = req.body
-    if (!guestId) return res.status(400).json({ error: 'Missing guestId' })
-    const guestItems = await CartItem.find({ guestId })
-    for (const gi of guestItems) {
-      await CartItem.findOneAndUpdate(
-        { user: req.user.id, product: gi.product },
-        { $inc: { quantity: gi.quantity } },
-        { upsert: true, new: true }
-      )
-    }
-    await CartItem.deleteMany({ guestId })
-    const items = await CartItem.find({ user: req.user.id }).populate('product')
-    res.json({ items })
-  })
 
-// Remove item from cart
+// Merge guest cart after login
+router.post('/merge', requireAuth, async (req, res) => {
+  const { guestId } = req.body
+  if (!guestId) return res.status(400).json({ error: 'Missing guestId' })
 
+  const guestItems = await CartItem.find({ guestId })
+  for (const gi of guestItems) {
+    await CartItem.findOneAndUpdate(
+      { user: req.user.id, product: gi.product, size: gi.size },
+      { $inc: { quantity: gi.quantity } },
+      { upsert: true, new: true }
+    )
+  }
+  await CartItem.deleteMany({ guestId })
 
+  const items = await CartItem.find({ user: req.user.id }).populate('product')
+  res.json({ items })
+})
 
 export default router
-
-

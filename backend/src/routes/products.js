@@ -1,23 +1,35 @@
 import express from 'express'
 import { Product } from '../models/Product.js'
 import { requireAuth, requireAdmin } from '../middleware/auth.js'
+import { Category } from '../models/Category.js';
 
 const router = express.Router()
 
-router.get('/', async (req, res) => {
-  const { q, limit = 20, page = 1 } = req.query
-  const filter = { published: true }
-  if (q) {
-    filter.$text = { $search: q }
+router.get("/", async (req, res) => {
+  try {
+    const { category, q, limit = 20, page = 1 } = req.query;
+    const filter = { published: true };
+    // Category filter by name or skip if 'All'
+    if (category && category !== 'All') {
+      const cat = await Category.findOne({ name: category });
+      if (cat) filter.category = cat._id;
+    }
+    if (q) {
+      filter.title = { $regex: q, $options: "i" };
+    }
+    const total = await Product.countDocuments(filter);
+    const products = await Product.find(filter)
+      .populate('category', 'name') // only return name of category
+      .sort({ createdAt: -1 })
+      .skip((Number(page) - 1) * Number(limit))
+      .limit(Number(limit));
+
+    res.json({ items: products, total });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Server error" });
   }
-  const products = await Product.find(filter)
-    .sort({ createdAt: -1 })
-    .skip((Number(page) - 1) * Number(limit))
-    .limit(Number(limit))
-  const total = await Product.countDocuments(filter)
-  // console.log(products,'products')
-  res.json({ items: products, total })
-})
+});
 
 router.get('/:id', async (req, res) => {
   console.log(req.body)
@@ -76,6 +88,11 @@ router.get("/search", async (req, res) => {
     res.status(500).json({ error: "Server error" });
   }
 });
+
+
+
+
+
 export default router
 
 

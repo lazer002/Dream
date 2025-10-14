@@ -24,23 +24,30 @@ router.get('/', async (req, res) => {
 
 // Add to cart with size support
 router.post('/add', async (req, res) => {
-  const key = cartKey(req)
-  const { productId, quantity = 1, size } = req.body
+  const key = cartKey(req); // { user: userId } or { guestId }
+  const { productId, quantity = 1, size } = req.body;
 
   if (!key || !productId || !size)
-    return res.status(400).json({ error: 'Missing fields: productId or size' })
+    return res.status(400).json({ error: 'Missing fields: productId or size' });
 
-  const product = await Product.findById(productId)
+  const product = await Product.findById(productId);
   if (!product || !product.published)
-    return res.status(404).json({ error: 'Product not found' })
+    return res.status(404).json({ error: 'Product not found' });
 
-  // Include size in filter so each size is a separate cart item
-  const filter = { ...key, product: productId, size }
-  const update = { $inc: { quantity: Number(quantity) } }
+  // Filter includes product + size + user/guest
+  const filter = { ...key, product: productId, size };
 
-  const item = await CartItem.findOneAndUpdate(filter, update, { new: true, upsert: true })
-  res.json(item)
-})
+  // Increment quantity if already exists, else create new
+  const update = { $inc: { quantity: Number(quantity) } };
+
+  const item = await CartItem.findOneAndUpdate(filter, update, {
+    new: true, // return updated doc
+    upsert: true, // create if doesn't exist
+  });
+
+  res.json({ message: 'Added to cart', item });
+});
+
 
 // Update quantity
 router.post('/update', async (req, res) => {
@@ -65,10 +72,10 @@ router.post('/update', async (req, res) => {
 // Remove item
 router.post('/remove', async (req, res) => {
   const key = cartKey(req)
-  const { productId, size } = req.body
-  if (!key || !productId || !size) return res.status(400).json({ error: 'Missing fields' })
+  const { productId } = req.body
+  if (!key || !productId ) return res.status(400).json({ error: 'Missing fields' })
 
-  const result = await CartItem.findOneAndDelete({ ...key, product: productId, size })
+  const result = await CartItem.findOneAndDelete({ ...key, product: productId })
   if (!result) return res.status(404).json({ error: 'Cart item not found' })
 
   res.json({ message: 'Product removed from cart', item: result })

@@ -7,29 +7,33 @@ const productSchema = new mongoose.Schema(
     price: { type: Number, required: true, min: 0 },
     images: [{ type: String }],
 
-    // auto-generated unique SKU (8-10 digit string)
-    sku: {
-      type: String,
-      unique: true,
-      required: true,
+    sku: { type: String, unique: true, required: true },
+
+    // Track inventory per size
+    inventory: {
+      XS: { type: Number, default: 0 },
+      S: { type: Number, default: 0 },
+      M: { type: Number, default: 0 },
+      L: { type: Number, default: 0 },
+      XL: { type: Number, default: 0 },
+      XXL: { type: Number, default: 0 },
     },
 
-    inventory: { type: Number, default: 0 },
     published: { type: Boolean, default: true },
     onSale: { type: Boolean, default: false },
     isNewProduct: { type: Boolean, default: false },
 
-    // replace tags with category
     category: {
-      type: String,
-      enum: ["jackets", "hoodies", "tshirts", "pants", "accessories"],
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Category",
       required: true,
       index: true,
     },
+
     sizes: {
-      type: [String], // array of strings
-      enum: ["XS", "S", "M", "L", "XL", "XXL"], // allowed size values
-      default: [], // default empty array
+      type: [String],
+      enum: ["XS", "S", "M", "L", "XL", "XXL"],
+      default: [],
     },
   },
   { timestamps: true }
@@ -42,7 +46,7 @@ productSchema.pre("validate", async function (next) {
     let exists = true;
 
     while (exists) {
-      newSku = Math.floor(10000000 + Math.random() * 9000000000).toString(); // 8-10 digits
+      newSku = Math.floor(10000000 + Math.random() * 9000000000).toString();
       exists = await mongoose.models.Product.findOne({ sku: newSku });
     }
 

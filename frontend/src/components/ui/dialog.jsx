@@ -43,7 +43,7 @@ export function DialogContent({ className = "", children }) {
 
       {/* Main Content */}
       <div
-        className={`relative m-auto w-full max-w-lg rounded-xl bg-white shadow-lg transition-transform duration-300 ease-in-out ${
+        className={`relative m-auto w-full  rounded-xl bg-white shadow-lg transition-transform duration-300 ease-in-out ${
           show ? "scale-100 opacity-100" : "scale-95 opacity-0"
         } ${className}`}
       >

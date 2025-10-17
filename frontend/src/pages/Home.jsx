@@ -5,252 +5,253 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import FAQ from "@/components/Faq";
 import FeaturesCarousel from "@/components/FeaturesCarousel";
-
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+import { api } from "@/utils/config";
 
 export default function Home() {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [q, setQ] = useState("");
 
   useEffect(() => {
-    fetch(`${API_URL}/products?q=${encodeURIComponent(q)}`)
-      .then((r) => r.json())
-      .then((d) => setProducts(d.items || []));
+    api
+      .get(`/products?q=${encodeURIComponent(q)}`)
+      .then((res) => setProducts(res.data?.items || []))
+      .catch(() => setProducts([]));
   }, [q]);
 
-  const categories = [
-    {
-      name: "Hoodies",
-      image: "/images/3.avif",
-      link: "/category/hoodies",
-      description:
-        "Stay cozy and stylish with our premium hoodies, designed for comfort and everyday wear.",
-    },
-    {
-      name: "Jackets",
-      image: "/images/4.avif",
-      link: "/category/jackets",
-      description:
-        "Our jackets combine style and functionality, keeping you warm and trendy in all seasons.",
-    },
-    {
-      name: "T-Shirts",
-      image: "/images/1.avif",
-      link: "/category/tshirts",
-      description:
-        "Versatile t-shirts crafted for comfort and style, perfect for casual outings or layering.",
-    },
-    // {
-    //   name: "Pants",
-    //   image: "/images/2.avif",
-    //   link: "/category/pants",
-    //   description:
-    //     "Comfortable and durable pants designed for both work and leisure, keeping you confident all day.",
-    // },
-    {
-      name: "Shirts",
-      image: "/images/5.avif",
-      link: "/category/shirts",
-      description:
-        "Smart and crisp shirts for every occasion, offering a perfect blend of elegance and ease.",
-    },
-  ];
-  
+  const fetchCategories = async () => {
+    try {
+      const res = await api.get("/categories");
+      const cats = Array.isArray(res.data.categories)
+        ? res.data.categories
+        : [];
+      setCategories([...cats]);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
   return (
-    <div className="space-y-20">
-      {/* Hero Banner */}
-      <div className="relative w-full overflow-hidden text-center">
-        {/* Desktop Image */}
-        <img
-          className="hidden md:block w-full"
-          src="/images/banner_web.webp"
-          alt="Hero Banner"
-        />
 
-        {/* Mobile Image */}
-        <img
-          className="block md:hidden w-full"
-          src="/images/banner_pon.webp"
-          alt="Hero Banner Mobile"
-        />
+ <div className="bg-white text-black">
+      {/* ======================================================
+          REDEFINE YOUR STYLE BANNER
+      ====================================================== */}
+<section className="relative h-[96vh] flex items-center justify-start px-6 md:px-16 bg-black/10">
+  {/* Background Image */}
+  <img
+    src="/images/banner_web.webp"
+    alt="Hero Banner"
+    className="absolute inset-0 w-full h-full object-cover z-0"
+  />
 
-        {/* Content */}
-        <div className="absolute inset-0 flex flex-col items-start max-w-7xl mx-auto justify-center text-white px-4">
-          <h2 className="text-3xl md:text-7xl font-semibold mb-4 w-1/2 text-left">
-            Drip in Comfort, Slay in Style
-          </h2>
+  {/* Overlay (optional subtle dark layer for text readability) */}
+  <div className="absolute inset-0 bg-black/30 z-[1]" />
 
-          <span className="block w-20 h-1 bg-gradient-to-r from-orange-500 to-pink-600 mb-6"></span>
+  {/* Text Content */}
+  <div className="relative z-[2] max-w-xl text-white">
+    <h1 className="text-5xl md:text-7xl font-extrabold mb-4 leading-tight tracking-tight drop-shadow-lg">
+      REDEFINE YOUR STYLE
+    </h1>
+    <p className="text-gray-200 mb-8 text-lg max-w-md">
+      Discover our latest collection of sweatshirts and hoodies.
+    </p>
 
-          <div>
-            <a
-              href="/collections/drift-collection"
-              className="inline-block bg-black hover:bg-pink-600 transition text-white px-6 py-3 rounded font-medium"
+    <Button
+      asChild
+      className="bg-white text-black px-8 py-3 text-sm font-semibold tracking-wide hover:bg-gray-200 transition"
+    >
+      <Link to="/collections/hoodies">SHOP NOW</Link>
+    </Button>
+  </div>
+</section>
+
+
+      {/* ======================================================
+          FEATURED COLLECTIONS
+      ====================================================== */}
+      <section className="py-20 text-center bg-white">
+        <h2 className="text-2xl md:text-3xl font-bold mb-12 tracking-tight uppercase">
+          FEATURED COLLECTIONS
+        </h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 px-6 md:px-20">
+          {[
+            { label: "MEN'S COLLECTION", link: "/collections/mens" },
+            { label: "HOODIES", link: "/collections/hoodies" },
+            { label: "T-SHIRTS", link: "/collections/tshirts" },
+            { label: "SHIRTS", link: "/collections/shirts" },
+          ].map((item, index) => (
+            <Link
+              key={index}
+              to={item.link}
+              className="flex flex-col items-center group"
             >
-              Shop The Drip
-            </a>
+              <img
+                src={`https://via.placeholder.com/250x300?text=${encodeURIComponent(
+                  item.label
+                )}`}
+                alt={item.label}
+                className="w-full object-cover mb-4 group-hover:opacity-90 transition"
+              />
+              <p className="text-sm font-medium uppercase tracking-wide">
+                {item.label}
+              </p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* ======================================================
+          END OF SEASON SALE
+      ====================================================== */}
+      <section className="bg-black text-white text-center py-20">
+        <h2 className="text-3xl font-bold mb-6 tracking-tight uppercase">
+          END OF SEASON SALE – UP TO 30% OFF
+        </h2>
+        <Button
+          asChild
+          className="bg-white text-black px-8 py-3 text-sm font-semibold tracking-wide hover:bg-gray-200 transition"
+        >
+          <Link to="/collections/sale">GRAB THE DEAL</Link>
+        </Button>
+      </section>
+
+      {/* ======================================================
+          LOOKBOOK SECTION
+      ====================================================== */}
+      <section className="py-20 text-center bg-white">
+        <h2 className="text-2xl md:text-3xl font-bold mb-12 tracking-tight uppercase">
+          LOOKBOOK
+        </h2>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 px-6 md:px-20">
+          {[1, 2, 3, 4].map((i) => (
+            <div
+              key={i}
+              className="relative overflow-hidden group cursor-pointer"
+            >
+              <img
+                src={`https://via.placeholder.com/250x300?text=LOOK+${i}`}
+                alt={`Look ${i}`}
+                className="w-full object-cover"
+              />
+              <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
+                <button className="text-white border border-white px-4 py-2 text-sm font-medium uppercase">
+                  SHOP THE LOOK
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* ======================================================
+          JOURNAL / FOOTER
+      ====================================================== */}
+      <footer className="bg-gray-100 text-center py-16">
+        <h3 className="text-xl md:text-2xl font-bold mb-4 tracking-tight uppercase">
+          FROM THE DRIPJOURNAL
+        </h3>
+        <p className="text-gray-700 mb-2 text-sm md:text-base">
+          Get 10% Off Your First Order.
+        </p>
+        <p className="text-gray-500 text-xs md:text-sm">
+          Best to know about our latest drops.
+        </p>
+      </footer>
+
+      {/* ======================================================
+          FEATURED PRODUCTS
+      ====================================================== */}
+      <section className="bg-white pt-12 pb-16 text-black">
+        <div className="mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex flex-col md:flex-row items-center justify-between mb-8">
+            <h2 className="text-3xl font-bold uppercase">FEATURED PRODUCTS</h2>
+            <Link
+              to="/collections/bestseller"
+              className="flex items-center gap-2 text-sm font-bold uppercase text-black hover:text-gray-700 transition"
+            >
+              DISCOVER MORE
+              <svg
+                role="presentation"
+                focusable="false"
+                width="5"
+                height="8"
+                className="stroke-current"
+                viewBox="0 0 5 8"
+              >
+                <path
+                  d="m.75 7 3-3-3-3"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                ></path>
+              </svg>
+            </Link>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {products.slice(0, 8).map((p) => {
+              const discountPercent = p.originalPrice
+                ? Math.round(
+                    ((p.originalPrice - p.price) / p.originalPrice) * 100
+                  )
+                : null;
+
+              return (
+                <Card
+                  key={p._id}
+                  className="group overflow-hidden border border-black transition relative bg-white"
+                >
+                  <Link to={`/product/${p._id}`} className="relative">
+                    <div
+                      className="w-full h-56 bg-cover bg-center group-hover:scale-105 transition-transform"
+                      style={{
+                        backgroundImage: `url(${
+                          p.images?.[0] ||
+                          "https://via.placeholder.com/400x400?text=No+Image"
+                        })`,
+                      }}
+                    />
+                    <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
+                      {p.isNewProduct && (
+                        <Badge className="bg-black text-white px-2 py-1 text-xs uppercase font-bold">
+                          NEW
+                        </Badge>
+                      )}
+                      {p.onSale && discountPercent && (
+                        <Badge className="bg-black text-white px-2 py-1 text-xs uppercase font-bold">
+                          {discountPercent}% OFF
+                        </Badge>
+                      )}
+                    </div>
+                  </Link>
+
+                  <CardHeader className="px-4 pt-2">
+                    <h3 className="text-black font-bold uppercase truncate">
+                      {p.title}
+                    </h3>
+                  </CardHeader>
+
+                  <CardContent className="px-4 pt-0 flex items-center justify-between">
+                    <p className="text-black font-bold">₹{p.price}</p>
+                    {p.originalPrice && (
+                      <p className="text-gray-500 line-through text-sm uppercase">
+                        ₹{p.originalPrice}
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         </div>
-      </div>
-
-
-{/* Explore Categories */}
-
-<section className="py-20 bg-white text-black">
-  <div className="mx-auto px-4 sm:px-6 lg:px-8  text-center">
-    <div className="text-4xl font-extrabold uppercase mb-16 tracking-wide max-w-3xl mx-auto">
-      Every step forward, however gentle, carries relentless progress and inner peace, shaping who you are meant to be
-    </div>
-
-    <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-2">
-      {categories.map((c, i) => (
-        <Link
-          key={i}
-          to={c.link}
-          className="relative group cursor-pointer"
-        >
-          {/* Card */}
-          <div className="relative bg-white border border-black overflow-hidden transform transition duration-300 group-hover:opacity-90">
-            {/* Image */}
-            <img
-              src={c.image}
-              alt={c.name}
-              className="w-full h-full object-cover transition duration-300 group-hover:brightness-95"
-            />
-
-            {/* Text Overlay */}
-            <div className="absolute inset-0 flex flex-col justify-end p-6 bg-black/40">
-              <h3 className="text-2xl font-bold uppercase text-white mb-2">{c.name}</h3>
-              <p className="text-sm text-gray-200 mb-4">{c.description}</p>
-
-              {/* Button */}
-              <Button className="bg-black text-white font-bold uppercase px-6 py-2 border border-black hover:bg-white hover:text-black transition">
-                Explore
-              </Button>
-            </div>
-          </div>
-        </Link>
-      ))}
-    </div>
-  </div>
-</section>
-
-
-
-
-
-
-
-
-{/* Featured / Best Selling */}
-<section className="bg-white pt-12 pb-16 text-black">
-  <div className=" mx-auto px-4 sm:px-6 lg:px-8">
-    {/* Section Header */}
-    <div className="flex flex-col md:flex-row items-center justify-between mb-8">
-      <div className="flex items-center gap-4 mb-4 md:mb-0">
-        <h2 className="text-3xl font-bold uppercase">FEATURED</h2>
-        {/* Category Buttons */}
-        <button
-          onClick={() => hidediv("men-product")}
-          className="px-4 py-2 border border-black bg-white text-black uppercase font-bold hover:bg-gray-100 transition"
-        >
-          MEN
-        </button>
-        <button
-          onClick={() => hidediv("women-product")}
-          className="px-4 py-2 border border-black bg-black text-white uppercase font-bold hover:bg-gray-800 transition" 
-        >
-          WOMEN
-        </button>
-      </div>
-
-      {/* Discover More */}
-      <a
-        href="/collections/bestseller"
-        className="flex items-center gap-2 text-sm font-bold uppercase text-black hover:text-gray-700 transition"
-      >
-        DISCOVER MORE
-        <svg
-          role="presentation"
-          focusable="false"
-          width="5"
-          height="8"
-          className="stroke-current"
-          viewBox="0 0 5 8"
-        >
-          <path
-            d="m.75 7 3-3-3-3"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-          ></path>
-        </svg>
-      </a>
-    </div>
-
-    {/* Products Grid */}
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-      {products.slice(0, 8).map((p) => {
-        const discountPercent = p.originalPrice
-          ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
-          : null;
-
-        return (
-          <Card
-            key={p._id}
-            className="group overflow-hidden border border-black transition relative bg-white"
-          >
-            <Link to={`/product/${p._id}`} className="relative">
-              <div
-                className="w-full h-56 bg-cover bg-center group-hover:scale-105 transition-transform"
-                style={{
-                  backgroundImage: `url(${
-                    p.images?.[0] ||
-                    "https://via.placeholder.com/400x400?text=No+Image"
-                  })`,
-                }}
-              />
-
-              {/* Badges */}
-              <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
-                {p.isNewProduct && (
-                  <Badge className="bg-black text-white px-2 py-1 text-xs uppercase font-bold">
-                    NEW
-                  </Badge>
-                )}
-                {p.onSale && discountPercent && (
-                  <Badge className="bg-black text-white px-2 py-1 text-xs uppercase font-bold">
-                    {discountPercent}% OFF
-                  </Badge>
-                )}
-                {p.onSale && !discountPercent && (
-                  <Badge className="bg-black text-white px-2 py-1 text-xs uppercase font-bold">
-                    SALE
-                  </Badge>
-                )}
-              </div>
-            </Link>
-
-            <CardHeader className="px-4 pt-2">
-              <h3 className="text-black font-bold uppercase truncate">
-                {p.title}
-              </h3>
-            </CardHeader>
-
-            <CardContent className="px-4 pt-0 flex items-center justify-between">
-              <p className="text-black font-bold">₹{p.price?.toFixed(2)}</p>
-              {p.onSale && p.originalPrice && (
-                <p className="text-gray-500 line-through text-sm uppercase">
-                  ₹{p.originalPrice?.toFixed(2)}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        );
-      })}
-    </div>
-  </div>
-</section>
+      </section>
 
 
 

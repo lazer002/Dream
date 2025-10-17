@@ -1,8 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import axios from "axios";
+import { api as baseApi } from "../utils/config"; 
 
 const AuthContext = createContext(null);
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(() => {
@@ -30,20 +29,25 @@ export function AuthProvider({ children }) {
 
   // axios instance with interceptors
   const api = useMemo(() => {
-    const instance = axios.create({ baseURL: API_URL });
-    instance.interceptors.request.use((config) => {
+    const instance = baseApi;
+
+    // Request interceptor
+    const requestInterceptor = instance.interceptors.request.use((config) => {
       if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
       return config;
     });
-    instance.interceptors.response.use(
+
+    // Response interceptor
+    const responseInterceptor = instance.interceptors.response.use(
       (res) => res,
       async (error) => {
-        if (error.response?.status === 401 && refreshToken) {
+        if (error.response?.status === 401 && refreshToken && !error.config._retry) {
           try {
-            const { data } = await axios.post(`${API_URL}/auth/refresh`, { refreshToken });
+            error.config._retry = true; // prevent infinite loop
+            const { data } = await baseApi.post(`/auth/refresh`, { refreshToken });
             setAccessToken(data.accessToken);
             error.config.headers.Authorization = `Bearer ${data.accessToken}`;
-            return axios(error.config);
+            return instance(error.config);
           } catch (e) {
             setUser(null);
             setAccessToken(null);
@@ -53,12 +57,13 @@ export function AuthProvider({ children }) {
         return Promise.reject(error);
       }
     );
-    return instance;
+
+    return instance; // ✅ return the axios instance, not a cleanup function
   }, [accessToken, refreshToken]);
 
   // 🔐 Standard Login
   const login = async (email, password) => {
-    const { data } = await axios.post(`${API_URL}/auth/login`, { email, password });
+    const { data } = await baseApi.post(`/auth/login`, { email, password });
     setUser(data.user);
     setAccessToken(data.accessToken);
     setRefreshToken(data.refreshToken);
@@ -67,32 +72,34 @@ export function AuthProvider({ children }) {
 
   // 🆕 Register
   const register = async (name, email, password) => {
-    const { data } = await axios.post(`${API_URL}/auth/register`, { name, email, password });
+    const { data } = await baseApi.post(`/auth/register`, { name, email, password });
     setUser(data.user);
     setAccessToken(data.accessToken);
     setRefreshToken(data.refreshToken);
     return data;
   };
 
+  const loginWithGoogle = async (googleToken) => {
+    try {
+      console.log("Sending token to backend:", googleToken);
 
-const loginWithGoogle = async (googleToken) => {
-  try {
-    console.log("Sending token to backend:", googleToken);
+      const { data } = await baseApi.post(
+        `/auth/google`,
+        { token: googleToken },
+        { withCredentials: true }
+      );
 
-const { data } = await axios.post(`${API_URL}/auth/google`, { token: googleToken }, { withCredentials: true });
+      console.log("Received from backend:", data);
+      setUser(data.user);
+      setAccessToken(data.accessToken);
+      setRefreshToken(data.refreshToken);
 
-    console.log("Received from backend:", data);
-    setUser(data.user);
-    setAccessToken(data.accessToken);
-    setRefreshToken(data.refreshToken);
-
-    return data;
-  } catch (err) {
-    console.error("Google login failed at backend:", err.response?.data || err.message);
-    throw err;
-  }
-};
-
+      return data;
+    } catch (err) {
+      console.error("Google login failed at backend:", err.response?.data || err.message);
+      throw err;
+    }
+  };
 
   // 🚪 Logout
   const logout = () => {

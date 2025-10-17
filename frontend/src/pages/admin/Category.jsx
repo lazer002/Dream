@@ -2,8 +2,6 @@ import { useState, useEffect } from "react";
 import { useAuth } from "../../state/AuthContext.jsx";
 import {
   Card,
-  CardHeader,
-  CardTitle,
   CardContent,
 } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -19,7 +17,7 @@ export default function CategoriesAdmin() {
   const [loading, setLoading] = useState(true);
 
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "" });
+  const [form, setForm] = useState({ name: "", slug: "", photo: null });
   const [editId, setEditId] = useState(null);
 
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -41,36 +39,58 @@ export default function CategoriesAdmin() {
     fetchCategories();
   }, []);
 
-  const saveCategory = async () => {
-    if (!form.name.trim()) {
-      alert("Category name is required");
-      return;
+const saveCategory = async () => {
+  if (!form.name.trim()) {
+    alert("Category name is required");
+    return;
+  }
+
+  try {
+    if (!form.slug || !form.slug.trim()) {
+      form.slug = form.name.toLowerCase().replace(/\s+/g, "-");
     }
 
-    try {
-      if (!form.slug || !form.slug.trim()) {
-        form.slug = form.name.toLowerCase().replace(/\s+/g, "-");
-      }
+    let photoUrl = null;
 
-      if (editId) {
-        // Edit
-        const { data } = await api.put(`/admin/category/${editId}`, form);
-        if (!data.success) throw new Error(data.message || "Update failed");
-      } else {
-        // Create
-        const { data } = await api.post("/admin/createCategory", form);
-        if (!data.success) throw new Error(data.message || "Create failed");
-      }
+    // Upload image if selected
+    if (form.photo) {
+      const imageData = new FormData();
+      imageData.append("file", form.photo);
 
-      setOpen(false);
-      setForm({ name: "", slug: "" });
-      setEditId(null);
-      fetchCategories();
-    } catch (err) {
-      console.error(err);
-      alert(err.message || "Something went wrong");
+      const { data } = await api.post("/admin/upload/image", imageData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+
+      console.log("Image upload response:", data); // you can inspect this
+      photoUrl = data.url; // replace with actual field from response
     }
-  };
+
+    const payload = {
+      name: form.name,
+      slug: form.slug,
+      ...(photoUrl && { photo: photoUrl }),
+    };
+
+    if (editId) {
+      // Edit
+      const { data } = await api.put(`/admin/category/${editId}`, payload);
+      if (!data.success) throw new Error(data.message || "Update failed");
+    } else {
+      // Create
+      const { data } = await api.post("/admin/createCategory", payload);
+      if (!data.success) throw new Error(data.message || "Create failed");
+    }
+
+    setOpen(false);
+    setForm({ name: "", slug: "", photo: null });
+    setEditId(null);
+    fetchCategories();
+  } catch (err) {
+    console.error(err);
+    alert(err.message || "Something went wrong");
+  }
+};
+
 
   const confirmDelete = async () => {
     try {
@@ -86,13 +106,13 @@ export default function CategoriesAdmin() {
   };
 
   const openEditModal = (category) => {
-    setForm({ name: category.name, slug: category.slug || "" });
+    setForm({ name: category.name, slug: category.slug || "", photo: null });
     setEditId(category._id);
     setOpen(true);
   };
 
   const openCreateModal = () => {
-    setForm({ name: "", slug: "" });
+    setForm({ name: "", slug: "", photo: null });
     setEditId(null);
     setOpen(true);
   };
@@ -114,6 +134,7 @@ export default function CategoriesAdmin() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Name</TableHead>
+                  <TableHead>Photo</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -121,6 +142,9 @@ export default function CategoriesAdmin() {
                 {categories.map((c) => (
                   <TableRow key={c._id}>
                     <TableCell>{c.name}</TableCell>
+                    <TableCell>
+                      {c.photo ? <img src={c.photo} alt={c.name} className="h-10 w-10 object-cover rounded" /> : "No Image"}
+                    </TableCell>
                     <TableCell className="flex justify-end gap-2">
                       <Button
                         size="icon"
@@ -174,6 +198,21 @@ export default function CategoriesAdmin() {
                 placeholder="optional, auto-generated from name"
               />
             </div>
+            <div className="space-y-1.5">
+              <Label>Photo</Label>
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => setForm({ ...form, photo: e.target.files[0] })}
+              />
+              {editId && form.photo && (
+                <img
+                  src={URL.createObjectURL(form.photo)}
+                  alt="Preview"
+                  className="h-20 w-20 object-cover rounded mt-2"
+                />
+              )}
+            </div>
           </div>
 
           <DialogFooter className="sticky bottom-0 border-t bg-white px-6 py-4 flex justify-end gap-3">
@@ -181,7 +220,7 @@ export default function CategoriesAdmin() {
               variant="outline"
               onClick={() => {
                 setOpen(false);
-                setForm({ name: "", slug: "" });
+                setForm({ name: "", slug: "", photo: null });
                 setEditId(null);
               }}
               className="border-blue-800 text-blue-800 hover:bg-blue-50"

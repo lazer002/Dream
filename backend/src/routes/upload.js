@@ -8,6 +8,8 @@ const router = express.Router()
 
 
 router.post('/image', requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
+console.log("req.body:", req.body);
+  console.log("req.file:", req.file);
   try {
     if (!req.file) return res.status(400).json({ error: 'No file' })
     const fileExt = req.file.originalname.split('.').pop()

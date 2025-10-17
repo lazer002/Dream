@@ -31,11 +31,14 @@ router.delete('/:id', async (req, res) => {
   if (!user) return res.status(404).json({ error: 'Not found' })
   res.json({ ok: true })
 })
-
 router.post("/createCategory", async (req, res) => {
   try {
-    const { name, slug } = req.body;
-    const category = new Category({ name, slug: slug || name.toLowerCase().replace(/\s+/g, '-') });
+    const { name, slug, photo } = req.body; // accept photo URL
+    const category = new Category({
+      name,
+      slug: slug || name.toLowerCase().replace(/\s+/g, "-"),
+      photo: photo || null,
+    });
     await category.save();
     res.json({ success: true, category });
   } catch (err) {
@@ -53,14 +56,19 @@ router.get("/getCategory", async (req, res) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+
 // Update category
 router.put("/category/:id", async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, slug } = req.body;
+    const { name, slug, photo } = req.body; // accept photo URL
     const updated = await Category.findByIdAndUpdate(
       id,
-      { name, slug: slug || name.toLowerCase().replace(/\s+/g, "-") },
+      { 
+        name,
+        slug: slug || name.toLowerCase().replace(/\s+/g, "-"),
+        ...(photo && { photo }) // only update if provided
+      },
       { new: true }
     );
     if (!updated) return res.status(404).json({ success: false, message: "Category not found" });

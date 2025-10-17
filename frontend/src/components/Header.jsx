@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { useCart } from "../state/CartContext.jsx"; 
 import { useAuth } from "../state/AuthContext.jsx";
 import axios from "axios";
+import { api } from "@/utils/config.js";
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const navItems = [
   { title: "HOME", url: "/" },
@@ -117,8 +118,7 @@ export default function Header() {
 
       setLoading(true);
       try {
-        const res = await axios.get(
-          `${API_URL}/search/products?q=${encodeURIComponent(query)}`
+        const res = await api.get(`/search/products?q=${encodeURIComponent(query)}`
         );
         setResults(res.data);
       } catch (err) {

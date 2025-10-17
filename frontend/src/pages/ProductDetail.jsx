@@ -10,6 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
 import axios from "axios"
+import { api } from "@/utils/config.js"
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api"
 export default function ProductDetail() {
   const { id } = useParams()
@@ -24,7 +25,7 @@ export default function ProductDetail() {
 useEffect(() => {
   const getProduct = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/products/${id}`);
+      const { data } = await api.get(`/products/${id}`);
       setProduct(data);
     
     } catch (error) {

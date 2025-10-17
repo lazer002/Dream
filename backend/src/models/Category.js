@@ -3,9 +3,10 @@ import mongoose from "mongoose";
 const categorySchema = new mongoose.Schema(
   {
     name: { type: String, required: true, unique: true },
-    slug: { type: String, unique: true }, // optional URL-friendly field
+    slug: { type: String, unique: true },
+    photo: { type: String, default: "" }, // URL or path to the category image
   },
-  { timestamps: true } // automatically adds createdAt and updatedAt
+  { timestamps: true }
 );
 
 // Pre-save hook to generate slug

@@ -45,6 +45,7 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 })
 
 router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
+  console.log(req.body)
   const product = await Product.findByIdAndUpdate(req.params.id, req.body, { new: true })
   if (!product) return res.status(404).json({ error: 'Not found' })
   res.json(product)

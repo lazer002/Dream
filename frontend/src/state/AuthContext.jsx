@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api as baseApi } from "../utils/config"; 
+import { api as baseApi } from "../utils/config";
 
 const AuthContext = createContext(null);
 
@@ -11,7 +11,7 @@ export function AuthProvider({ children }) {
   const [accessToken, setAccessToken] = useState(localStorage.getItem("ds_access") || null);
   const [refreshToken, setRefreshToken] = useState(localStorage.getItem("ds_refresh") || null);
 
-  // persist state
+  // 🧠 Persist user and tokens
   useEffect(() => {
     if (user) localStorage.setItem("ds_user", JSON.stringify(user));
     else localStorage.removeItem("ds_user");
@@ -27,39 +27,57 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem("ds_refresh");
   }, [refreshToken]);
 
-  // axios instance with interceptors
+  // 🧩 Memoized Axios instance
   const api = useMemo(() => {
     const instance = baseApi;
 
-    // Request interceptor
-    const requestInterceptor = instance.interceptors.request.use((config) => {
+    // Remove old interceptors before adding new ones (avoid stacking)
+    instance.interceptors.request.handlers = [];
+    instance.interceptors.response.handlers = [];
+
+    // Request interceptor → attach token
+    instance.interceptors.request.use((config) => {
       if (accessToken) config.headers.Authorization = `Bearer ${accessToken}`;
       return config;
     });
 
-    // Response interceptor
-    const responseInterceptor = instance.interceptors.response.use(
+    // Response interceptor → handle 401 and refresh logic
+    instance.interceptors.response.use(
       (res) => res,
       async (error) => {
         if (error.response?.status === 401 && refreshToken && !error.config._retry) {
           try {
-            error.config._retry = true; // prevent infinite loop
+            error.config._retry = true;
             const { data } = await baseApi.post(`/auth/refresh`, { refreshToken });
+
+            // ✅ Update token and retry the failed request
             setAccessToken(data.accessToken);
             error.config.headers.Authorization = `Bearer ${data.accessToken}`;
             return instance(error.config);
-          } catch (e) {
-            setUser(null);
-            setAccessToken(null);
-            setRefreshToken(null);
+          } catch (err) {
+            console.warn("Token refresh failed, logging out...");
+            handleLogout();
           }
         }
+
+        // Any other error → reject
         return Promise.reject(error);
       }
     );
 
-    return instance; // ✅ return the axios instance, not a cleanup function
+    return instance;
   }, [accessToken, refreshToken]);
+
+  // 🚪 Centralized Logout Handler
+  const handleLogout = () => {
+    setUser(null);
+    setAccessToken(null);
+    setRefreshToken(null);
+    localStorage.removeItem("ds_user");
+    localStorage.removeItem("ds_access");
+    localStorage.removeItem("ds_refresh");
+    window.location.href = "/login"; // 🔁 Redirect immediately
+  };
 
   // 🔐 Standard Login
   const login = async (email, password) => {
@@ -79,36 +97,24 @@ export function AuthProvider({ children }) {
     return data;
   };
 
+  // 🔐 Google Login
   const loginWithGoogle = async (googleToken) => {
     try {
-      console.log("Sending token to backend:", googleToken);
-
-      const { data } = await baseApi.post(
-        `/auth/google`,
-        { token: googleToken },
-        { withCredentials: true }
-      );
-
-      console.log("Received from backend:", data);
+      const { data } = await baseApi.post(`/auth/google`, { token: googleToken }, { withCredentials: true });
       setUser(data.user);
       setAccessToken(data.accessToken);
       setRefreshToken(data.refreshToken);
-
       return data;
     } catch (err) {
-      console.error("Google login failed at backend:", err.response?.data || err.message);
+      console.error("Google login failed:", err.response?.data || err.message);
       throw err;
     }
   };
 
-  // 🚪 Logout
-  const logout = () => {
-    setUser(null);
-    setAccessToken(null);
-    setRefreshToken(null);
-  };
+  const logout = handleLogout;
 
   const value = { user, api, login, register, loginWithGoogle, logout };
+
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 

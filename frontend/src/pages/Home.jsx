@@ -34,7 +34,6 @@ export default function Home() {
   useEffect(() => {
     fetchCategories();
   }, []);
-
   return (
 
  <div className="bg-white text-black">
@@ -74,224 +73,332 @@ export default function Home() {
       {/* ======================================================
           FEATURED COLLECTIONS
       ====================================================== */}
-      <section className="py-20 text-center bg-white">
-        <h2 className="text-2xl md:text-3xl font-bold mb-12 tracking-tight uppercase">
-          FEATURED COLLECTIONS
-        </h2>
+<section className="py-20 bg-white relative overflow-hidden">
+  <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-center uppercase">
+    FEATURED COLLECTIONS
+  </h2>
+  <p className="text-gray-500 text-sm text-center mb-12 mt-2">
+    Scroll right to explore →
+  </p>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 px-6 md:px-20">
-          {[
-            { label: "MEN'S COLLECTION", link: "/collections/mens" },
-            { label: "HOODIES", link: "/collections/hoodies" },
-            { label: "T-SHIRTS", link: "/collections/tshirts" },
-            { label: "SHIRTS", link: "/collections/shirts" },
-          ].map((item, index) => (
-            <Link
-              key={index}
-              to={item.link}
-              className="flex flex-col items-center group"
-            >
-              <img
-                src={`https://via.placeholder.com/250x300?text=${encodeURIComponent(
-                  item.label
-                )}`}
-                alt={item.label}
-                className="w-full object-cover mb-4 group-hover:opacity-90 transition"
-              />
-              <p className="text-sm font-medium uppercase tracking-wide">
-                {item.label}
-              </p>
-            </Link>
-          ))}
-        </div>
-      </section>
+  <div className="flex max-w-full relative">
+    {/* Left fixed column */}
+    <div className="flex-shrink-0 sticky top-20 w-96 h-auto bg-white z-20">
+      <Link
+        to="/collections/all"
+        className="flex flex-col items-center group"
+      >
+        <img
+          src="https://bzmvvcdngqoxwpbulakr.supabase.co/storage/v1/object/public/product-images/products/1760803192692-zasrnaykki8.webp"
+          alt="MEN'S COLLECTION"
+          className="w-full h-[400px] md:h-[500px] object-cover mb-4 rounded-lg group-hover:opacity-90 transition"
+        />
+        <p className="text-sm font-medium uppercase tracking-wide text-center">
+          MEN'S COLLECTION
+        </p>
+      </Link>
+    </div>
+
+    {/* Right scrollable section */}
+    <div className="relative flex-1 overflow-x-auto pl-6 scrollbar-thin">
+      <div className="flex gap-8 pr-12">
+        {categories.map((category) => (
+          <Link
+            key={category._id}
+            to={`/collections/${category.slug}`}
+            className="flex-shrink-0 w-96 flex flex-col items-center group"
+          >
+            <img
+              src={
+                category.photo ||
+                `https://via.placeholder.com/250x300?text=${encodeURIComponent(
+                  category.name
+                )}`
+              }
+              alt={category.name}
+              className="w-full h-[400px] md:h-[500px] object-cover mb-4 rounded-lg group-hover:opacity-90 transition"
+            />
+            <p className="text-sm font-medium uppercase tracking-wide text-center">
+              {category.name}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </div>
+
+    {/* Left fade */}
+    <div className="pointer-events-none absolute top-0 bottom-0 left-[24rem] w-12 bg-gradient-to-r from-white to-transparent z-30" />
+    {/* Right fade */}
+    <div className="pointer-events-none absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-white to-transparent z-30" />
+  </div>
+</section>
+
+
+
+
+
 
       {/* ======================================================
           END OF SEASON SALE
       ====================================================== */}
-      <section className="bg-black text-white text-center py-20">
-        <h2 className="text-3xl font-bold mb-6 tracking-tight uppercase">
-          END OF SEASON SALE – UP TO 30% OFF
-        </h2>
-        <Button
-          asChild
-          className="bg-white text-black px-8 py-3 text-sm font-semibold tracking-wide hover:bg-gray-200 transition"
-        >
-          <Link to="/collections/sale">GRAB THE DEAL</Link>
-        </Button>
-      </section>
+  <section className="relative overflow-hidden py-24 bg-gradient-to-b from-black via-[#000000] to-black text-white text-center">
+  {/* Subtle background glow */}
+  <div className="absolute inset-0">
+    <div className="absolute top-1/2 left-1/2 w-[80vw] h-[80vw] bg-white/10 blur-[120px] rounded-full -translate-x-1/2 -translate-y-1/2 opacity-30" />
+  </div>
+
+  {/* Content */}
+  <div className="relative z-10 px-6">
+    <h2 className="text-4xl md:text-6xl font-extrabold mb-6 tracking-tight uppercase leading-tight">
+      END OF SEASON SALE
+    </h2>
+    <p className="text-lg md:text-xl text-gray-300 mb-10">
+      Up to <span className="text-white font-bold">30% OFF</span> on our latest collections.
+    </p>
+
+    <Button
+      asChild
+      className="bg-white text-black px-10 py-4 text-sm md:text-base font-semibold tracking-wide rounded-full shadow-lg hover:scale-105 hover:shadow-xl transition-transform duration-300"
+    >
+      <Link to="/collections/sale">GRAB THE DEAL</Link>
+    </Button>
+  </div>
+
+  {/* Floating gradient shimmer */}
+  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_4s_infinite]" />
+</section>
+
+
 
       {/* ======================================================
           LOOKBOOK SECTION
       ====================================================== */}
-      <section className="py-20 text-center bg-white">
-        <h2 className="text-2xl md:text-3xl font-bold mb-12 tracking-tight uppercase">
-          LOOKBOOK
-        </h2>
+<section className="pt-24 bg-white relative overflow-hidden w-full">
+  <h2 className="text-2xl md:text-3xl font-bold mb-12 tracking-tight text-center uppercase">
+    LOOKBOOK
+  </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 px-6 md:px-20">
-          {[1, 2, 3, 4].map((i) => (
-            <div
-              key={i}
-              className="relative overflow-hidden group cursor-pointer"
-            >
-              <img
-                src={`https://via.placeholder.com/250x300?text=LOOK+${i}`}
-                alt={`Look ${i}`}
-                className="w-full object-cover"
-              />
-              <div className="absolute inset-0 bg-black bg-opacity-40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition">
-                <button className="text-white border border-white px-4 py-2 text-sm font-medium uppercase">
-                  SHOP THE LOOK
-                </button>
-              </div>
-            </div>
-          ))}
+  <div className="flex overflow-x-auto gap-8 px-6 md:px-20 w-full scrollbar-thin">
+    {categories.map((category) => {
+      const categoryProducts = products
+        .filter((p) => p.category?._id === category._id)
+        .slice(0, 3);
+
+      if (!categoryProducts.length) return null;
+
+      return (
+        <div
+          key={category._id}
+          className="flex-shrink-0 w-72 md:w-96 group cursor-pointer relative"
+        >
+          <div className="relative h-[400px] md:h-[450px]">
+            {categoryProducts.map((product, index) => {
+              const rotations = ["rotate-0", "-rotate-2", "rotate-2"];
+              const topOffsets = ["top-0", "-top-4", "-top-8"];
+              const leftOffsets = ["left-0", "-left-4", "-left-8"];
+              const zIndex = [10, 20, 30];
+
+              return (
+                <img
+                  key={product._id}
+                  src={product.images?.[0] || category.photo}
+                  alt={product.title}
+                  className={`absolute w-full h-full object-cover rounded-lg shadow-2xl transition-transform
+                    ${rotations[index] || "rotate-0"}
+                    ${topOffsets[index] || "top-0"}
+                    ${leftOffsets[index] || "left-0"}
+                    z-[${zIndex[index] || 10}]
+                    group-hover:scale-105`}
+                />
+              );
+            })}
+          </div>
+
+          <button className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-70 px-4 py-2 text-sm font-medium uppercase rounded-md hover:bg-opacity-90 transition">
+            SHOP THE LOOK
+          </button>
         </div>
-      </section>
+      );
+    })}
+
+    <div className="pointer-events-none absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-white to-transparent z-10" />
+  </div>
+</section>
+
+
+
+
+
 
       {/* ======================================================
           JOURNAL / FOOTER
       ====================================================== */}
-      <footer className="bg-gray-100 text-center py-16">
-        <h3 className="text-xl md:text-2xl font-bold mb-4 tracking-tight uppercase">
-          FROM THE DRIPJOURNAL
-        </h3>
-        <p className="text-gray-700 mb-2 text-sm md:text-base">
-          Get 10% Off Your First Order.
-        </p>
-        <p className="text-gray-500 text-xs md:text-sm">
-          Best to know about our latest drops.
-        </p>
-      </footer>
+<section className="bg-gray-50 text-center py-20 px-6 md:px-20 relative overflow-hidden">
+  {/* Decorative gradient accent */}
+  <div className="absolute -top-20 -left-20 w-72 h-72 bg-gradient-to-tr from-indigo-400 via-purple-400 to-pink-400 rounded-full opacity-30 blur-3xl pointer-events-none"></div>
+  <div className="absolute -bottom-20 -right-20 w-72 h-72 bg-gradient-to-tr from-yellow-300 via-orange-400 to-red-400 rounded-full opacity-30 blur-3xl pointer-events-none"></div>
+
+  <h3 className="text-2xl md:text-3xl font-extrabold mb-4 tracking-tight uppercase text-gray-900">
+    From the DripJournal
+  </h3>
+  
+  <p className="text-gray-700 mb-2 text-sm md:text-base max-w-xl mx-auto">
+    Get 10% Off Your First Order.
+  </p>
+  
+  <p className="text-gray-500 text-xs md:text-sm max-w-md mx-auto mb-6">
+    Be the first to know about our latest drops, exclusive collections, and insider news.
+  </p>
+  
+  <button className="bg-black text-white px-6 py-3 rounded-lg font-semibold text-sm md:text-base hover:bg-gray-900 transition shadow-lg">
+    Subscribe Now
+  </button>
+</section>
+
 
       {/* ======================================================
           FEATURED PRODUCTS
       ====================================================== */}
-      <section className="bg-white pt-12 pb-16 text-black">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between mb-8">
-            <h2 className="text-3xl font-bold uppercase">FEATURED PRODUCTS</h2>
+<section className="bg-white pt-12 pb-16 text-black">
+  <div className="mx-auto px-4 sm:px-6 lg:px-8 ">
+    {/* Header */}
+    <div className="flex flex-col md:flex-row items-center justify-between mb-8">
+      <h2 className="text-3xl font-bold uppercase tracking-tight">FEATURED PRODUCTS</h2>
+      <Link
+        to="/collections/bestseller"
+        className="flex items-center gap-2 text-sm font-bold uppercase text-black hover:text-gray-700 transition"
+      >
+        DISCOVER MORE
+        <svg
+          role="presentation"
+          focusable="false"
+          width="5"
+          height="8"
+          className="stroke-current"
+          viewBox="0 0 5 8"
+        >
+          <path
+            d="m.75 7 3-3-3-3"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+          ></path>
+        </svg>
+      </Link>
+    </div>
+
+    {/* Products Grid */}
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+      {products.slice(0, 8).map((p) => {
+        const discountPercent = p.originalPrice
+          ? Math.round(((p.originalPrice - p.price) / p.originalPrice) * 100)
+          : null;
+
+        return (
+          <Card
+            key={p._id}
+            className="group border border-gray-200 rounded-lg overflow-hidden shadow-lg hover:shadow-xl transition relative bg-white flex flex-col"
+          >
+            {/* Image: 80% height */}
             <Link
-              to="/collections/bestseller"
-              className="flex items-center gap-2 text-sm font-bold uppercase text-black hover:text-gray-700 transition"
+              to={`/product/${p._id}`}
+              className="h-4/5 relative overflow-hidden"
             >
-              DISCOVER MORE
-              <svg
-                role="presentation"
-                focusable="false"
-                width="5"
-                height="8"
-                className="stroke-current"
-                viewBox="0 0 5 8"
-              >
-                <path
-                  d="m.75 7 3-3-3-3"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                ></path>
-              </svg>
+              <img
+                src={p.images?.[0] || "https://via.placeholder.com/400x400?text=No+Image"}
+                alt={p.title}
+                className="w-full h-full object-cover transition-transform group-hover:scale-105"
+              />
+
+              {/* Badges */}
+              <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
+                {p.isNewProduct && (
+                  <Badge className="bg-red-700 text-white px-2 py-1 text-xs uppercase font-bold rounded">
+                    NEW
+                  </Badge>
+                )}
+                {p.onSale && discountPercent && (
+                  <Badge className="bg-red-600 text-white px-2 py-1 text-xs uppercase font-bold rounded">
+                    {discountPercent}% OFF
+                  </Badge>
+                )}
+              </div>
             </Link>
-          </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {products.slice(0, 8).map((p) => {
-              const discountPercent = p.originalPrice
-                ? Math.round(
-                    ((p.originalPrice - p.price) / p.originalPrice) * 100
-                  )
-                : null;
+            {/* Details: 20% height */}
+            <div className="h-1/5 p-4 flex flex-col justify-between">
+              <h3 className="text-black font-bold uppercase truncate">{p.title}</h3>
+              <div className="flex justify-between items-center mt-2">
+                <span className="text-lg font-bold text-black">₹{p.price}</span>
+                {p.originalPrice && (
+                  <span className="text-gray-500 line-through text-sm uppercase">₹{p.originalPrice}</span>
+                )}
+              </div>
+              <Link
+                to={`/product/${p._id}`}
+                className="mt-2 block text-center bg-black text-white px-3 py-1 text-xs font-semibold uppercase rounded hover:bg-gray-900 transition"
+              >
+                View
+              </Link>
+            </div>
+          </Card>
+        );
+      })}
+    </div>
+  </div>
+</section>
 
-              return (
-                <Card
-                  key={p._id}
-                  className="group overflow-hidden border border-black transition relative bg-white"
-                >
-                  <Link to={`/product/${p._id}`} className="relative">
-                    <div
-                      className="w-full h-56 bg-cover bg-center group-hover:scale-105 transition-transform"
-                      style={{
-                        backgroundImage: `url(${
-                          p.images?.[0] ||
-                          "https://via.placeholder.com/400x400?text=No+Image"
-                        })`,
-                      }}
-                    />
-                    <div className="absolute top-3 left-3 flex flex-col gap-1 z-10">
-                      {p.isNewProduct && (
-                        <Badge className="bg-black text-white px-2 py-1 text-xs uppercase font-bold">
-                          NEW
-                        </Badge>
-                      )}
-                      {p.onSale && discountPercent && (
-                        <Badge className="bg-black text-white px-2 py-1 text-xs uppercase font-bold">
-                          {discountPercent}% OFF
-                        </Badge>
-                      )}
-                    </div>
-                  </Link>
-
-                  <CardHeader className="px-4 pt-2">
-                    <h3 className="text-black font-bold uppercase truncate">
-                      {p.title}
-                    </h3>
-                  </CardHeader>
-
-                  <CardContent className="px-4 pt-0 flex items-center justify-between">
-                    <p className="text-black font-bold">₹{p.price}</p>
-                    {p.originalPrice && (
-                      <p className="text-gray-500 line-through text-sm uppercase">
-                        ₹{p.originalPrice}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
-        </div>
-      </section>
 
 
 
       {/* App Promo Section */}
-<section id="app" className="relative overflow-hidden text-black bg-white">
-  <div className="px-8 py-24 sm:px-12 lg:px-16 max-w-7xl mx-auto flex flex-col lg:flex-row items-center gap-10">
-    <div className="flex-1 space-y-6">
-      <h1 className="text-5xl sm:text-6xl font-extrabold uppercase tracking-tight">
-        10% More Discount on App
+<section id="app" className="relative overflow-hidden text-white bg-black py-24">
+  <div className="max-w-7xl mx-auto px-8 sm:px-12 lg:px-16 flex flex-col-reverse lg:flex-row items-center gap-12">
+
+    {/* Text Section */}
+    <div className="flex-1 space-y-6 text-center lg:text-left">
+      <h1 className="text-5xl sm:text-6xl font-extrabold uppercase tracking-tight leading-tight">
+        Get 10% Extra Discount on Our App
       </h1>
-      <p className="text-lg sm:text-xl max-w-xl text-gray-700">
-        Download our mobile app for exclusive offers, faster checkout, and a personalized shopping experience.
+      <p className="text-gray-300 text-lg sm:text-xl max-w-lg mx-auto lg:mx-0">
+        Download our app for exclusive offers, faster checkout, personalized recommendations, and early access to new drops.
       </p>
-      <div className="flex gap-4 mt-6">
+      <div className="flex flex-col sm:flex-row justify-center lg:justify-start gap-4 mt-6">
         <a
           href="#"
-          className="px-6 py-3 bg-black text-white font-bold uppercase border border-black hover:bg-white hover:text-black transition"
+          className="px-6 py-3 bg-white text-black font-bold uppercase border border-white rounded-lg shadow-lg hover:bg-gray-100 hover:scale-105 transition-transform"
         >
           Download on iOS
         </a>
         <a
           href="#"
-          className="px-6 py-3 bg-white text-black font-bold uppercase border border-black hover:bg-black hover:text-white transition"
+          className="px-6 py-3 bg-transparent text-white font-bold uppercase border border-white rounded-lg shadow-lg hover:bg-white hover:text-black hover:scale-105 transition-transform"
         >
           Download on Android
         </a>
       </div>
     </div>
+
+    {/* Phone / App Mockup Section */}
     <div className="flex-1 flex justify-center relative">
-      <video
-        src="/videos/app-preview.mp4"
-        autoPlay
-        muted
-        loop
-        playsInline
-        className="w-full max-w-sm object-cover border-2 border-black"
-      />
+      <div className="relative w-64 sm:w-72 md:w-80 lg:w-96">
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-pink-500 to-red-500 rounded-3xl blur-xl opacity-50 animate-pulse"></div>
+        <div className="relative border-4 border-white rounded-3xl overflow-hidden shadow-2xl">
+          <video
+            src="/videos/app-preview.mp4"
+            autoPlay
+            muted
+            loop
+            playsInline
+            className="w-full h-auto object-cover rounded-3xl"
+          />
+        </div>
+      </div>
     </div>
+
   </div>
 </section>
+
 
 
 

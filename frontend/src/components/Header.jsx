@@ -4,9 +4,7 @@ import { ShoppingCart, Search, User, Menu, ChevronDown,X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useCart } from "../state/CartContext.jsx"; 
 import { useAuth } from "../state/AuthContext.jsx";
-import axios from "axios";
 import { api } from "@/utils/config.js";
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
 const navItems = [
   { title: "HOME", url: "/" },
   {
@@ -265,6 +263,13 @@ export default function Header() {
 
         {/* Right Icons */}
         <div className="flex items-center gap-4">
+          {user? (
+            <Link to="/admin">
+            <div className="text-gray-600 hover:text-black text-sm">admin</div>
+            </Link>
+          ) : (
+            ""
+          )}
           <button onClick={() => setSearchOpen(true)}>
             <Search className="w-6 h-6" />
           </button>

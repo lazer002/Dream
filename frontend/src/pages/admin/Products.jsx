@@ -152,8 +152,9 @@ const [categories, setCategories] = useState([]);
                   <TableHead>Price</TableHead>
                   <TableHead>Inventory</TableHead>
                   <TableHead>Category</TableHead>
+                  <TableHead>Sale</TableHead>
+                  <TableHead>New</TableHead>
                   <TableHead>Status</TableHead>
-                  {/* <TableHead>Status</TableHead> */}
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
@@ -189,7 +190,30 @@ const [categories, setCategories] = useState([]);
                     {/* Category */}
                     <TableCell>{p.category?.name || "-"}</TableCell>
 
-                    {/* Status */}
+              
+
+                    {/* Sizes */}
+                    <TableCell>
+                      {p.onSale ? (
+                        <span className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded-full">
+                          On Sale
+                        </span>
+                      ) : (
+                        ""
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      {p.isNewProduct ? (
+                        <span className="px-2 py-1 text-xs font-medium text-blue-800 bg-blue-100 rounded-full">
+                          New
+                        </span>
+                      ) : (
+                        ""
+                      )}
+                    </TableCell>
+
+      {/* Status */}
                     <TableCell>
                       {p.published ? (
                         <span className="flex items-center gap-1 text-blue-800 text-sm font-medium">
@@ -201,10 +225,6 @@ const [categories, setCategories] = useState([]);
                         </span>
                       )}
                     </TableCell>
-
-                    {/* Sizes */}
-                    {/* <TableCell>{p.sizes?.join(", ") || "-"}</TableCell> */}
-
                     {/* Actions */}
                     <TableCell className="flex justify-end gap-2">
                       {/* View */}
@@ -468,7 +488,7 @@ const [categories, setCategories] = useState([]);
               Confirm Deletion
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600">
+          <p className="text-sm text-gray-600 p-3">
             Are you sure you want to delete this product? This action
             cannot be undone.
           </p>

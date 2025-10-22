@@ -7,29 +7,41 @@ const router = express.Router()
 
 router.get("/", async (req, res) => {
   try {
-    const { category, q, limit = 20, page = 1 } = req.query;
+
+    console.log(req.query)
+    res.set("Cache-Control", "no-store"); // disable caching
+    const { category, q, limit, page, sort } = req.query;
     const filter = { published: true };
-    // Category filter by name or skip if 'All'
-    if (category && category !== 'All') {
-      const cat = await Category.findOne({ name: category });
+
+    if (category && category !== "All") {
+      const cat = await Category.findOne({ name: { $regex: `^${category}$`, $options: "i" } });
       if (cat) filter.category = cat._id;
     }
+
+
     if (q) {
       filter.title = { $regex: q, $options: "i" };
     }
+    let sortOption = { createdAt: -1 };
+    if (sort === "low-high") sortOption = { price: 1 };      // Price ascending
+    else if (sort === "high-low") sortOption = { price: -1 }; // Price descending
+    else if (sort === "popular") sortOption = { sold: -1 };
+
     const total = await Product.countDocuments(filter);
     const products = await Product.find(filter)
-      .populate('category', 'name') // only return name of category
-      .sort({ createdAt: -1 })
+      .populate("category", "name slug")
+      .sort(sortOption)
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit));
-
+    console.log(products.length, 'products.length')
     res.json({ items: products, total });
   } catch (error) {
     console.error(error);
     res.status(500).json({ message: "Server error" });
   }
 });
+
+
 
 router.get('/:id', async (req, res) => {
   console.log(req.body)

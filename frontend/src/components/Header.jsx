@@ -1,10 +1,12 @@
 "use client";
-import { useState,useEffect } from "react";
-import { ShoppingCart, Search, User, Menu, ChevronDown,X } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ShoppingCart, Search, User, Menu, ChevronDown, X } from "lucide-react";
 import { Link } from "react-router-dom";
-import { useCart } from "../state/CartContext.jsx"; 
+import { useCart } from "../state/CartContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { api } from "@/utils/config.js";
+import { useNavigate  } from "react-router-dom";
+
 const navItems = [
   { title: "HOME", url: "/" },
   {
@@ -14,63 +16,25 @@ const navItems = [
       {
         heading: "TOPWEAR",
         links: [
-          { title: "Drift Hoodie", url: "/products/drift-hoodie" },
-          { title: "Linen Shirt", url: "/products/linen-shirt" },
-          { title: "Crew Tee", url: "/collections/crew-tee" },
-          { title: "Polo", url: "/collections/polo-tee" },
+          { title: "Hoodie", url: "/products?category=Hoodie" },
+          { title: "Shirt", url: "/products?category=Shirt" },
+          { title: "Tshirt", url: "/products?category=Tshirt" },
+          { title: "Jacket", url: "/products?category=Jacket" },
         ],
       },
       {
         heading: "BOTTOMWEAR",
         links: [
-          { title: "Shorts", url: "/collections/shorts" },
-          { title: "Pants", url: "/collections/pants" },
-          { title: "Joggers", url: "/products/drift-joggers" },
+          { title: "Pant", url: "/products?category=pant" },
         ],
       },
     ],
-    promos: [
-      {
-        title: "Drift Jacket",
-        img: "/images/2.avif",
-        url: "/products/drift-jacket",
-      },
-      {
-        title: "Drift Joggers",
-        img: "/images/3.avif",
-        url: "/products/drift-joggers",
-      },
-    ],
+promos: [
+  { title: "Jackets", img: "/images/2.avif", url: "/products?category=Jacket" },
+  { title: "Pants", img: "/images/3.avif", url: "/products?category=Pant" },
+],
+
   },
-  // {
-  //   title: "WOMEN",
-  //   url: "/collections/women",
-  //   mega: [
-  //     {
-  //       heading: "TOPWEAR",
-  //       links: [
-  //         { title: "Crew", url: "/collections/her-crew" },
-  //         { title: "Tank", url: "/collections/her-tank" },
-  //         { title: "Polo", url: "/collections/her-polo" },
-  //       ],
-  //     },
-  //     {
-  //       heading: "BOTTOMWEAR",
-  //       links: [
-  //         { title: "Shorts", url: "/collections/shorts-women" },
-  //         { title: "Pants", url: "/collections/her-pants" },
-  //         { title: "Joggers", url: "/products/her-drift-joggers" },
-  //       ],
-  //     },
-  //   ],
-  //   promos: [
-  //     {
-  //       title: "Her Tank",
-  //       img: "https://mypepr.com/cdn/shop/files/HER_Tank_3.webp",
-  //       url: "/products/her-tank",
-  //     },
-  //   ],
-  // },
   {
     title: "COLLECTIONS",
     dropdown: [
@@ -80,10 +44,17 @@ const navItems = [
       { title: "Basics - Wardrobe Essentials", url: "/collections/basics" },
     ],
   },
-  // { title: "CONTACT", url: "/pages/contact" },
 ];
 
+
 export default function Header() {
+const navigate = useNavigate();
+const handleCategoryClick = (category) => {
+  const currentParams = new URLSearchParams(location.search);
+  currentParams.set("category", category.toLowerCase()); // update category
+  navigate(`/products?${currentParams.toString()}`);
+};
+
   const { user } = useAuth();
   const { items } = useCart()
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -107,7 +78,7 @@ export default function Header() {
     return () => clearTimeout(timer);
   }, [searchOpen]);
 
- useEffect(() => {
+  useEffect(() => {
     const fetchResults = async () => {
       if (!query.trim()) {
         setResults([]);
@@ -178,24 +149,23 @@ export default function Header() {
                         <div key={col.heading}>
                           <h3 className="font-bold mb-2">{col.heading}</h3>
                           <ul className="space-y-1">
-                            {col.links.map((link) => (
-                              <li key={link.title}>
-                                <Link
-                                  to={link.url}
-                                  className="text-gray-600 hover:text-black text-sm"
-                                >
-                                  {link.title}
-                                </Link>
-                              </li>
-                            ))}
+                     {col.links.map((link) => (
+                        <li key={link.title}>
+                          <button
+                            onClick={() => handleCategoryClick(link.title)}
+                            className="text-gray-600 hover:text-black text-sm"
+                          >
+                            {link.title}
+                          </button>
+                        </li>
+                        ))}
                           </ul>
                         </div>
                       ))}
-
                       {item.promos?.map((promo) => (
                         <Link
                           key={promo.title}
-                          to={promo.url}
+                          to={promo.url} // navigates to the category page
                           className="block group overflow-hidden"
                         >
                           <img
@@ -208,6 +178,7 @@ export default function Header() {
                           </p>
                         </Link>
                       ))}
+
                     </div>
                   </div>
                 </div>
@@ -263,9 +234,9 @@ export default function Header() {
 
         {/* Right Icons */}
         <div className="flex items-center gap-4">
-          {user? (
+          {user ? (
             <Link to="/admin">
-            <div className="text-gray-600 hover:text-black text-sm">admin</div>
+              <div className="text-gray-600 hover:text-black text-sm">admin</div>
             </Link>
           ) : (
             ""
@@ -320,16 +291,14 @@ export default function Header() {
           </div>
         </div>
       )}
-     {visible && (
+      {visible && (
         <div
-          className={`fixed inset-0 z-50 flex items-start justify-center p-6 transition-opacity duration-1000 ${
-            searchOpen ? "bg-black/60 opacity-100" : "bg-black/0 opacity-0 pointer-events-none"
-          }`}
+          className={`fixed inset-0 z-50 flex items-start justify-center p-6 transition-opacity duration-1000 ${searchOpen ? "bg-black/60 opacity-100" : "bg-black/0 opacity-0 pointer-events-none"
+            }`}
         >
           <div
-            className={`relative bg-white w-full max-w-7xl rounded-md p-6 transform transition-all duration-1000 ${
-              searchOpen ? "scale-100 translate-y-0 opacity-100" : "scale-95 -translate-y-6 opacity-0"
-            }`}
+            className={`relative bg-white w-full max-w-7xl rounded-md p-6 transform transition-all duration-1000 ${searchOpen ? "scale-100 translate-y-0 opacity-100" : "scale-95 -translate-y-6 opacity-0"
+              }`}
           >
             {/* ✅ Smooth close button */}
             <button
@@ -366,50 +335,50 @@ export default function Header() {
             </div>
 
             {/* Dynamic Search Results */}
-        {results.length > 0 && (
-  <div className="mt-6">
-    <h4 className="font-bold mb-4 text-lg">Search Results</h4>
-       <div className="max-h-[400px] sm:max-h-max overflow-y-auto pr-2">
-    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 ">
-      {results.map((p) => (
-        <Link
-          key={p._id}
-          to={`/products/${p._id}`}
-          className="group border border-gray-200 rounded-md overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300"
-        >
-          {/* Product Image */}
-          <div className="w-full h-48 bg-gray-100 overflow-hidden">
-            <img
-              src={p.images && p.images[0] ? p.images[0] : "/placeholder.png"}
-              alt={p.title}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          </div>
+            {results.length > 0 && (
+              <div className="mt-6">
+                <h4 className="font-bold mb-4 text-lg">Search Results</h4>
+                <div className="max-h-[400px] sm:max-h-max overflow-y-auto pr-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 ">
+                    {results.map((p) => (
+                      <Link
+                        key={p._id}
+                        to={`/products/${p._id}`}
+                        className="group border border-gray-200 rounded-md overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300"
+                      >
+                        {/* Product Image */}
+                        <div className="w-full h-48 bg-gray-100 overflow-hidden">
+                          <img
+                            src={p.images && p.images[0] ? p.images[0] : "/placeholder.png"}
+                            alt={p.title}
+                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                          />
+                        </div>
 
-          {/* Product Info */}
-          <div className="p-4">
-            <h5 className="font-semibold text-gray-800 group-hover:text-black truncate">
-              {p.title}
-            </h5>
-            <p className="text-gray-500 mt-1">${p.price.toFixed(2)}</p>
-            {p.isNewProduct && (
-              <span className="inline-block mt-2 px-2 py-1 text-xs font-bold text-white bg-green-500 rounded">
-                NEW
-              </span>
-            )}
-            {p.onSale && (
-              <span className="inline-block mt-2 px-2 py-1 text-xs font-bold text-white bg-red-500 rounded ml-2">
-                SALE
-              </span>
-            )}
-          </div>
-        </Link>
-      ))}
-    </div>
-    </div>
+                        {/* Product Info */}
+                        <div className="p-4">
+                          <h5 className="font-semibold text-gray-800 group-hover:text-black truncate">
+                            {p.title}
+                          </h5>
+                          <p className="text-gray-500 mt-1">${p.price.toFixed(2)}</p>
+                          {p.isNewProduct && (
+                            <span className="inline-block mt-2 px-2 py-1 text-xs font-bold text-white bg-green-500 rounded">
+                              NEW
+                            </span>
+                          )}
+                          {p.onSale && (
+                            <span className="inline-block mt-2 px-2 py-1 text-xs font-bold text-white bg-red-500 rounded ml-2">
+                              SALE
+                            </span>
+                          )}
+                        </div>
+                      </Link>
+                    ))}
+                  </div>
+                </div>
 
-  </div>
-)}
+              </div>
+            )}
 
           </div>
         </div>

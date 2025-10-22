@@ -118,7 +118,7 @@ const saveCategory = async () => {
   };
 
   return (
-    <div className="max-w-6xl mx-auto py-2">
+    <div className=" mx-auto py-2">
       <Card>
         <div className="flex justify-between p-5">
           <div className="text-2xl font-semibold">Categories</div>

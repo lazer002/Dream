@@ -11,12 +11,12 @@ import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
 import axios from "axios"
 import { api } from "@/utils/config.js"
-const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api"
 export default function ProductDetail() {
   const { id } = useParams()
   const { add } = useCart()
   const [product, setProduct] = useState(null)
   const [selectedSize, setSelectedSize] = useState("")
+  const [recommendedProducts, setRecommendedProducts] = useState([]);
 
   const [activeImage, setActiveImage] = useState(0)
   const [openZoom, setOpenZoom] = useState(false)
@@ -36,7 +36,43 @@ useEffect(() => {
   getProduct();
 }, [id]);
 
-  if (!product) return <div className="p-8 text-center text-gray-500">Loading...</div>
+useEffect(() => {
+  if (!product?.category) return;
+console.log("Fetching recommended products for category:", product);
+  const fetchRecommended = async () => {
+    try {
+      const params = new URLSearchParams();
+      params.append("limit", 3);
+      params.append("page", 1);
+
+      const categoryValue =
+        typeof product.category === "string"
+          ? product.category
+          : product.category.name || product.category._id;
+
+      if (categoryValue) params.append("category", categoryValue);
+
+      const res = await api.get("/products", {
+        params: Object.fromEntries(params.entries()),
+      });
+
+      // filter out the same product
+      const filtered = (res.data.items || []).filter(
+        (p) => p._id !== product._id
+      );
+
+      setRecommendedProducts(filtered);
+    } catch (error) {
+      console.error("Failed to fetch related products:", error);
+    }
+  };
+
+  fetchRecommended();
+}, [product]);
+
+  if (!recommendedProducts.length) return null;
+
+  // if (!product) return <div className="p-8 text-center text-gray-500">Loading...</div>
 
   const nextImage = () => {
     setActiveImage((prev) => (prev + 1) % product.images.length)
@@ -47,6 +83,7 @@ useEffect(() => {
   }
 
 
+console.log("Product:", product); 
   return (
     <>
     <div className="flex flex-col md:flex-row gap-12 min-h-screen p-6 relative">
@@ -57,7 +94,7 @@ useEffect(() => {
             <img
               src={product.images[activeImage]}
               alt={product.title}
-              className="w-full h-[450px] object-cover rounded-md"
+              className="w-full h-[80vh] object-cover rounded-md"
             />
           </Card>
 
@@ -95,14 +132,15 @@ useEffect(() => {
 
         {/* Size Selection */}
         {/* Size Selection with Pills */}
-  {product.sizes && (
+{product.inventory && (
   <div className="flex flex-col gap-3">
     <label className="font-medium">Size:</label>
 
-    {/* Pills */}
     <div className="flex gap-2 flex-wrap">
-      {["XS","S", "M", "L", "XL","XXL"].map((size) => {
-        const isAvailable = product.sizes.includes(size)
+      {["XS","S","M","L","XL","XXL"].map((size) => {
+        const count = product.inventory[size] || 0;
+        const isAvailable = count > 0;
+
         return (
           <button
             key={size}
@@ -112,13 +150,12 @@ useEffect(() => {
               ${!isAvailable ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50" : "bg-white text-gray-700 border-gray-300 hover:border-brand-600"}`}
             disabled={!isAvailable}
           >
-            {size}
+            {size} {isAvailable }
           </button>
-        )
+        );
       })}
     </div>
 
-    {/* Show selected size */}
     {selectedSize && (
       <p className="text-sm text-gray-700 mt-1">
         Selected Size: <span className="font-semibold">{selectedSize}</span>
@@ -129,10 +166,6 @@ useEffect(() => {
 
 
 
-
-   
-
-        {/* Action Buttons */}
         {/* Action Buttons */}
         <div className="mt-4 flex flex-col gap-3">
           {/* Row 1: Cart + Wishlist */}
@@ -294,38 +327,42 @@ useEffect(() => {
 
 
 {/* You Might Be Interested Section */}
-<section className="mt-12 container px-6 pb-12">
-  <h2 className="text-2xl font-bold text-gray-900 mb-6">You Might Be Interested</h2>
+ <section className="mt-12 container px-6 pb-12">
+      <h2 className="text-2xl font-bold text-gray-900 mb-6">
+        You Might Be Interested
+      </h2>
 
-  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-    {[1, 2, 3].map((prod) => (
-      <div
-        key={prod}
-        className="group relative rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition"
-      >
-        {/* Product Image with Hover Zoom */}
-        <div className="relative w-full h-56 overflow-hidden">
-          <img
-            src={`/images/1.avif`}
-            alt={`Recommended Product ${prod}`}
-            className="w-full h-full object-cover transform group-hover:scale-105 transition duration-500"
-          />
-          {/* Overlay Gradient */}
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-70 group-hover:opacity-80 transition" />
-        </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        {recommendedProducts.map((prod) => (
+          <div
+            key={prod._id}
+            onClick={() => navigate(`/product/${prod.slug || prod._id}`)}
+            className="group relative rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition"
+          >
+            {/* Product Image */}
+            <div className="relative w-full h-56 overflow-hidden">
+              <img
+                src={prod.images?.[0] || "/images/placeholder.png"}
+                alt={prod.title}
+                className="w-full h-full object-cover transform group-hover:scale-105 transition duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-70 group-hover:opacity-80 transition" />
+            </div>
 
-        {/* Text Overlay */}
-        <div className="absolute bottom-4 left-4 right-4 text-white">
-          <h3 className="font-semibold text-lg truncate">Recommended Product {prod}</h3>
-          <div className="flex items-center gap-2">
-            <span className="text-brand-100 font-bold text-sm">₹ {1999 + prod * 100}</span>
-            <span className="text-gray-200 text-xs">Inclusive of taxes</span>
+            {/* Text Overlay */}
+            <div className="absolute bottom-4 left-4 right-4 text-white">
+              <h3 className="font-semibold text-lg truncate">{prod.title}</h3>
+              <div className="flex items-center gap-2">
+                <span className="text-brand-100 font-bold text-sm">
+                  ₹ {prod.price?.toLocaleString() || "N/A"}
+                </span>
+                <span className="text-gray-200 text-xs">Inclusive of taxes</span>
+              </div>
+            </div>
           </div>
-        </div>
+        ))}
       </div>
-    ))}
-  </div>
-</section>
+    </section>
 
 
 

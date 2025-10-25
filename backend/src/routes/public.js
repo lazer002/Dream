@@ -2,7 +2,8 @@ import express from 'express'
 const router = express.Router()
 import {Category}  from '../models/Category.js'
 import {User}  from '../models/User.js'
-
+import Razorpay from 'razorpay'
+import { CreateOrder } from '../models/CreateOrder.js'
 router.get('/categories', async (req, res) => {
     try {
         const categories = await Category.find({})
@@ -68,6 +69,61 @@ router.post('/wishlist/remove', async (req, res) => {
 });
 
 
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY,
+  key_secret: process.env.RAZORPAY_SECRET
+})
+
+router.post('/create', async (req, res) => {
+  try {
+    const { email, shippingAddress, items, subtotal, shippingMethod, billingSame, saveInfo, discountCode } = req.body
+
+    const shippingFee = 100
+    const total = subtotal + shippingFee
+
+    const razorpayOrder = await razorpay.orders.create({
+      amount: total * 100, // in paise
+      currency: "INR",
+      receipt: `receipt_order_${Date.now()}`
+    })
+
+    const order = await CreateOrder.create({
+      email,
+      shippingMethod,
+      billingSame,
+      shippingAddress,
+      saveInfo,
+      items: items.map(i => ({
+        productId: i.productId,
+        title: i.title,
+        variant: i.variant,
+        quantity: i.quantity,
+        price: i.price,
+        total: i.price * i.quantity
+      })),
+      subtotal,
+      shippingFee,
+      total,
+      discountCode,
+      payment: {
+        razorpayOrderId: razorpayOrder.id,
+        amount: total,
+        currency: "INR",
+        status: "pending"
+      }
+    })
+
+    res.status(201).json({
+      orderId: order._id,
+      razorpayOrderId: razorpayOrder.id,
+      amount: total * 100,
+      currency: "INR"
+    })
+  } catch (err) {
+    console.error(err)
+    res.status(500).json({ error: 'Something went wrong' })
+  }
+})
 
 
 

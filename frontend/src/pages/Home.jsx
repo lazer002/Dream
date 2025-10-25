@@ -85,7 +85,7 @@ export default function Home() {
     {/* Left fixed column */}
     <div className="flex-shrink-0 sticky top-20 w-96 h-auto bg-white z-20">
       <Link
-        to="/collections/all"
+        to="/products"
         className="flex flex-col items-center group"
       >
         <img
@@ -105,7 +105,7 @@ export default function Home() {
         {categories.map((category) => (
           <Link
             key={category._id}
-            to={`/collections/${category.slug}`}
+            to={`/products?category=${category.slug}`}
             className="flex-shrink-0 w-96 flex flex-col items-center group"
           >
             <img

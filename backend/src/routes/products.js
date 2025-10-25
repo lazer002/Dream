@@ -13,11 +13,22 @@ router.get("/", async (req, res) => {
     const { category, q, limit, page, sort } = req.query;
     const filter = { published: true };
 
-    if (category && category !== "All") {
-      const cat = await Category.findOne({ name: { $regex: `^${category}$`, $options: "i" } });
-      if (cat) filter.category = cat._id;
-    }
+   if (category && category !== "All") {
+      const isObjectId = /^[0-9a-fA-F]{24}$/.test(category);
 
+      if (isObjectId) {
+        filter.category = category;
+      } else {
+        const cat = await Category.findOne({
+          $or: [
+            { name: { $regex: `^${category}$`, $options: "i" } },
+            { slug: { $regex: `^${category}$`, $options: "i" } },
+          ],
+        });
+
+        if (cat) filter.category = cat._id;
+      }
+    }
 
     if (q) {
       filter.title = { $regex: q, $options: "i" };

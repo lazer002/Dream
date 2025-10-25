@@ -188,7 +188,7 @@ export default function Products() {
       </div>
 
       {/* Products Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-10">
         {products.map((p) => {
           return (
             <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">

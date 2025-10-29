@@ -1,38 +1,22 @@
 "use client";
 import { useState, useEffect } from "react";
 import { ShoppingCart, Search, User, Menu, ChevronDown, X } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, NavLink, useLocation } from "react-router-dom";
 import { useCart } from "../state/CartContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { api } from "@/utils/config.js";
-import { useNavigate  } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
 const navItems = [
   { title: "HOME", url: "/" },
   {
     title: "MEN",
     url: "/products",
-    mega: [
-      {
-        heading: "TOPWEAR",
-        links: [
-          { title: "Hoodie", url: "/products?category=Hoodie" },
-          { title: "Shirt", url: "/products?category=Shirt" },
-          { title: "Tshirt", url: "/products?category=Tshirt" },
-          { title: "Jacket", url: "/products?category=Jacket" },
-        ],
-      },
-      {
-        heading: "BOTTOMWEAR",
-        links: [
-          { title: "Pant", url: "/products?category=pant" },
-        ],
-      },
-    ],
-promos: [
-  { title: "Jackets", img: "/images/2.avif", url: "/products?category=Jacket" },
-  { title: "Pants", img: "/images/3.avif", url: "/products?category=Pant" },
-],
+    showCategories: true,
+    // promos: [
+    //   { title: "Jackets", img: "/images/2.avif", url: "/products?category=Jacket" },
+    //   { title: "Pants", img: "/images/3.avif", url: "/products?category=Pant" },
+    // ],
 
   },
   {
@@ -44,16 +28,17 @@ promos: [
       { title: "Basics - Wardrobe Essentials", url: "/collections/basics" },
     ],
   },
+  { title: "NEW ARRIVALS", url: "/NEW" },
 ];
 
 
 export default function Header() {
-const navigate = useNavigate();
-const handleCategoryClick = (category) => {
-  const currentParams = new URLSearchParams(location.search);
-  currentParams.set("category", category.toLowerCase()); // update category
-  navigate(`/products?${currentParams.toString()}`);
-};
+  const navigate = useNavigate();
+  const handleCategoryClick = (category) => {
+    const currentParams = new URLSearchParams(location.search);
+    currentParams.set("category", category.toLowerCase()); // update category
+    navigate(`/products?${currentParams.toString()}`);
+  };
 
   const { user } = useAuth();
   const { items } = useCart()
@@ -64,6 +49,7 @@ const handleCategoryClick = (category) => {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [categories, setCategories] = useState([]);
 
 
   useEffect(() => {
@@ -105,15 +91,29 @@ const handleCategoryClick = (category) => {
     return () => clearTimeout(delayDebounce);
   }, [query]);
 
+ const fetchCategories = async () => {
+    try {
+      const res = await api.get("/categories");
+      const cats = Array.isArray(res.data.categories)
+        ? res.data.categories
+        : [];
+      setCategories(cats);
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+    }
+  };
 
+  useEffect(() => {
+    fetchCategories();
+  }, []);
 
-
-
-
+    const baseClass =
+    "font-bold text-[18px] transition-colors duration-200 flex items-center gap-1 px-[20px] py-[5px] rounded-[10px]";
+  const hoverClass = "hover:bg-[#d7d4d4]";
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
-      <div className="flex items-center justify-between px-6 py-3">
+      <div className="flex items-center justify-between px-6 py-5">
         {/* Left: Mobile Menu + Nav */}
         <div className="flex items-center gap-4">
           {/* Mobile Hamburger */}
@@ -125,115 +125,146 @@ const handleCategoryClick = (category) => {
           </button>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex gap-6">
-            {navItems.map((item) =>
-              item.mega ? (
-                <div key={item.title} className="relative group">
-                  {/* Parent link */}
-                  <Link
-                    to={item.url}
-                    className="flex items-center gap-1 font-bold text-[14px]"
-                  >
-                    {item.title}
-                  </Link>
+     <nav className="hidden lg:flex gap-8">
+      {navItems.map((item) => {
+        if (item.showCategories) {
+          return (
+            <div key={item.title} className="relative group">
+              {/* Parent link */}
+              <Link to={item.url} className={`${baseClass} ${hoverClass}`}>
+                {item.title}
+              </Link>
 
-                  {/* Full Width Mega Menu */}
-                  <div
-                    className="fixed left-0 top-[50px] w-screen bg-white shadow-lg border-t border-gray-100 
-                     opacity-0 invisible translate-y-2 
-                     group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
-                     transition-all duration-300 ease-in-out z-40"
-                  >
-                    <div className="max-w-7xl mx-auto grid grid-cols-4 gap-8 p-8">
-                      {item.mega.map((col) => (
-                        <div key={col.heading}>
-                          <h3 className="font-bold mb-2">{col.heading}</h3>
-                          <ul className="space-y-1">
-                     {col.links.map((link) => (
-                        <li key={link.title}>
-                          <button
-                            onClick={() => handleCategoryClick(link.title)}
-                            className="text-gray-600 hover:text-black text-sm"
-                          >
-                            {link.title}
-                          </button>
-                        </li>
-                        ))}
-                          </ul>
-                        </div>
-                      ))}
-                      {item.promos?.map((promo) => (
-                        <Link
-                          key={promo.title}
-                          to={promo.url} // navigates to the category page
-                          className="block group overflow-hidden"
-                        >
-                          <img
-                            src={promo.img}
-                            alt={promo.title}
-                            className="w-full h-fit object-cover rounded-md group-hover:opacity-90 transition"
-                          />
-                          <p className="mt-2 text-sm text-gray-700 group-hover:underline">
-                            {promo.title}
-                          </p>
-                        </Link>
-                      ))}
+              {/* Category scroll (replaces mega menu) */}
+<div
+  className="fixed left-0 top-[79px] w-screen bg-gradient-to-b from-gray-50 to-gray-100 shadow-lg border-t border-gray-200 
+    opacity-0 invisible translate-y-2 
+    group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
+    transition-all duration-300 ease-in-out z-40"
+>
+  <div className="relative flex items-center justify-center py-12 px-8 gap-8">
+    {/* LEFT PROMO BANNER */}
+    <div className="hidden lg:flex flex-col justify-center items-center 
+      bg-gradient-to-br from-white to-gray-100 text-gray-900 
+      rounded-2xl p-8 w-72 h-[350px] shadow-md hover:shadow-lg 
+      hover:scale-[1.02] transition-all duration-300 border border-gray-200"
+    >
+      <h3 className="text-2xl font-bold mb-2 tracking-tight text-center">
+        🎉 20% OFF IN-APP
+      </h3>
+      <p className="text-sm text-gray-600 text-center mb-4">
+        Get 20% off your first purchase in our app — limited time only!
+      </p>
+      <Link
+        to="/app-offer"
+        className="bg-black text-white font-semibold rounded-full px-5 py-2 text-sm hover:bg-gray-800 transition"
+      >
+        Shop Now
+      </Link>
+    </div>
 
-                    </div>
-                  </div>
-                </div>
-              ) : item.dropdown ? (
-                <div key={item.title} className="relative group">
-                  {/* Parent link */}
-                  <Link
-                    to={item.url}
-                    className="flex items-center gap-1 font-bold text-[14px]"
-                  >
-                    {item.title}
-                  </Link>
+    {/* CATEGORY SCROLLER */}
+    <div className="relative flex-1 overflow-x-auto scrollbar-thin">
+      <div className="flex gap-8 pr-12 justify-start">
+        {categories.map((category) => (
+          <Link
+            key={category._id}
+            to={`/products?category=${category.slug}`}
+            className="flex-shrink-0 w-64 relative group/card shadow rounded-xl overflow-hidden bg-white border border-gray-100 hover:shadow-lg transition-all duration-300"
+          >
+            {/* Image Wrapper with Smooth Zoom Effect */}
+            <div className="w-full h-[240px] overflow-hidden">
+              <img
+                src={
+                  category.photo ||
+                  `https://via.placeholder.com/250x300?text=${encodeURIComponent(
+                    category.name
+                  )}`
+                }
+                alt={category.name}
+                className="w-full h-full object-cover transform group-hover/card:scale-110 transition-transform duration-700 ease-in-out"
+              />
+            </div>
 
-                  {/* Dropdown */}
-                  <div
-                    className="fixed left-0 top-[50px] w-screen bg-white shadow-lg border-t border-gray-100 
-                     opacity-0 invisible translate-y-2 
-                     group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
-                     transition-all duration-300 ease-in-out z-40"
-                  >
-                    <ul className="max-w-7xl mx-auto flex gap-8 p-6">
-                      {item.dropdown.map((d) => (
-                        <li key={d.title}>
-                          <Link
-                            to={d.url}
-                            className="text-gray-600 hover:text-black text-sm"
-                          >
-                            {d.title}
-                          </Link>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              ) : (
-                <Link
-                  key={item.title}
-                  to={item.url}
-                  className="font-bold text-[14px] hover:text-black"
-                >
-                  {item.title}
-                </Link>
-              )
-            )}
-          </nav>
+            {/* Category pill label at bottom */}
+            <p
+              className="absolute bottom-3 left-1/2 -translate-x-1/2
+              bg-red-600 text-white hover:text-white/85 text-sm font-semibold
+              uppercase tracking-wide px-8 py-[3px] rounded-full
+              shadow-sm backdrop-blur-sm transition-all duration-300"
+            >
+              {category.name}
+            </p>
+          </Link>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+
+
+            </div>
+          );
+        }
+
+        if (item.dropdown) {
+          return (
+            <div key={item.title} className="relative group">
+              <Link to={item.url} className={`${baseClass} ${hoverClass}`}>
+                {item.title}
+              </Link>
+
+              {/* Dropdown */}
+              <div
+                className="fixed left-0 top-[75px] w-screen bg-white shadow-lg border-t border-gray-100 
+                  opacity-0 invisible translate-y-2 
+                  group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
+                  transition-all duration-300 ease-in-out z-40"
+              >
+                <ul className="max-w-7xl mx-auto flex gap-8 p-6">
+                  {item.dropdown.map((d) => (
+                    <li key={d.title}>
+                      <Link
+                        to={d.url}
+                        className="text-gray-600 hover:text-black text-lg"
+                      >
+                        {d.title}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          );
+        }
+
+        return (
+          <Link
+            key={item.title}
+            to={item.url}
+            className={`${baseClass} ${hoverClass}`}
+          >
+            {item.title}
+          </Link>
+        );
+      })}
+    </nav>
+
 
         </div>
 
         {/* Logo */}
         <Link to="/" className="font-bold text-2xl">
-          DRIP
+          DRIPDESI
         </Link>
 
         {/* Right Icons */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-6 ps-32">
           {user ? (
             <Link to="/admin">
               <div className="text-gray-600 hover:text-black text-sm">admin</div>

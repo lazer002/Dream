@@ -116,28 +116,44 @@ console.log("Product:", product);
 
       {/* Right: Info */}
       <div className="md:w-1/2 flex flex-col gap-4 overflow-y-auto" style={{ maxHeight: "calc(100vh - 48px)" }}>
-        <h1 className="text-2xl font-bold text-gray-900">{product.title}</h1>
-        <div className="flex items-center gap-3">
-          <span className="text-[16px] font-bold text-brand-600">MRP ₹ {product.price?.toFixed(2)}</span>
-          <span className="text-gray-400 text-[13px]">Inclusive of all taxes</span>
-          {product.discount && <Badge variant="secondary">{product.discount}% OFF</Badge>}
-        </div>
+        <h1 className="text-[44px] font-bold text-gray-900">{product.title}</h1>
+    
 
-        <p className="text-[13px] text-gray-700 leading-relaxed">
+        <p className="text-[19px] text-gray-700 leading-relaxed">
           Elevate your style with the <strong>{product.title}</strong>. Crafted from premium 100% cotton, this piece
           ensures unmatched comfort while maintaining a breathable, relaxed fit.
         </p>
+<div className="flex items-baseline gap-3">
+  {/* Discounted / Current Price */}
+  <span className="text-[30px] font-bold ">
+    ₹ {product.price?.toFixed(2)}
+  </span>
 
+  {/* Original MRP — 20% higher, crossed out */}
+  <span className="text-gray-500 text-lg font-medium flex items-baseline gap-1">
+    MRP
+    <span className="text-xl line-through text-gray-500">
+      ₹ {(product.price * 1.2).toFixed(2)}
+    </span>
+  </span>
+
+  {/* Optional Discount Label */}
+  <span className="text-[21px] font-semibold text-red-600">
+    (20% OFF)
+  </span>
+</div>
+
+
+          <span className="text-green-700 text-[19px]">Inclusive of all taxes</span>
         <Separator className="my-4" />
 
         {/* Size Selection */}
-        {/* Size Selection with Pills */}
 {product.inventory && (
-  <div className="flex flex-col gap-3">
-    <label className="font-medium">Size:</label>
+  <div className="flex flex-col gap-4">
+    <label className="font-medium text-xl text-black">Select Size</label>
 
-    <div className="flex gap-2 flex-wrap">
-      {["XS","S","M","L","XL","XXL"].map((size) => {
+    <div className="flex gap-3 px-2 flex-wrap">
+      {["XS", "S", "M", "L", "XL", "XXL"].map((size) => {
         const count = product.inventory[size] || 0;
         const isAvailable = count > 0;
 
@@ -145,19 +161,28 @@ console.log("Product:", product);
           <button
             key={size}
             onClick={() => isAvailable && setSelectedSize(size)}
-            className={`px-4 py-2 rounded-full border transition 
-              ${selectedSize === size ? "bg-brand-600 text-white border-brand-600" : ""}
-              ${!isAvailable ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50" : "bg-white text-gray-700 border-gray-300 hover:border-brand-600"}`}
+            className={`w-14 h-14 flex items-center justify-center rounded-full border text-base font-semibold
+              transition-all duration-300 ease-in-out transform
+              ${
+                selectedSize === size
+                  ? "bg-black text-white border-black scale-110 shadow-md shadow-gray-400"
+                  : "bg-white text-gray-700 border-gray-300 hover:border-black hover:scale-105"
+              }
+              ${
+                !isAvailable
+                  ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50"
+                  : ""
+              }`}
             disabled={!isAvailable}
           >
-            {size} {isAvailable }
+            {size}
           </button>
         );
       })}
     </div>
 
     {selectedSize && (
-      <p className="text-sm text-gray-700 mt-1">
+      <p className="text-sm text-gray-700 mt-2">
         Selected Size: <span className="font-semibold">{selectedSize}</span>
       </p>
     )}
@@ -166,12 +191,16 @@ console.log("Product:", product);
 
 
 
+
+
+
+
         {/* Action Buttons */}
         <div className="mt-4 flex flex-col gap-3">
           {/* Row 1: Cart + Wishlist */}
           <div className="flex gap-3">
             <Button
-              className="w-1/2 flex items-center justify-center gap-2"
+              className="w-1/2 flex items-center justify-center gap-2 text-xl py-6"
               onClick={() => add(product._id,selectedSize)}
             >
               <ShoppingCart className="w-5 h-5" />
@@ -180,7 +209,7 @@ console.log("Product:", product);
 
             <Button
               variant="outline"
-              className={`w-1/2 flex items-center justify-center gap-2 border-black text-black hover:bg-pink-50`}
+              className={`w-1/2 flex items-center justify-center gap-2 border-black text-black hover:bg-pink-50 text-xl py-6 `}
               onClick={() => setWishlisted(!wishlisted)}
             >
               <Heart
@@ -193,7 +222,7 @@ console.log("Product:", product);
           {/* Row 2: Buy Now */}
           <Button
             variant="outline"
-            className="w-full flex items-center justify-center gap-2 border-brand-600 text-brand-600 hover:bg-brand-50"
+            className="w-full flex items-center justify-center gap-2 border-brand-600 text-brand-600 hover:bg-brand-50 text-xl py-6"
           >
             <CreditCard className="w-5 h-5" />
             Buy Now
@@ -201,9 +230,10 @@ console.log("Product:", product);
         </div>
 
 
+        <Separator className="my-4" />
 
-        <div className="mt-3 flex flex-col gap-3">
-          <p className="text-sm font-semibold text-black">Offers For You</p>
+        <div className=" flex flex-col gap-3">
+          <p className="text-2xl font-semibold text-black">Offers For You</p>
 
           {/* Offer 1 */}
 {/* Offer Box with slow blinking animation */}
@@ -212,10 +242,10 @@ console.log("Product:", product);
     <Gift className="w-6 h-6 text-brand-600 " />
   </div>
   <div className="flex flex-col">
-    <p className="text-[12px] font-medium text-gray-800">
+    <p className="text-[16px] font-medium text-gray-800">
       EXTRA 10% OFF ON PURCHASE OF ₹ 2999
     </p>
-    <p className="text-[12px] text-gray-600">NORETURN</p>
+    <p className="text-[14px] text-gray-600">NORETURN</p>
   </div>
 </div>
 
@@ -226,8 +256,8 @@ console.log("Product:", product);
               <Gift className="w-6 h-6 text-brand-600" />
             </div>
             <div className="flex flex-col">
-              <p className="text-[12px] font-medium text-gray-800">EXTRA 10% OFF ON PURCHASE OF ₹ 3299</p>
-              <p className="text-[12px] text-gray-600">LEVI10</p>
+              <p className="text-[16px] font-medium text-gray-800">EXTRA 10% OFF ON PURCHASE OF ₹ 3299</p>
+              <p className="text-[14px] text-gray-600">LEVI10</p>
             </div>
           </div>
         </div>
@@ -235,7 +265,7 @@ console.log("Product:", product);
 
 
         {/* Accordion */}
-        <Accordion type="single" collapsible className=" w-full">
+        <Accordion type="single" collapsible className="text-xl w-full">
           <AccordionItem value="wash-care">
             <AccordionTrigger>Wash Care</AccordionTrigger>
             <AccordionContent>
@@ -340,7 +370,7 @@ console.log("Product:", product);
             className="group relative rounded-xl overflow-hidden cursor-pointer shadow-sm hover:shadow-lg transition"
           >
             {/* Product Image */}
-            <div className="relative w-full h-56 overflow-hidden">
+            <div className="relative w-full h-80 overflow-hidden">
               <img
                 src={prod.images?.[0] || "/images/placeholder.png"}
                 alt={prod.title}
@@ -350,13 +380,13 @@ console.log("Product:", product);
             </div>
 
             {/* Text Overlay */}
-            <div className="absolute bottom-4 left-4 right-4 text-white">
+            <div className="absolute bottom-4 left-4 right-4 group-hover:text-white transition">
               <h3 className="font-semibold text-lg truncate">{prod.title}</h3>
               <div className="flex items-center gap-2">
-                <span className="text-brand-100 font-bold text-sm">
+                <span className=" font-bold text-sm group-hover:text-white transition">
                   ₹ {prod.price?.toLocaleString() || "N/A"}
                 </span>
-                <span className="text-gray-200 text-xs">Inclusive of taxes</span>
+                <span className=" text-xs group-hover:text-white transition">Inclusive of taxes</span>
               </div>
             </div>
           </div>

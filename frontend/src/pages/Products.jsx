@@ -193,7 +193,7 @@ export default function Products() {
           return (
             <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">
               <div className="bg-white border border-gray-200 transition overflow-hidden relative">
-                <div className="relative w-full h-96 overflow-hidden">
+                <div className="relative w-full h-[54vh] overflow-hidden">
                   <img
                     src={p.images[0]}
                     alt={p.title}
@@ -221,9 +221,9 @@ export default function Products() {
                     className="absolute bottom-2 right-2 p-1 flex items-center justify-center w-7 h-7 hover:scale-110 transition"
                   >
                     {wishlist.includes(p._id) ? (
-                      <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+                      <Heart className="h-10 w-10 text-red-500 fill-red-500" />
                     ) : (
-                      <HeartOutline className="h-4 w-4 text-black" />
+                      <HeartOutline className="h-10 w-10 text-black" />
                     )}
                   </button>
                 </div>
@@ -236,7 +236,7 @@ export default function Products() {
                       className="p-1 w-7 h-7 flex items-center justify-center   transition"
                       title="Add to Cart"
                     >
-                      <ShoppingBag className="w-4 h-4" />
+                      <ShoppingBag className="w-10 h-10" />
                     </button>
                   </div>
                   <span className="text-sm font-bold text-[#042354]">₹{p.price}</span>

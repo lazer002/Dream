@@ -8,6 +8,7 @@
   
 }
 
+
 div.nsm7Bb-HzV7m-LgbsSe {
   border: none !important;       /* remove border */
   box-shadow: none !important;   /* remove shadow */
@@ -20,10 +21,16 @@ div.nsm7Bb-HzV7m-LgbsSe:hover {
   background: transparent !important;
 }
 
+@font-face {
+  font-family: 'myfont';
+  src: url('/fonts/Roboto_Condensed/static/RobotoCondensed-Regular.ttf') format('truetype');
+}
 
 body {
+  font-family: 'myfont', sans-serif;
   @apply bg-white text-gray-900;
 }
+
 
 /* Remove all default focus outlines */
 

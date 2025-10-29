@@ -24,6 +24,7 @@ router.get('/', async (req, res) => {
 
 // Add to cart with size support
 router.post('/add', async (req, res) => {
+  console.log("Add to cart request body:", req.body);
   const key = cartKey(req); // { user: userId } or { guestId }
   const { productId, quantity = 1, size } = req.body;
 
@@ -51,6 +52,7 @@ router.post('/add', async (req, res) => {
 
 // Update quantity
 router.post('/update', async (req, res) => {
+  console.log("Update cart item request body:", req.body);
   const key = cartKey(req)
   const { productId, size, quantity } = req.body
   if (!key || !productId || !size || quantity == null) 
@@ -72,10 +74,10 @@ router.post('/update', async (req, res) => {
 // Remove item
 router.post('/remove', async (req, res) => {
   const key = cartKey(req)
-  const { productId } = req.body
-  if (!key || !productId ) return res.status(400).json({ error: 'Missing fields' })
+  const { productId, size } = req.body
+  if (!key || !productId || !size) return res.status(400).json({ error: 'Missing fields' })
 
-  const result = await CartItem.findOneAndDelete({ ...key, product: productId })
+  const result = await CartItem.findOneAndDelete({ ...key, product: productId, size })
   if (!result) return res.status(404).json({ error: 'Cart item not found' })
 
   res.json({ message: 'Product removed from cart', item: result })

@@ -59,63 +59,83 @@ export function CartProvider({ children }) {
     if (user) mergeGuestCart();
   }, [user]);
 
-  // Optimistic updates for add/update/remove
-  const add = async (productId, size, quantity = 1) => {
-    if (!size) {
-      toast.error("Please select a size!");
-      return;
-    }
+  
+const add = async (productId, size, quantity = 1) => {
+  if (!size) {
+    toast.error("Please select a size!");
+    return;
+  }
 
-    const existing = items.find(i => i.product._id === productId && i.size === size);
+  // Check if the item with same product + size exists in frontend cart
+  const existing = items.find(i => i.product._id === productId && i.size === size);
 
-    if (existing) {
-      setItems(prev =>
-        prev.map(i =>
-          i.product._id === productId && i.size === size
-            ? { ...i, quantity: i.quantity + quantity }
-            : i
-        )
-      );
+  if (existing) {
+    setItems(prev =>
+      prev.map(i =>
+        i.product._id === productId && i.size === size
+          ? { ...i, quantity: i.quantity + quantity }
+          : i
+      )
+    );
+  } else {
+    setItems(prev => [...prev, { product: { _id: productId }, size, quantity }]);
+  }
+
+  try {
+    // Send to backend: include size to avoid duplicate key errors
+    await client().post('/add', { productId, size, quantity });
+    
+    // Refresh cart state from backend
+    await refresh();
+
+    toast.success("Added to cart");
+  } catch (err) {
+    console.error(err);
+
+    // Likely duplicate key issue if backend index not updated
+    if (err.response?.data?.code === 11000) {
+      toast.error("This product & size is already in cart");
     } else {
-      setItems(prev => [...prev, { product: { _id: productId }, size, quantity }]);
-    }
-
-    try {
-      await client().post('/add', { productId, size, quantity });
-      await refresh();
-      toast.success("Added to cart");
-    } catch (err) {
-      console.error(err);
       toast.error("Failed to add item");
-      refresh();
     }
-  };
 
-  const update = async (productId, quantity) => {
-    setItems(prev => prev.map(i => i.product._id === productId ? { ...i, quantity } : i));
-    try {
-      await client().post('/update', { productId, quantity });
-      await refresh();
-      toast.success("Cart updated");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update cart");
-      refresh();
-    }
-  };
+    refresh();
+  }
+};
 
-  const remove = async (productId) => {
-    setItems(prev => prev.filter(i => i.product._id !== productId));
-    try {
-      await client().post('/remove', { productId });
-      await refresh();
-      toast.success("Product removed from cart");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to remove item");
-      refresh();
-    }
-  };
+
+const update = async (productId, quantity, size) => {
+  setItems(prev => prev.map(i =>
+    i.product._id === productId && i.size === size
+      ? { ...i, quantity }
+      : i
+  ));
+
+  try {
+    await client().post('/update', { productId, quantity, size });
+    await refresh();
+    toast.success("Cart updated");
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to update cart");
+    refresh();
+  }
+};
+
+
+const remove = async (productId, size) => {
+  setItems(prev => prev.filter(i => !(i.product._id === productId && i.size === size)));
+  try {
+    await client().post('/remove', { productId, size });
+    await refresh();
+    toast.success("Product removed from cart");
+  } catch (err) {
+    console.error(err);
+    toast.error(err.response?.data?.error || "Failed to remove item");
+    await refresh();
+  }
+};
+
 
   const value = { items, add, update, remove, refresh, mergeGuestCart };
 

@@ -6,6 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useCart } from "../state/CartContext.jsx"
 import { api } from "@/utils/config.js";
 import { useLocation } from "react-router-dom";
+import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@/components/ui/dialog.jsx";
+
 
 export default function Products() {
   const { add } = useCart()
@@ -22,7 +24,24 @@ export default function Products() {
   const [loading, setLoading] = useState(false);
   const location = useLocation();
 
+const [selectedProduct, setSelectedProduct] = useState(null);
+const [isModalOpen, setIsModalOpen] = useState(false);
 
+const openModal = (product) => {
+  setSelectedProduct(product);
+  setIsModalOpen(true);
+};
+
+const handleSelectSize = (sizeKey) => {
+  console.log("Selected size:", sizeKey);
+  if (!selectedProduct) return;
+  const qty = Number(selectedProduct.inventory?.[sizeKey] ?? 0);
+  if (qty <= 0) return; // disabled anyway
+
+  add(selectedProduct._id, sizeKey); // 👈 always with size
+  setIsModalOpen(false);
+  setSelectedProduct(null);
+};
 
   const fetchProducts = async (reset = false, categoryFromQueryParam = null) => {
     if (!reset && (loading || !hasMore)) return; // only block when NOT resetting
@@ -232,7 +251,8 @@ export default function Products() {
                   <div className="flex items-center justify-between">
                     <h3 className="text-sm font-bold text-black uppercase">{p.title}</h3>
                     <button
-                      onClick={(e) => { e.preventDefault(); add(p._id, 1) }}
+                      onClick={(e) => {   e.preventDefault();
+                         openModal(p); }}
                       className="p-1 w-7 h-7 flex items-center justify-center   transition"
                       title="Add to Cart"
                     >
@@ -329,6 +349,51 @@ export default function Products() {
     </button>
   </div>
 </div>
+<Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+  <DialogContent className="max-w-sm w-[90%]">
+    <DialogHeader>
+      <DialogTitle>Select Size</DialogTitle>
+      <DialogClose />
+    </DialogHeader>
+
+    <div className="p-4 flex flex-col gap-4">
+      {selectedProduct && (
+        <>
+       
+
+          <div>
+            <div className="text-sm text-gray-600 mb-2">Choose Size</div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(selectedProduct.inventory || {}).map(([size, qty]) => (
+                <button
+                  key={size}
+                  onClick={() => handleSelectSize(size)}
+                  disabled={qty <= 0}
+                  className={`px-4 py-2 rounded-full border text-sm font-medium transition
+                    ${
+                      qty <= 0
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200"
+                        : "hover:bg-black hover:text-white"
+                    }`}
+                  title={qty <= 0 ? "Out of stock" : `Add ${size} to cart`}
+                >
+                  <div className="flex flex-col items-center">
+                    <span>{size}</span>
+                    <small className="text-xs">{qty > 0 ? `${qty} left` : "Out"}</small>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {Object.values(selectedProduct.inventory || {}).every((q) => q <= 0) && (
+              <div className="mt-3 text-sm text-red-500 font-medium">Out of Stock</div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
 
 
 

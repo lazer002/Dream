@@ -8,7 +8,7 @@ const router = express.Router()
 router.get("/", async (req, res) => {
   try {
 
-    console.log(req.query)
+    console.log('s',req.query)
     res.set("Cache-Control", "no-store"); // disable caching
     const { category, q, limit, page, sort } = req.query;
     const filter = { published: true };
@@ -83,6 +83,7 @@ router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
 
 router.get("/search", async (req, res) => {
   try {
+    console.log("Search query:", req.query);
     const { q } = req.query;
 
     if (!q || q.trim() === "") {

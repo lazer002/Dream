@@ -4,7 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 
 export default function Signup() {
-  const { signup, signupWithGoogle } = useAuth();
+  const { register, signupWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
@@ -19,7 +19,7 @@ export default function Signup() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await signup(form.name, form.email, form.password);
+      await register(form.name, form.email, form.password);
       navigate("/");
     } catch {
       setError("Signup failed");

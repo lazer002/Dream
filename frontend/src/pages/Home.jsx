@@ -173,7 +173,7 @@ export default function Home() {
       {/* ======================================================
           LOOKBOOK SECTION
       ====================================================== */}
-<section className="pt-24 bg-white relative overflow-hidden w-full">
+<section className="py-24 bg-white relative overflow-hidden w-full">
   <h2 className="text-2xl md:text-3xl font-bold mb-12 tracking-tight text-center uppercase">
     LOOKBOOK
   </h2>

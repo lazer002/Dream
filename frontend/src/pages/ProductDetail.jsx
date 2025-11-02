@@ -83,7 +83,7 @@ console.log("Fetching recommended products for category:", product);
   }
 
 
-console.log("Product:", product); 
+// console.log("Product:", product); 
   return (
     <>
     <div className="flex flex-col md:flex-row gap-12 min-h-screen p-6 relative">

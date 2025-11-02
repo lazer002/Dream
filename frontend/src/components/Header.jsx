@@ -13,32 +13,16 @@ const navItems = [
     title: "MEN",
     url: "/products",
     showCategories: true,
-    // promos: [
-    //   { title: "Jackets", img: "/images/2.avif", url: "/products?category=Jacket" },
-    //   { title: "Pants", img: "/images/3.avif", url: "/products?category=Pant" },
-    // ],
-
   },
   {
-    title: "COLLECTIONS",
-    dropdown: [
-      { title: "Drift - Relaxed Fits", url: "/collections/drift-collection" },
-      { title: "Linen Collection", url: "/collections/linen" },
-      { title: "Caelum - For Movement", url: "/collections/caelum" },
-      { title: "Basics - Wardrobe Essentials", url: "/collections/basics" },
-    ],
+    title: "COLLECTIONS", url: "/collections",
   },
   { title: "NEW ARRIVALS", url: "/NEW" },
 ];
 
 
 export default function Header() {
-  const navigate = useNavigate();
-  const handleCategoryClick = (category) => {
-    const currentParams = new URLSearchParams(location.search);
-    currentParams.set("category", category.toLowerCase()); // update category
-    navigate(`/products?${currentParams.toString()}`);
-  };
+
 
   const { user } = useAuth();
   const { items } = useCart()
@@ -91,7 +75,7 @@ export default function Header() {
     return () => clearTimeout(delayDebounce);
   }, [query]);
 
- const fetchCategories = async () => {
+  const fetchCategories = async () => {
     try {
       const res = await api.get("/categories");
       const cats = Array.isArray(res.data.categories)
@@ -107,10 +91,10 @@ export default function Header() {
     fetchCategories();
   }, []);
 
-    const baseClass =
+  const baseClass =
     "font-bold text-[18px] transition-colors duration-200 flex items-center gap-1 px-[20px] py-[5px] rounded-[10px]";
   const hoverClass = "hover:bg-[#d7d4d4]";
-
+  
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
       <div className="flex items-center justify-between px-6 py-5">
@@ -125,82 +109,82 @@ export default function Header() {
           </button>
 
           {/* Desktop Nav */}
-     <nav className="hidden lg:flex gap-8">
-      {navItems.map((item) => {
-        if (item.showCategories) {
-          return (
-            <div key={item.title} className="relative group">
-              {/* Parent link */}
-              <Link to={item.url} className={`${baseClass} ${hoverClass}`}>
-                {item.title}
-              </Link>
+          <nav className="hidden lg:flex gap-8">
+            {navItems.map((item) => {
+              if (item.showCategories) {
+                return (
+                  <div key={item.title} className="relative group">
+                    {/* Parent link */}
+                    <Link to={item.url} className={`${baseClass} ${hoverClass}`}>
+                      {item.title}
+                    </Link>
 
-              {/* Category scroll (replaces mega menu) */}
-<div
-  className="fixed left-0 top-[79px] w-screen bg-gradient-to-b from-gray-50 to-gray-100 shadow-lg border-t border-gray-200 
+                    {/* Category scroll (replaces mega menu) */}
+                    <div
+                      className="fixed left-0 top-[79px] w-screen bg-gradient-to-b from-gray-50 to-gray-100 shadow-lg border-t border-gray-200 
     opacity-0 invisible translate-y-2 
     group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
     transition-all duration-300 ease-in-out z-40"
->
-  <div className="relative flex items-center justify-center py-12 px-8 gap-8">
-    {/* LEFT PROMO BANNER */}
-    <div className="hidden lg:flex flex-col justify-center items-center 
+                    >
+                      <div className="relative flex items-center justify-center py-12 px-8 gap-8">
+                        {/* LEFT PROMO BANNER */}
+                        <div className="hidden lg:flex flex-col justify-center items-center 
       bg-gradient-to-br from-white to-gray-100 text-gray-900 
       rounded-2xl p-8 w-72 h-[350px] shadow-md hover:shadow-lg 
       hover:scale-[1.02] transition-all duration-300 border border-gray-200"
-    >
-      <h3 className="text-2xl font-bold mb-2 tracking-tight text-center">
-        🎉 20% OFF IN-APP
-      </h3>
-      <p className="text-sm text-gray-600 text-center mb-4">
-        Get 20% off your first purchase in our app — limited time only!
-      </p>
-      <Link
-        to="/app-offer"
-        className="bg-black text-white font-semibold rounded-full px-5 py-2 text-sm hover:bg-gray-800 transition"
-      >
-        Shop Now
-      </Link>
-    </div>
+                        >
+                          <h3 className="text-2xl font-bold mb-2 tracking-tight text-center">
+                            🎉 20% OFF IN-APP
+                          </h3>
+                          <p className="text-sm text-gray-600 text-center mb-4">
+                            Get 20% off your first purchase in our app — limited time only!
+                          </p>
+                          <Link
+                            to="/app-offer"
+                            className="bg-black text-white font-semibold rounded-full px-5 py-2 text-sm hover:bg-gray-800 transition"
+                          >
+                            Shop Now
+                          </Link>
+                        </div>
 
-    {/* CATEGORY SCROLLER */}
-    <div className="relative flex-1 overflow-x-auto scrollbar-thin">
-      <div className="flex gap-8 pr-12 justify-start">
-        {categories.map((category) => (
-          <Link
-            key={category._id}
-            to={`/products?category=${category.slug}`}
-            className="flex-shrink-0 w-64 relative group/card shadow rounded-xl overflow-hidden bg-white border border-gray-100 hover:shadow-lg transition-all duration-300"
-          >
-            {/* Image Wrapper with Smooth Zoom Effect */}
-            <div className="w-full h-[240px] overflow-hidden">
-              <img
-                src={
-                  category.photo ||
-                  `https://via.placeholder.com/250x300?text=${encodeURIComponent(
-                    category.name
-                  )}`
-                }
-                alt={category.name}
-                className="w-full h-full object-cover transform group-hover/card:scale-110 transition-transform duration-700 ease-in-out"
-              />
-            </div>
+                        {/* CATEGORY SCROLLER */}
+                        <div className="relative flex-1 overflow-x-auto scrollbar-thin">
+                          <div className="flex gap-8 pr-12 justify-start">
+                            {categories.map((category) => (
+                              <Link
+                                key={category._id}
+                                to={`/products?category=${category.slug}`}
+                                className="flex-shrink-0 w-64 relative group/card shadow rounded-xl overflow-hidden bg-white border border-gray-100 hover:shadow-lg transition-all duration-300"
+                              >
+                                {/* Image Wrapper with Smooth Zoom Effect */}
+                                <div className="w-full h-[240px] overflow-hidden">
+                                  <img
+                                    src={
+                                      category.photo ||
+                                      `https://via.placeholder.com/250x300?text=${encodeURIComponent(
+                                        category.name
+                                      )}`
+                                    }
+                                    alt={category.name}
+                                    className="w-full h-full object-cover transform group-hover/card:scale-110 transition-transform duration-700 ease-in-out"
+                                  />
+                                </div>
 
-            {/* Category pill label at bottom */}
-            <p
-              className="absolute bottom-3 left-1/2 -translate-x-1/2
+                                {/* Category pill label at bottom */}
+                                <p
+                                  className="absolute bottom-3 left-1/2 -translate-x-1/2
               bg-red-600 text-white hover:text-white/85 text-sm font-semibold
               uppercase tracking-wide px-8 py-[3px] rounded-full
               shadow-sm backdrop-blur-sm transition-all duration-300"
-            >
-              {category.name}
-            </p>
-          </Link>
-        ))}
-      </div>
-    </div>
-  </div>
-</div>
+                                >
+                                  {category.name}
+                                </p>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
 
 
 
@@ -208,52 +192,52 @@ export default function Header() {
 
 
 
-            </div>
-          );
-        }
+                  </div>
+                );
+              }
 
-        if (item.dropdown) {
-          return (
-            <div key={item.title} className="relative group">
-              <Link to={item.url} className={`${baseClass} ${hoverClass}`}>
-                {item.title}
-              </Link>
+              if (item.dropdown) {
+                return (
+                  <div key={item.title} className="relative group">
+                    <Link to={item.url} className={`${baseClass} ${hoverClass}`}>
+                      {item.title}
+                    </Link>
 
-              {/* Dropdown */}
-              <div
-                className="fixed left-0 top-[75px] w-screen bg-white shadow-lg border-t border-gray-100 
+                    {/* Dropdown */}
+                    <div
+                      className="fixed left-0 top-[75px] w-screen bg-white shadow-lg border-t border-gray-100 
                   opacity-0 invisible translate-y-2 
                   group-hover:opacity-100 group-hover:visible group-hover:translate-y-0 
                   transition-all duration-300 ease-in-out z-40"
-              >
-                <ul className="max-w-7xl mx-auto flex gap-8 p-6">
-                  {item.dropdown.map((d) => (
-                    <li key={d.title}>
-                      <Link
-                        to={d.url}
-                        className="text-gray-600 hover:text-black text-lg"
-                      >
-                        {d.title}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            </div>
-          );
-        }
+                    >
+                      <ul className="max-w-7xl mx-auto flex gap-8 p-6">
+                        {item.dropdown.map((d) => (
+                          <li key={d.title}>
+                            <Link
+                              to={d.url}
+                              className="text-gray-600 hover:text-black text-lg"
+                            >
+                              {d.title}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                );
+              }
 
-        return (
-          <Link
-            key={item.title}
-            to={item.url}
-            className={`${baseClass} ${hoverClass}`}
-          >
-            {item.title}
-          </Link>
-        );
-      })}
-    </nav>
+              return (
+                <Link
+                  key={item.title}
+                  to={item.url}
+                  className={`${baseClass} ${hoverClass}`}
+                >
+                  {item.title}
+                </Link>
+              );
+            })}
+          </nav>
 
 
         </div>

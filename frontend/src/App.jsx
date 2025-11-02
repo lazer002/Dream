@@ -25,6 +25,10 @@ import { Toaster } from "react-hot-toast";
 import Checkout from "./pages/Checkout.jsx";
 import AuthCallback from "./pages/AuthCallback.jsx";
 import Profile from "./pages/Profile.jsx";
+import Collections from "./pages/Collections.jsx";
+import Bundle from "./pages/admin/Bundle.jsx";
+import ShowBundle from "./pages/admin/ShowBundle.jsx";
+import BundlePDP from "./pages/BundlePDP.jsx";
 
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
@@ -54,8 +58,10 @@ export default function App() {
               <Route path="/contact" element={<Contact />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/checkout" element={<Checkout />} />
+              <Route path="/collections" element={<Collections />} />
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
+              <Route path="/collections/:id" element={<BundlePDP />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
               
               {/* 👤 User Profile */}
@@ -72,7 +78,9 @@ export default function App() {
               >
                 <Route index element={<AdminDashboard />} />
                 <Route path="products" element={<AdminProducts />} />
-                <Route path="products/new" element={<AdminAddProduct />} />
+                <Route path="new/bundles" element={<Bundle />} />
+                <Route path="bundles" element={<ShowBundle />} />
+                <Route path="new/products" element={<AdminAddProduct />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="category" element={<CategoriesAdmin />} />
               </Route>

@@ -10,7 +10,9 @@ export default function AdminLayout() {
   const sidebarItems = useMemo(() => ([
     { name: 'Dashboard', href: '/admin', icon: LayoutGrid },
     { name: 'Products', href: '/admin/products', icon: Package },
-    { name: 'Add Product', href: '/admin/products/new', icon: PlusSquare },
+    { name: 'Add Product', href: '/admin/new/products', icon: PlusSquare },
+    { name: 'Add Bundles', href: '/admin/new/bundles', icon: Package },
+    { name: 'Bundles', href: '/admin/bundles', icon: Package },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Category', href: '/admin/category', icon: Tag },
   ]), [])

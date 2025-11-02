@@ -13,6 +13,7 @@ import uploadRouter from './routes/upload.js'
 import statsRouter from './routes/stats.js'
 import searchRouter from './routes/search.js'
 import publicRouter from './routes/public.js'
+import bundleRoutes from "./routes/bundles.js";
 
 dotenv.config()
 
@@ -49,6 +50,7 @@ app.use('/api/orders', ordersRouter)
 app.use('/api/admin', adminUsersRouter)
 app.use('/api/admin/upload', uploadRouter)
 app.use('/api/admin/stats', statsRouter)
+app.use("/api/bundles", bundleRoutes);
 app.use('/api', publicRouter)
 
 

@@ -69,90 +69,148 @@ export default function Cart() {
     <div className="flex flex-col md:flex-row gap-6 px-6 py-8 min-h-screen">
       {/* Left: Cart Items */}
       <div className="md:w-2/3 flex flex-col gap-4">
-        {items.map((it) => (
-          <div
-            key={`${it.product._id}-${it.size}`}
-            className="flex gap-4 p-4 border border-gray-200 rounded-xl transition duration-300 bg-white relative"
-          >
-            {/* Product Image */}
-            <img
-              src={it.product.images?.[0]}
-              alt={it.product.title}
-              className="w-28 h-28 object-cover rounded-lg"
-            />
+    {items.map((it) => {
+  const isBundle = !!it.bundle; // check if item is a bundle
+  const key = isBundle ? it.bundle._id : `${it.product._id}-${it.size}`;
 
-            {/* Product Info */}
-            <div className="flex-1 flex flex-col justify-between">
-              {/* Title + Remove */}
-              <div className="flex justify-between items-start">
-                <div className="font-semibold text-gray-900 text-lg truncate">
-                  <div> {it.product.title}</div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {it.size && (
-                      <span className="text-sm border border-gray-300 px-2 py-0.5 rounded text-gray-700">
-                        Size: {it.size}
-                      </span>
-                    )}
-                    {it.selectedColor && (
-                      <span className="text-sm border border-gray-300 px-2 py-0.5 rounded text-gray-700">
-                        Color: {it.selectedColor}
-                      </span>
-                    )}
-                  </div>
-                </div>
+  return (
+    <div
+      key={key}
+      className="flex flex-col gap-4 p-4 border border-gray-200 rounded-xl transition duration-300 bg-white relative"
+    >
+      {/* Header: Title */}
+      <div className="flex justify-between items-start">
+        <div className="flex-1">
+          <div className="font-semibold text-gray-900 text-lg">
+            {isBundle ? it.bundle.title : it.product.title}
+          </div>
 
-                <div className="flex flex-col items-end gap-2">
-                  <X
-                    className="cursor-pointer text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full p-1 transition"
-                    onClick={() => remove(it.product._id,it.size)}
-                  />
-                  {/* Delivery & Price */}
-                  <div className="text-right text-sm text-gray-600 mt-1">
-                    <p>Delivery by <span className="font-medium text-gray-900">Oct 3</span></p>
-                    <p className="font-bold text-[#042354]">₹ {(it.product.price * it.quantity).toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
+          {isBundle ? (
+            <div className="text-sm text-gray-600 mt-1">
+              <p>Bundle of {it.bundleProducts?.length || 0} products</p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2 mt-2">
+              {it.size && (
+                <span className="text-sm border border-gray-300 px-2 py-0.5 rounded text-gray-700">
+                  Size: {it.size}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
 
-              {/* Variants */}
+        <div className="flex flex-col items-end gap-2">
+          <X
+            className="cursor-pointer text-gray-500 hover:text-red-600 hover:bg-gray-100 rounded-full p-1 transition"
+            onClick={() =>
+              isBundle
+                ? remove(it.bundle._id) // remove bundle
+                : remove(it.product._id, it.size)
+            }
+          />
+          <div className="text-right text-sm text-gray-600 mt-1">
+            <p>
+              Delivery by{" "}
+              <span className="font-medium text-gray-900">Oct 3</span>
+            </p>
+            <p className="font-bold text-[#042354]">
+              ₹{" "}
+              {(isBundle
+                ? it.bundle.price * it.quantity
+                : it.product.price * it.quantity
+              ).toLocaleString()}
+            </p>
+          </div>
+        </div>
+      </div>
 
+      {/* If it's a bundle, show included products */}
+      {isBundle && (
+        <div className="ml-4 mt-2 space-y-2 border-t pt-2">
+          {it.bundleProducts?.map((bp, i) => (
+            <div key={i} className="flex items-center gap-3">
+       <img
+  src={
+    isBundle
+      ? bp.product?.images?.[0] // bundle product image
+      : it.product?.images?.[0] // single product image
+  }
+  alt={isBundle ? bp.product?.title : it.product?.title}
+  className="w-16 h-16 rounded object-cover"
+/>
 
-              {/* Quantity with +/- */}
-              <div className="flex items-center gap-2 mt-3">
-                <span className="text-gray-700 text-sm font-medium">Qty:</span>
-                <div className="flex items-center border border-gray-300 rounded overflow-hidden">
-                  <button
-                    onClick={() => {
-                      if (it.quantity === 1) {
-                        remove(it.product._id,it.size) // remove entire cart item
-                      } else {
-                        update(it.product._id, it.quantity - 1, it.size) // decrease quantity only
-                      }
-                    }}
-                    className="px-2 py-1 transition text-gray-700 font-bold"
-                  >
-                    -
-                  </button>
-
-
-                  <input
-                    type="number"
-                    min={1}
-                    value={it.quantity}
-                    onChange={(e) => update(it.product._id, Number(e.target.value), it.size)}
-                    className="w-16 text-center border-l border-r border-gray-300 focus:outline-none"
-                  />
-                  <button
-                    onClick={() => update(it.product._id, it.quantity + 1, it.size)}
-                    className="px-2 py-1  transition text-gray-700 font-bold"
-                  >
-                    +
-                  </button>
-                </div>
+              <div className="flex flex-col">
+                <span className="text-gray-800 font-medium">
+                  {bp.product?.title}
+                </span>
+                {bp.size && (
+                  <span className="text-sm text-gray-600">Size: {bp.size}</span>
+                )}
               </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+      )}
+
+      {/* Quantity section */}
+      <div className="flex items-center gap-2 mt-3">
+        <span className="text-gray-700 text-sm font-medium">Qty:</span>
+        <div className="flex items-center border border-gray-300 rounded overflow-hidden">
+          <button
+            onClick={() => {
+              if (it.quantity === 1) {
+                isBundle
+                  ? remove(it.bundle._id)
+                  : remove(it.product._id, it.size);
+              } else {
+                update(
+                  isBundle ? it.bundle._id : it.product._id,
+                  it.quantity - 1,
+                  it.size,
+                  isBundle
+                );
+              }
+            }}
+            className="px-2 py-1 transition text-gray-700 font-bold"
+          >
+            -
+          </button>
+
+          <input
+            type="number"
+            min={1}
+            value={it.quantity}
+            onChange={(e) =>
+              update(
+                isBundle ? it.bundle._id : it.product._id,
+                Number(e.target.value),
+                it.size,
+                isBundle
+              )
+            }
+            className="w-16 text-center border-l border-r border-gray-300 focus:outline-none"
+          />
+
+          <button
+            onClick={() =>
+              update(
+                isBundle ? it.bundle._id : it.product._id,
+                it.quantity + 1,
+                it.size,
+                isBundle
+              )
+            }
+            className="px-2 py-1 transition text-gray-700 font-bold"
+          >
+            +
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+})}
+
       </div>
 
       {/* Right: Order Summary */}

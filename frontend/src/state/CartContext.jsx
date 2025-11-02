@@ -30,6 +30,7 @@ export function CartProvider({ children }) {
   const refresh = async () => {
     try {
       const { data } = await client().get('/');
+      console.log("Cart refreshed:", data);
       setItems(data.items);
     } catch (err) {
       console.error(err);
@@ -67,16 +68,19 @@ const add = async (productId, size, quantity = 1) => {
   }
 
   // Check if the item with same product + size exists in frontend cart
-  const existing = items.find(i => i.product._id === productId && i.size === size);
+  const existing = items.find(
+    i => i.product && i.product._id === productId && i.size === size
+  );
 
   if (existing) {
     setItems(prev =>
       prev.map(i =>
-        i.product._id === productId && i.size === size
+        i.product && i.product._id === productId && i.size === size
           ? { ...i, quantity: i.quantity + quantity }
           : i
       )
     );
+
   } else {
     setItems(prev => [...prev, { product: { _id: productId }, size, quantity }]);
   }
@@ -104,40 +108,111 @@ const add = async (productId, size, quantity = 1) => {
 };
 
 
-const update = async (productId, quantity, size) => {
-  setItems(prev => prev.map(i =>
-    i.product._id === productId && i.size === size
-      ? { ...i, quantity }
-      : i
-  ));
+ const update = async (productId, quantity, size) => {
+    setItems((prev) =>
+      prev.map((i) =>
+        i.product?._id === productId && i.size === size
+          ? { ...i, quantity }
+          : i
+      )
+    );
+
+    try {
+      await client().post("/update", { productId, quantity, size });
+      await refresh();
+      toast.success("Cart updated");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to update cart");
+      await refresh();
+    }
+  };
+
+  // 🧩 Remove item
+  const remove = async (productId, size) => {
+    setItems((prev) =>
+      prev.filter((i) => !(i.product?._id === productId && i.size === size))
+    );
+
+    try {
+      await client().post("/remove", { productId, size });
+      await refresh();
+      toast.success("Product removed from cart");
+    } catch (err) {
+      console.error(err);
+      toast.error(err.response?.data?.error || "Failed to remove item");
+      await refresh();
+    }
+  };
+
+const addBundleToCart = async (bundle, selectedSizes) => {
+  if (!selectedSizes || selectedSizes.length !== bundle.products.length) {
+    toast.error("Please select size for all products in the bundle!");
+    return;
+  }
+
+const existing = items.find((item) => {
+  if (!item.bundle) return false;
+  if (item.bundle._id !== bundle._id) return false;
+
+  // Compare each product size in bundle
+  return item.bundleProducts.every((p, idx) => {
+    const productId = p.product?._id || p.product; // if populated, use _id, else assume it's ObjectId
+    return productId === bundle.products[idx]._id && p.size === selectedSizes[idx];
+  });
+});
+
+  if (existing) {
+    // Increase quantity
+    setItems((prev) =>
+      prev.map((item) =>
+        item === existing ? { ...item, quantity: item.quantity + 1 } : item
+      )
+    );
+  } else {
+ const bundleProducts = bundle.products.map((p, idx) => ({
+  product: {
+    _id: p._id,
+    title: p.title,
+    price: p.price,
+    images: p.images,
+  },
+  size: selectedSizes[idx],
+  quantity: 1,
+}));
+
+setItems((prev) => [
+  ...prev,
+  {
+    bundle: { _id: bundle._id, title: bundle.title, price: bundle.price },
+    bundleProducts,
+    quantity: 1,
+  },
+]);
+
+  }
 
   try {
-    await client().post('/update', { productId, quantity, size });
+    // Send to backend
+    await client().post("/addbundle", {
+      bundleId: bundle._id,
+      bundleProducts: bundle.products.map((p, idx) => ({
+        productId: p._id,
+        size: selectedSizes[idx],
+        quantity: 1,
+      })),
+    });
+
     await refresh();
-    toast.success("Cart updated");
+    toast.success("Bundle added to cart!");
   } catch (err) {
     console.error(err);
-    toast.error("Failed to update cart");
-    refresh();
+    toast.error("Failed to add bundle");
+    await refresh();
   }
 };
 
-
-const remove = async (productId, size) => {
-  setItems(prev => prev.filter(i => !(i.product._id === productId && i.size === size)));
-  try {
-    await client().post('/remove', { productId, size });
-    await refresh();
-    toast.success("Product removed from cart");
-  } catch (err) {
-    console.error(err);
-    toast.error(err.response?.data?.error || "Failed to remove item");
-    await refresh();
-  }
-};
-
-
-  const value = { items, add, update, remove, refresh, mergeGuestCart };
+  const value = { items, add, update, remove, refresh, mergeGuestCart, addBundleToCart };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

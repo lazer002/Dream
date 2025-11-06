@@ -16,6 +16,7 @@ function ensureGuestId() {
 
 export function CartProvider({ children }) {
   const { user } = useAuth();
+   const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
   const guestId = ensureGuestId();
 
@@ -28,13 +29,16 @@ export function CartProvider({ children }) {
   };
 
   const refresh = async () => {
+     setLoading(true); // start loading
     try {
       const { data } = await client().get('/');
-      console.log("Cart refreshed:", data);
+      // console.log("Cart refreshed:", data);
       setItems(data.items);
     } catch (err) {
       console.error(err);
       toast.error("Failed to refresh cart");
+    } finally {
+      setLoading(false); // stop loading
     }
   };
 
@@ -108,59 +112,84 @@ const add = async (productId, size, quantity = 1) => {
 };
 
 
- const update = async (productId, quantity, size) => {
-    setItems((prev) =>
-      prev.map((i) =>
-        i.product?._id === productId && i.size === size
+const update = async (id, quantity, size, isBundle = false) => {
+  setItems((prev) =>
+    prev.map((i) => {
+      if (isBundle) {
+        // match bundle by id
+        return i.bundle?._id === id ? { ...i, quantity } : i;
+      } else {
+        // match single product by id + size
+        return i.product?._id === id && i.size === size
           ? { ...i, quantity }
-          : i
-      )
-    );
+          : i;
+      }
+    })
+  );
 
-    try {
-      await client().post("/update", { productId, quantity, size });
-      await refresh();
-      toast.success("Cart updated");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to update cart");
-      await refresh();
-    }
-  };
+  try {
+    await client().post("/update", {
+      quantity,
+      size: isBundle ? undefined : size,
+      productId: isBundle ? undefined : id,
+      bundleId: isBundle ? id : undefined,
+    });
+    // await refresh();
+    toast.success("Cart updated");
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to update cart");
+    await refresh();
+  }
+};
+
 
   // 🧩 Remove item
-  const remove = async (productId, size) => {
+const remove = async (id, size, isBundle = false) => {
+  if (isBundle) {
+    // Remove bundle locally
+    setItems((prev) => prev.filter((i) => i.bundle?._id !== id));
+  } else {
+    // Remove single product locally
     setItems((prev) =>
-      prev.filter((i) => !(i.product?._id === productId && i.size === size))
+      prev.filter((i) => !(i.product?._id === id && i.size === size))
     );
+  }
 
-    try {
-      await client().post("/remove", { productId, size });
-      await refresh();
-      toast.success("Product removed from cart");
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.error || "Failed to remove item");
-      await refresh();
+  try {
+    if (isBundle) {
+      await client().post("/remove", { bundleId: id });
+    } else {
+      await client().post("/remove", { productId: id, size });
     }
-  };
+    // await refresh();
+    toast.success(isBundle ? "Bundle removed from cart" : "Product removed from cart");
+  } catch (err) {
+    console.error(err);
+    toast.error(err.response?.data?.error || "Failed to remove item");
+    await refresh();
+  }
+};
+
 
 const addBundleToCart = async (bundle, selectedSizes) => {
+  console.log("Adding bundle to cart:", bundle, selectedSizes);
+
   if (!selectedSizes || selectedSizes.length !== bundle.products.length) {
     toast.error("Please select size for all products in the bundle!");
     return;
   }
 
-const existing = items.find((item) => {
-  if (!item.bundle) return false;
-  if (item.bundle._id !== bundle._id) return false;
+  const existing = items.find((item) => {
+    if (!item.bundle) return false;
+    if (item.bundle._id !== bundle._id) return false;
 
-  // Compare each product size in bundle
-  return item.bundleProducts.every((p, idx) => {
-    const productId = p.product?._id || p.product; // if populated, use _id, else assume it's ObjectId
-    return productId === bundle.products[idx]._id && p.size === selectedSizes[idx];
+    // Compare each product size in bundle
+    return item.bundleProducts.every((p, idx) => {
+      const productId = p.product?._id || p.product;
+      return productId === bundle.products[idx]._id && p.size === selectedSizes[idx];
+    });
   });
-});
 
   if (existing) {
     // Increase quantity
@@ -170,32 +199,37 @@ const existing = items.find((item) => {
       )
     );
   } else {
- const bundleProducts = bundle.products.map((p, idx) => ({
-  product: {
-    _id: p._id,
-    title: p.title,
-    price: p.price,
-    images: p.images,
-  },
-  size: selectedSizes[idx],
-  quantity: 1,
-}));
+    const bundleProducts = bundle.products.map((p, idx) => ({
+      product: {
+        _id: p._id,
+        title: p.title,
+        price: p.price,
+        images: p.images,
+      },
+      size: selectedSizes[idx],
+      quantity: 1,
+    }));
 
-setItems((prev) => [
-  ...prev,
-  {
-    bundle: { _id: bundle._id, title: bundle.title, price: bundle.price },
-    bundleProducts,
-    quantity: 1,
-  },
-]);
-
+    setItems((prev) => [
+      ...prev,
+      {
+        bundle: {
+          _id: bundle._id,
+          title: bundle.title,
+          price: bundle.price,
+          mainImage: bundle.mainImages?.[0] || "/placeholder.jpg", // <-- add main image here
+        },
+        bundleProducts,
+        quantity: 1,
+      },
+    ]);
   }
 
   try {
     // Send to backend
     await client().post("/addbundle", {
       bundleId: bundle._id,
+        mainImage: bundle.mainImages?.[0] || "",
       bundleProducts: bundle.products.map((p, idx) => ({
         productId: p._id,
         size: selectedSizes[idx],
@@ -212,7 +246,8 @@ setItems((prev) => [
   }
 };
 
-  const value = { items, add, update, remove, refresh, mergeGuestCart, addBundleToCart };
+
+  const value = { items, add, update, remove, refresh, mergeGuestCart, addBundleToCart, loading };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

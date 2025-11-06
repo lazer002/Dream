@@ -103,6 +103,7 @@ router.post('/addbundle', async (req, res) => {
 const newItem = await CartItem.create({
   ...key,
   bundle: bundleId,
+    mainImage: req.body.mainImage || null,
   bundleProducts: formattedProducts,
   quantity
 });
@@ -160,7 +161,6 @@ router.post('/update', async (req, res) => {
 });
 
 
-// ❌ Remove item (works for both product & bundle)
 router.post('/remove', async (req, res) => {
   const key = cartKey(req);
   const { productId, size, bundleId } = req.body;

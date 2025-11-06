@@ -52,7 +52,7 @@ function BundleCard({ bundle }) {
     : bundle.products?.map((p) => p.images[0]);
 
   const totalPrice = bundle.products?.reduce((sum, p) => sum + p.price, 0) || 0;
-
+console.log(bundle);
   return (
     <div className="group relative rounded-2xl overflow-hidden shadow-lg hover:shadow-2xl transition duration-300 bg-white border border-gray-100">
       {/* Image Carousel */}

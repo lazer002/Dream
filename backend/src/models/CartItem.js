@@ -11,6 +11,7 @@ const cartItemSchema = new mongoose.Schema(
     
     // Bundle
     bundle: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle" },
+    mainImage: { type: String },
     bundleProducts: [
       {
         product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },

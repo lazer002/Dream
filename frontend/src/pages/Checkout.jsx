@@ -7,8 +7,10 @@ import { Checkbox } from "@/components/ui/CustomCheckbox.jsx";
 import { useCart } from "@/state/CartContext";
 import { api } from "@/utils/config";
 import toast from "react-hot-toast";
+import { useNavigate } from "react-router-dom";
 
 export default function CheckoutPage() {
+  const navigate = useNavigate();
   const { items } = useCart();
   const [shippingMethod, setShippingMethod] = useState("free");
   const [billingSame, setBillingSame] = useState(true);
@@ -25,6 +27,37 @@ export default function CheckoutPage() {
   const [subscribeNews, setSubscribeNews] = useState(false);
   const [saveInfo, setSaveInfo] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("cod");
+  const [loading, setLoading] = useState(false);
+ const [discountCode, setDiscountCode] = useState("");
+const [discountValue, setDiscountValue] = useState(0);
+const [discountError, setDiscountError] = useState("");
+const [discountSuccess, setDiscountSuccess] = useState("");
+const [loadingDiscount, setLoadingDiscount] = useState(false);
+
+const applyDiscount = async () => {
+  if (!discountCode.trim()) return;
+  setLoadingDiscount(true);
+  setDiscountError("");
+  setDiscountSuccess("");
+
+  try {
+    const res = await api.post("/discounts/validate", { code: discountCode });
+    if (res.data?.valid) {
+      setDiscountValue(res.data.amount);
+      setDiscountSuccess(`Code "${discountCode}" applied!`);
+      // optionally adjust your subtotal or total
+      setSubtotal((prev) => prev - res.data.amount);
+    } else {
+      setDiscountError("Invalid or expired discount code.");
+      setDiscountValue(0);
+    }
+  } catch (err) {
+    console.error(err);
+    setDiscountError("Something went wrong while validating the code.");
+  } finally {
+    setLoadingDiscount(false);
+  }
+};
 
   const subtotal = items.reduce((sum, i) => {
     return sum + (i.bundle?.price || i.product?.price || 0) * i.quantity;
@@ -38,12 +71,15 @@ export default function CheckoutPage() {
           quantity: i.quantity,
           price: i.product?.price,
           title: i.product?.title
+
         })),
         subtotal,
         shipping: 100,
         total: subtotal + 100,
         shippingMethod,
         billingSame,
+        contactEmail,
+        source: "web",
         shippingAddress: {
           firstName,
           lastName,
@@ -55,7 +91,6 @@ export default function CheckoutPage() {
           country,
           phone
         },
-        contactEmail
       };
 
       const response = await api.post("/create", orderData);
@@ -91,27 +126,35 @@ export default function CheckoutPage() {
 
 const handleCODOrder = async () => {
   try {
-    // 1️⃣ Basic validation
+    // prevent double submit
+    if (loading) return;
+    setLoading(true);
+
+    // 1) Basic validation
     if (!contactEmail || !firstName || !lastName || !address || !phone) {
       toast.error("Please fill all required fields before placing the order.");
+      setLoading(false);
       return;
     }
 
-    // 2️⃣ Prepare items array (handle bundles if present)
+    // 2) Prepare items array (handle bundles if present)
     const orderItems = items.map((i) => {
       if (i.bundle) {
         return {
           bundleId: i.bundle._id,
           title: i.bundle.title,
-          quantity: i.quantity,
-          price: i.bundle.price,
-          total: i.bundle.price * i.quantity,
-          bundleProducts: i.bundleProducts?.map((bp) => ({
+          variant: "", // keep consistent
+          quantity: Number(i.quantity) || 1,
+          price: Number(i.bundle.price) || 0,
+          total: (Number(i.bundle.price) || 0) * (Number(i.quantity) || 1),
+          mainImage: i.mainImage || i.bundle.images?.[0] || "",
+          bundleProducts: (i.bundleProducts || []).map((bp) => ({
             productId: bp.product._id,
             title: bp.product.title,
-            quantity: bp.quantity || 1,
-            price: bp.product.price,
             variant: bp.size || "",
+            quantity: Number(bp.quantity) || 1,
+            price: Number(bp.product.price) || 0,
+            mainImage: bp.product.images?.[0] || "",
           })),
         };
       } else {
@@ -119,24 +162,25 @@ const handleCODOrder = async () => {
           productId: i.product._id,
           title: i.product.title,
           variant: i.size || "",
-          quantity: i.quantity,
-          price: i.product.price,
-          total: i.product.price * i.quantity,
+          quantity: Number(i.quantity) || 1,
+          price: Number(i.product.price) || 0,
+          total: (Number(i.product.price) || 0) * (Number(i.quantity) || 1),
+          mainImage: i.product.images?.[0] || "",
         };
       }
     });
 
-    // 3️⃣ Prepare order data
+    const shippingFee = 100;
     const orderData = {
       items: orderItems,
+      contactEmail,
+      source: "web",
       subtotal,
-      shipping: 100,
-      total: subtotal + 100,
+      shipping: shippingFee,         // your backend expects "shipping"
+      total: (subtotal || 0) + shippingFee,
       shippingMethod,
       paymentMethod: "cod",
-      paymentStatus: "pending",
-      orderStatus: "pending",
-      statusHistory: [{ status: "pending", updatedAt: new Date() }],
+      discountCode: discountCode || "",
       billingSame,
       shippingAddress: {
         firstName,
@@ -147,47 +191,41 @@ const handleCODOrder = async () => {
         state,
         zip,
         country,
-        phone
+        phone,
       },
-      contactEmail,
     };
 
-    // 4️⃣ Send order to backend
     const response = await api.post("/orders/create", orderData);
     const data = response.data;
 
-    // 5️⃣ Optional: Send confirmation email
-    await api.post("/send-order-confirmation", {
-      email: contactEmail,
-      orderId: data.orderId,
-      name: `${firstName} ${lastName}`,
-      total: subtotal + 100,
-    });
+    if (!data || !data.success) {
+      const msg = data?.message || "Failed to create order. Please try again.";
+      toast.error(msg);
+      setLoading(false);
+      return;
+    }
 
-    // 6️⃣ Optional: Update stock for each product
-    await Promise.all(
-      items.map((i) => {
-        if (i.bundle) {
-          return i.bundleProducts?.map((bp) =>
-            api.post("/update-stock", { productId: bp.product._id, quantity: bp.quantity })
-          );
-        } else {
-          return api.post("/update-stock", { productId: i.product._id, quantity: i.quantity });
-        }
-      }).flat()
+    const orderNumber = data.orderNumber || data.orderId || null;
+    toast.success(
+      `Order placed successfully! ${orderNumber ? `Order: ${orderNumber}` : `ID: ${data.orderId}`}`
     );
 
-    toast.success(`Order placed successfully! Your order ID: ${data.orderId}`);
 
-    // 7️⃣ Clear cart / redirect
-    // clearCart();
-    // navigate("/thank-you");
+    if (orderNumber) {
+      navigate(`/trackorder?email=${encodeURIComponent(contactEmail)}&orderNumber=${encodeURIComponent(orderNumber)}`);
+    } else {
+      navigate("/thank-you");
+    }
+
 
   } catch (err) {
     console.error("COD Order Error:", err);
     toast.error("Failed to place COD order. Please try again.");
+  } finally {
+    setLoading(false);
   }
 };
+
 
 
 
@@ -325,10 +363,41 @@ const handleCODOrder = async () => {
         </div>
 
         {/* Discount / Gift Code */}
-        <div className="mt-4 flex justify-between gap-2">
-          <input type="text" placeholder="Discount code or gift card" className="px-4 w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-black" />
-          <button className="bg-black text-white p-2 rounded-md hover:bg-gray-800">Submit</button>
-        </div>
+      <div className="mt-4 flex gap-2 items-center">
+  <input
+    type="text"
+    placeholder="Discount code or gift card"
+    // placeholder="We Add Soon"
+    className="px-4 w-full py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-black focus:border-black text-sm"
+    value={discountCode}
+    onChange={(e) => setDiscountCode(e.target.value.toUpperCase())}
+  
+  />
+
+  <button
+    type="button"
+    onClick={applyDiscount}
+    disabled={loadingDiscount || !discountCode.trim()}
+    className={`px-4 py-2 rounded-md text-sm font-medium ${
+      loadingDiscount || !discountCode.trim()
+        ? "bg-gray-200 text-gray-500 cursor-not-allowed"
+        : "bg-black text-white hover:bg-gray-800 transition"
+    }`}
+  >
+    {loadingDiscount ? "Checking..." : "Apply"}
+  </button>
+</div>
+
+{discountError && (
+  <p className="text-red-600 text-xs mt-2">{discountError}</p>
+)}
+
+{discountSuccess && (
+  <p className="text-green-600 text-xs mt-2">
+    🎉 Discount applied: {discountValue}% off!
+  </p>
+)}
+
 
         {/* Cost Summary */}
         <div className="mt-4 border-t border-gray-200 pt-4 flex flex-col gap-2">

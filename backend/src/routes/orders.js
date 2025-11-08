@@ -1,17 +1,19 @@
 // routes/checkout.js
 import express from "express";
-import { CreateOrder } from "../models/CreateOrder.js";
+import { Order } from "../models/Order.js";
 import { GuestUser } from "../models/GuestUser.js";
 import { Payment } from "../models/Payment.js";
 import axios from "axios"; // fixed import
+import { getNextOrderSeq } from "../models/Counter.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 const router = express.Router();
 
 // Create Order (COD or Razorpay)
 router.post("/create", async (req, res) => {
   try {
-    console.log("Request Body:", req.body);
-
+  
+console.log("Create order request body:", req.body);
     const {
       items,
       subtotal,
@@ -23,13 +25,15 @@ router.post("/create", async (req, res) => {
       contactEmail,
       paymentMethod,
       discountCode,
+      source,
+      
     } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, error: "Cart is empty" });
     }
 
-    let userId = req.user?._id || null; // logged-in user
+    let userId = req.user?._id || null;
     let guestId = null;
 
     // 1️⃣ Create guest user if not logged in
@@ -49,7 +53,8 @@ router.post("/create", async (req, res) => {
       guestId = guest._id;
     }
 
-    // 2️⃣ Prepare order items (support bundle)
+
+    // 3️⃣ Prepare order items (support bundle)
     const orderItems = items.map((i) => ({
       productId: i.productId || null,
       bundleId: i.bundleId || null,
@@ -59,36 +64,40 @@ router.post("/create", async (req, res) => {
       price: i.price,
       total: i.total || i.quantity * i.price,
       bundleProducts: i.bundleProducts || [],
+      mainImage: i.mainImage || "",
     }));
 
-    // 3️⃣ Create order
-    const order = await CreateOrder.create({
+
+      const nextSeq = await getNextOrderSeq(new Date().getFullYear());
+    const orderNumber = `DD-${new Date().getFullYear()}-${String(nextSeq).padStart(4, "0")}`;
+
+    const order = await Order.create({
       userId,
       guestId,
       email: contactEmail,
+      orderNumber,
       shippingMethod,
       billingSame,
       shippingAddress,
-      saveInfo: false,
       items: orderItems,
       subtotal,
       shippingFee: shipping || 100,
       total,
       discountCode: discountCode || "",
       paymentMethod,
+      source,
       paymentStatus: paymentMethod === "cod" ? "pending" : "initiated",
-      orderStatus: "pending",
-      statusHistory: [{ status: "pending" }],
+      orderStatus: "pending", // 👈 only this, pre-save hook will handle statusHistory
     });
 
-    // 4️⃣ Link order to guest
+    // 5️⃣ Link order to guest (for future guest tracking)
     if (!userId && guestId) {
       await GuestUser.findByIdAndUpdate(guestId, {
         $push: { orders: order._id },
       });
     }
 
-    // 5️⃣ Razorpay flow
+    // 6️⃣ Razorpay flow
     if (paymentMethod === "razorpay") {
       const razorpayOptions = {
         amount: total * 100, // amount in paise
@@ -109,7 +118,7 @@ router.post("/create", async (req, res) => {
         razorpayAuth
       );
 
-      const payment = await Payment.create({
+      await Payment.create({
         orderId: order._id,
         razorpayOrderId: razorpayOrder.data.id,
         amount: total,
@@ -122,6 +131,7 @@ router.post("/create", async (req, res) => {
 
       return res.json({
         success: true,
+        orderNumber,
         orderId: order._id,
         amount: total,
         currency: "INR",
@@ -129,9 +139,10 @@ router.post("/create", async (req, res) => {
       });
     }
 
-    // 6️⃣ COD flow
+    // 7️⃣ COD flow
     res.json({
       success: true,
+      orderNumber,
       orderId: order._id,
       message: "Order placed successfully (COD)",
     });
@@ -153,7 +164,7 @@ router.post("/payment-success", async (req, res) => {
     payment.status = "success";
     await payment.save();
 
-    const order = await CreateOrder.findById(payment.orderId);
+    const order = await Order.findById(payment.orderId);
     order.payment.status = "success";
     order.payment.razorpayPaymentId = razorpay_payment_id;
     await order.save();
@@ -164,5 +175,122 @@ router.post("/payment-success", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
+
+
+
+
+router.get("/track", async (req, res) => {
+  try {
+    const { email, orderNumber } = req.query;
+    if (!email && !orderNumber) {
+      return res.status(400).json({ success: false, message: "email or orderNumber required" });
+    }
+
+    // prefer exact match by both if provided
+    const query = {};
+    if (email) query.email = email;
+    if (orderNumber) query.orderNumber = orderNumber;
+
+    // if only email provided, return the most recent order for that email
+    const order = await Order.findOne(query).sort({ createdAt: -1 }).lean();
+
+    if (!order) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
+    res.json({ success: true, order });
+  } catch (err) {
+    console.error("Track order error:", err);
+    res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+router.post("/track-email", async (req, res) => {
+  try {
+    const { email, orderNumber, orderId } = req.body;
+    if (!email || !orderNumber) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Email and order number are required." });
+    }
+
+    // ✅ Find order to confirm existence (optional, but nice to have)
+    const order = await Order.findOne({
+      _id: orderId,
+      email,
+      orderNumber,
+    }).lean();
+
+    if (!order) {
+      return res.status(404).json({
+        success: false,
+        message: "No matching order found for this email and order number.",
+      });
+    }
+
+    // ✅ Build tracking link
+    const origin = process.env.FRONTEND_URL || "https://yourfrontend.example";
+    const trackLink = `${origin}/track-order?email=${encodeURIComponent(
+      email
+    )}&orderNumber=${encodeURIComponent(orderNumber)}`;
+
+    // ✅ Email content
+    const subject = `Track Your Order — ${orderNumber}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width:600px; margin:auto; border:1px solid #eee; border-radius:10px; padding:24px;">
+        <h2 style="text-align:center; color:#000; margin-bottom:20px;">🖤 Your DripDesi Order</h2>
+        <p style="font-size:15px; color:#333;">Hi ${order.shippingAddress?.firstName || "there"},</p>
+        <p style="font-size:14px; color:#555;">
+          You can track your order <strong>${orderNumber}</strong> anytime using the button below.
+        </p>
+
+        <div style="text-align:center; margin:28px 0;">
+          <a href="${trackLink}"
+            style="display:inline-block; background:#000; color:#fff; text-decoration:none; padding:12px 24px; border-radius:6px; font-weight:600;">
+            Track My Order
+          </a>
+        </div>
+
+        <p style="font-size:13px; color:#777;">
+          If the button doesn’t work, you can copy and paste this link into your browser:<br/>
+          <a href="${trackLink}" style="color:#000;">${trackLink}</a>
+        </p>
+
+        <hr style="margin:30px 0; border:none; border-top:1px solid #eee;" />
+        <p style="font-size:12px; color:#999; text-align:center;">
+          Thank you for shopping with <strong>DripDesi</strong>.<br/>
+          We’ll notify you once your items are shipped.
+        </p>
+      </div>
+    `;
+
+    // ✅ Send the email
+    const result = await sendEmail({
+      to: email,
+      subject,
+      html,
+    });
+
+    if (!result.success) {
+      throw result.error;
+    }
+
+    console.log(`📧 Tracking email sent to ${email} for ${orderNumber}`);
+    return res.json({
+      success: true,
+      message: "Tracking email sent successfully.",
+    });
+  } catch (err) {
+    console.error("❌ Email send error:", err);
+    res
+      .status(500)
+      .json({ success: false, message: "Failed to send tracking email." });
+  }
+});
+
+
+
+
 
 export default router;

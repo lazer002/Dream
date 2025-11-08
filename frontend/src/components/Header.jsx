@@ -24,7 +24,7 @@ const navItems = [
 export default function Header() {
 
 
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { items } = useCart()
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -261,15 +261,66 @@ export default function Header() {
           </button>
 
           {/* User Icon: show /login only if not logged in */}
-          {user ? (
-            <Link to="/profile">
-              <User className="w-6 h-6" />
-            </Link>
-          ) : (
-            <Link to="/login">
-              <User className="w-6 h-6" />
-            </Link>
-          )}
+       {/* Profile Section */}
+{/* Profile Section */}
+<div className="relative group">
+  <button
+    className="p-2 rounded-full border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-colors"
+  >
+    <User className="w-5 h-5 text-gray-800" />
+  </button>
+
+  <div
+    className="absolute right-0 mt-2 w-48 bg-white border border-gray-100 rounded-xl shadow-lg
+               opacity-0 invisible group-hover:opacity-100 group-hover:visible
+               transition-all duration-200 z-50"
+  >
+    {user ? (
+      <>
+        <Link
+          to="/profile"
+          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black rounded-t-xl transition-colors"
+        >
+          My Profile
+        </Link>
+        <Link
+          to="/orders"
+          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black transition-colors"
+        >
+          My Orders
+        </Link>
+        <button
+          onClick={logout}
+          className="block w-full text-left px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black rounded-b-xl transition-colors"
+        >
+          Logout
+        </button>
+      </>
+    ) : (
+      <>
+        <Link
+          to="/trackorder"
+          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black rounded-t-xl transition-colors"
+        >
+          Track Order
+        </Link>
+        <Link
+          to="/wishlist"
+          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black transition-colors"
+        >
+          Wishlist
+        </Link>
+        <Link
+          to="/login"
+          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black rounded-b-xl transition-colors"
+        >
+          Login
+        </Link>
+      </>
+    )}
+  </div>
+</div>
+
 
           <Link to="/cart" className="relative">
             <ShoppingCart className="w-6 h-6" />

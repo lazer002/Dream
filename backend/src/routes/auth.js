@@ -94,10 +94,7 @@ router.post('/otp/verify', async (req, res) => {
     // Find latest OTP for this email
     const otpEntry = await OTP.findOne({ email }).sort({ createdAt: -1 });
     if (!otpEntry) return res.status(401).json({ error: 'OTP not found or expired' });
-console.log("Input OTP:", otp);
-console.log("OTP hash from DB:", otpEntry.otpHash);
-console.log("Expires at:", otpEntry.expiresAt);
-console.log("Now:", new Date());
+
 
     // Check expiry
     if (otpEntry.expiresAt < new Date()) {

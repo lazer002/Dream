@@ -29,6 +29,9 @@ import Collections from "./pages/Collections.jsx";
 import Bundle from "./pages/admin/Bundle.jsx";
 import ShowBundle from "./pages/admin/ShowBundle.jsx";
 import BundlePDP from "./pages/BundlePDP.jsx";
+import TrackOrder from "./pages/TrackOrder.jsx";
+import Orders from "./pages/admin/Orders.jsx";
+import OrderDetail from "./pages/admin/OrderDetail.jsx";
 
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
@@ -63,6 +66,8 @@ export default function App() {
               <Route path="/register" element={<Register />} />
               <Route path="/collections/:id" element={<BundlePDP />} />
               <Route path="/auth/callback" element={<AuthCallback />} />
+              <Route path="/trackorder" element={<TrackOrder />} />
+
               
               {/* 👤 User Profile */}
               <Route path="/profile" element={<Profile />} />
@@ -83,6 +88,8 @@ export default function App() {
                 <Route path="new/products" element={<AdminAddProduct />} />
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="category" element={<CategoriesAdmin />} />
+                <Route path="orders" element={<Orders />} />
+                <Route path="orders/:id" element={<OrderDetail />} />
               </Route>
             </Routes>
           </main>

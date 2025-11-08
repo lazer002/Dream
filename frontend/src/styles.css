@@ -242,3 +242,28 @@ button:focus, input:focus, textarea:focus, select:focus {
 .data-\[state\=closed\]\:animate-accordion-up[data-state=closed] {
   animation: accordion-up 0.3s ease-in forwards;
 }
+
+
+@media print {
+  /* hide everything by default */
+  body * {
+    visibility: hidden !important;
+  }
+
+  /* show only the print section */
+  #print-section, #print-section * {
+    visibility: visible !important;
+  }
+
+  /* ensure the print section is laid out from top-left */
+  #print-section {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    padding: 0.5in; /* optional */
+  }
+
+  /* optional: hide elements specifically marked no-print */
+  .no-print { display: none !important; }
+}

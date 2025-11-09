@@ -283,11 +283,11 @@ export default function Header() {
         >
           My Profile
         </Link>
-        <Link
-          to="/orders"
-          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black transition-colors"
+             <Link
+          to="/trackorder"
+          className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black rounded-t-xl transition-colors"
         >
-          My Orders
+          Track Order
         </Link>
         <button
           onClick={logout}

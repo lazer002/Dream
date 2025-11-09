@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import { Order } from "../models/Order.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
+import { updateOrderStatus } from "../utils/updateOrderStatus.js";
 
 const router = express.Router();
 
@@ -80,67 +81,38 @@ router.get("/:id", requireAuth, requireAdmin, async (req, res) => {
 
 router.patch("/:id/status", requireAuth, requireAdmin, async (req, res) => {
   try {
-    console.log("updateOrderStatus called with body:", req.body);
+    console.log("Received status update request:", req.params.id, req.body);
     const id = req.params.id;
-    if (!isValidId(id)) {
-      return res.status(400).json({ success: false, message: "Invalid order id" });
-    }
-
-    if (!req.body || typeof req.body.status !== "string") {
-      return res.status(400).json({ success: false, message: "Status is required" });
-    }
-    const status = req.body.status.trim().toLowerCase();
-
-    const VALID_STATUSES = ["pending", "confirmed", "dispatched", "shipped", "out for delivery", "delivered", "cancelled", "refunded" ];
-    if (!VALID_STATUSES.includes(status)) {
-      return res.status(400).json({ success: false, message: "Invalid status" });
-    }
-
-    const current = await Order.findById(id).select("orderStatus").lean();
-    if (!current) {
-      return res.status(404).json({ success: false, message: "Order not found" });
-    }
-
-    if (current.orderStatus === status) {
-      return res.json({ success: true, message: "Status unchanged", order: current });
-    }
-
-    // prepare audit entry
+    const { status, sendEmail, awaitEmail, reason } = req.body;
     const actor = req.user?._id || null;
-    const pushEntry = actor ? { status, updatedAt: new Date(), by: actor } : { status, updatedAt: new Date() };
 
-    // update and push to front of array so newest is first
-    const updated = await Order.findByIdAndUpdate(
-      id,
-      {
-        $set: { orderStatus: status, updatedAt: new Date() },
-        $push: { statusHistory: { $each: [pushEntry], $position: 0 } },
-      },
-      { new: true, runValidators: true }
-    ).lean();
+    // Single source of truth
+    const result = await updateOrderStatus(id, status, {
+      actor,
+      reason,
+      sendEmail: !!sendEmail,
+      awaitEmail: !!awaitEmail,
+    });
 
-    if (req.body.sendEmail) {
-      try {
-
-        await sendStatusChangeEmail(updated.email, status, updated.orderNumber);
-      } catch (emailErr) {
-        console.error("Status updated but failed to send email:", emailErr);
-        // don't fail the whole request — inform client that email failed
-        return res.json({
-          success: true,
-          message: "Order status updated (email failed)",
-          order: updated,
-          emailError: emailErr.message || "Email send failed",
-        });
-      }
+    if (!result.success) {
+      const msg = result.error?.message || "Failed to update status";
+      if (/not found/i.test(msg)) return res.status(404).json({ success: false, message: msg });
+      return res.status(400).json({ success: false, message: msg });
     }
 
-    return res.json({ success: true, message: "Order status updated", order: updated });
+    return res.json({
+      success: true,
+      message: result.message ?? "Order status updated",
+      order: result.order,
+      email: result.emailResult ?? null,
+    });
   } catch (err) {
-    console.error("updateOrderStatus error:", err);
-    return res.status(500).json({ success: false, message: "Failed to update order status" });
+    console.error("route error:", err);
+    return res.status(500).json({ success: false, message: "Server error" });
   }
 });
+
+
 
 
 // PUT /api/admin/orders/:id/tracking

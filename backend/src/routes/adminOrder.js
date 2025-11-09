@@ -37,10 +37,25 @@ router.get("/", requireAuth, requireAdmin, async (req, res) => {
       .sort({ createdAt: -1 })
       .skip(skip)
       .limit(limit)
-      .select("orderNumber email total orderStatus createdAt source itemCount")
+      .select(
+        "orderNumber email orderStatus total createdAt paymentMethod paymentStatus source items.mainImage  " +
+          "shippingAddress.firstName shippingAddress.lastName shippingAddress.phone"
+      )
       .lean();
 
-    res.json({ success: true, page, limit, total, orders });
+    const ordersWithCount = orders.map((o) => ({
+      ...o,
+      itemCount: Array.isArray(o.items) ? o.items.reduce((sum, i) => sum + (i.quantity || 1), 0) : 0,
+    }));
+console.log("Fetched orders:", JSON.stringify(ordersWithCount, null, 2));
+    res.json({
+      success: true,
+      page,
+      limit,
+      total,
+      orders: ordersWithCount,
+    });
+
   } catch (err) {
     console.error("getOrders error:", err);
     res.status(500).json({ success: false, message: "Failed to fetch orders" });
@@ -62,40 +77,71 @@ router.get("/:id", requireAuth, requireAdmin, async (req, res) => {
   }
 });
 
-// PUT /api/admin/orders/:id/status
-router.put("/:id/status", requireAuth, requireAdmin, async (req, res) => {
-  try {
-    const id = req.params.id;
-    if (!isValidId(id)) return res.status(400).json({ success: false, message: "Invalid order id" });
 
-    const { status } = req.body;
-    const validStatuses = ["pending", "confirmed", "dispatched", "delivered", "canceled"];
-    if (!validStatuses.includes(status)) {
+router.patch("/:id/status", requireAuth, requireAdmin, async (req, res) => {
+  try {
+    console.log("updateOrderStatus called with body:", req.body);
+    const id = req.params.id;
+    if (!isValidId(id)) {
+      return res.status(400).json({ success: false, message: "Invalid order id" });
+    }
+
+    if (!req.body || typeof req.body.status !== "string") {
+      return res.status(400).json({ success: false, message: "Status is required" });
+    }
+    const status = req.body.status.trim().toLowerCase();
+
+    const VALID_STATUSES = ["pending", "confirmed", "dispatched", "shipped", "out for delivery", "delivered", "cancelled", "refunded" ];
+    if (!VALID_STATUSES.includes(status)) {
       return res.status(400).json({ success: false, message: "Invalid status" });
     }
 
     const current = await Order.findById(id).select("orderStatus").lean();
-    if (!current) return res.status(404).json({ success: false, message: "Order not found" });
+    if (!current) {
+      return res.status(404).json({ success: false, message: "Order not found" });
+    }
+
     if (current.orderStatus === status) {
       return res.json({ success: true, message: "Status unchanged", order: current });
     }
 
-    // include admin actor for audit if available
+    // prepare audit entry
     const actor = req.user?._id || null;
     const pushEntry = actor ? { status, updatedAt: new Date(), by: actor } : { status, updatedAt: new Date() };
 
+    // update and push to front of array so newest is first
     const updated = await Order.findByIdAndUpdate(
       id,
-      { $set: { orderStatus: status }, $push: { statusHistory: pushEntry } },
+      {
+        $set: { orderStatus: status, updatedAt: new Date() },
+        $push: { statusHistory: { $each: [pushEntry], $position: 0 } },
+      },
       { new: true, runValidators: true }
     ).lean();
 
-    res.json({ success: true, message: "Order status updated", order: updated });
+    if (req.body.sendEmail) {
+      try {
+
+        await sendStatusChangeEmail(updated.email, status, updated.orderNumber);
+      } catch (emailErr) {
+        console.error("Status updated but failed to send email:", emailErr);
+        // don't fail the whole request — inform client that email failed
+        return res.json({
+          success: true,
+          message: "Order status updated (email failed)",
+          order: updated,
+          emailError: emailErr.message || "Email send failed",
+        });
+      }
+    }
+
+    return res.json({ success: true, message: "Order status updated", order: updated });
   } catch (err) {
     console.error("updateOrderStatus error:", err);
-    res.status(500).json({ success: false, message: "Failed to update order status" });
+    return res.status(500).json({ success: false, message: "Failed to update order status" });
   }
 });
+
 
 // PUT /api/admin/orders/:id/tracking
 router.put("/:id/tracking", requireAuth, requireAdmin, async (req, res) => {

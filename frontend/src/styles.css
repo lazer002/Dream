@@ -267,3 +267,26 @@ button:focus, input:focus, textarea:focus, select:focus {
   /* optional: hide elements specifically marked no-print */
   .no-print { display: none !important; }
 }
+
+
+.select-no-arrow,
+.input-no-arrow {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-repeat: no-repeat;
+  background-position: right 0.75rem center; /* not required but safe */
+}
+
+/* Hide IE/Edge dropdown arrow */
+.select-no-arrow::-ms-expand { display: none; }
+
+/* Hide Chrome/Safari date-calendar icon (we'll show our own) */
+.input-no-arrow::-webkit-calendar-picker-indicator {
+  opacity: 0;
+  display: none;
+  -webkit-appearance: none;
+}
+
+/* Optional: smaller calendar icon fallback for Firefox (if needed) */
+.input-no-arrow::-moz-focus-inner { border: 0; }

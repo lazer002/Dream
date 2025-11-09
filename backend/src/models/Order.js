@@ -54,7 +54,7 @@ const OrderSchema = new mongoose.Schema(
 
     orderStatus: {
       type: String,
-      enum: ["pending", "confirmed", "dispatched", "delivered", "canceled"],
+      enum: [ "pending","confirmed","dispatched","shipped","out for delivery","delivered","cancelled","refunded"],
       default: "pending",
     },
 
@@ -63,7 +63,7 @@ const OrderSchema = new mongoose.Schema(
         {
           status: {
             type: String,
-            enum: ["pending", "confirmed", "dispatched", "delivered", "canceled"],
+            enum: [ "pending","confirmed","dispatched","shipped","out for delivery","delivered","cancelled","refunded"],
             required: true,
           },
           updatedAt: { type: Date, default: Date.now },

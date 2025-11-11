@@ -94,8 +94,10 @@ router.post('/addbundle', async (req, res) => {
     if (exactMatch) {
       existing.quantity += quantity;
       await existing.save();
-      await existing.populate('bundle', 'title price images')
-                    .populate('bundleProducts.product', 'title price images');
+      await existing.populate([
+        { path: 'bundle', select: 'title price images' },
+        { path: 'bundleProducts.product', select: 'title price images' },
+      ]);
       return res.json({ message: 'Bundle quantity updated', item: existing });
     }
 

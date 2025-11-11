@@ -8,7 +8,7 @@ const cartItemSchema = new mongoose.Schema(
     // Single product
     product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
     size: { type: String },
-    
+
     // Bundle
     bundle: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle" },
     mainImage: { type: String },
@@ -25,24 +25,60 @@ const cartItemSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-// Index for single product (same product + size)
+/* 
+---------------------------------------------------
+🧩 FIXED INDEXES (Safe for all cases)
+---------------------------------------------------
+*/
+
+// 🔹 1. Single product (for logged-in users)
 cartItemSchema.index(
   { user: 1, product: 1, size: 1 },
-  { unique: true, partialFilterExpression: { product: { $exists: true } } }
-);
-cartItemSchema.index(
-  { guestId: 1, product: 1, size: 1 },
-  { unique: true, partialFilterExpression: { product: { $exists: true } } }
+  {
+    unique: true,
+    partialFilterExpression: {
+      user: { $exists: true, $ne: null },
+      product: { $exists: true },
+      bundle: { $exists: false }, // 👈 ensures bundle items don't conflict
+    },
+  }
 );
 
-// Index for bundle (unique combination of bundle + product sizes)
+// 🔹 2. Single product (for guest users)
 cartItemSchema.index(
-  { user: 1, bundle: 1, "bundleProducts.product": 1, "bundleProducts.size": 1 },
-  { unique: true, partialFilterExpression: { bundle: { $exists: true } } }
+  { guestId: 1, product: 1, size: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      guestId: { $exists: true, $ne: null },
+      product: { $exists: true },
+      bundle: { $exists: false },
+    },
+  }
 );
+
+// 🔹 3. Bundle (for logged-in users)
 cartItemSchema.index(
-  { guestId: 1, bundle: 1, "bundleProducts.product": 1, "bundleProducts.size": 1 },
-  { unique: true, partialFilterExpression: { bundle: { $exists: true } } }
+  { user: 1, bundle: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      user: { $exists: true, $ne: null },
+      bundle: { $exists: true },
+    },
+  }
+);
+
+// 🔹 4. Bundle (for guest users)
+cartItemSchema.index(
+  { guestId: 1, bundle: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      guestId: { $exists: true, $ne: null },
+      bundle: { $exists: true },
+    },
+  }
 );
 
 export const CartItem = mongoose.model("CartItem", cartItemSchema);

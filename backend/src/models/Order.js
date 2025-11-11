@@ -85,6 +85,19 @@ const OrderSchema = new mongoose.Schema(
     },
 
     trackingId: { type: String },
+    fulfillmentStatus: {
+      type: String,
+      enum: ["unfulfilled", "fulfilled", "returned", "cancelled"],
+      default: "unfulfilled",
+    },
+
+    fulfillmentDetails: {
+      trackingNumber: { type: String },
+      carrier: { type: String },
+      fulfilledAt: { type: Date },
+      fulfilledBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      notes: { type: String },
+    },
     estimatedDelivery: { type: Date },
     orderNotes: { type: String },
     couponDiscount: { type: Number, default: 0 },
@@ -92,7 +105,11 @@ const OrderSchema = new mongoose.Schema(
     cancelReason: { type: String },
     cancelReasonDetails: { type: String },
     source: { type: String, enum: ["web", "mobile", "admin"], default: "web" },
-    invoiceUrl: { type: String },
+   invoiceNumber: {
+  type: String,
+  unique: true,
+  sparse: true, // allows null for orders without invoices yet
+}
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

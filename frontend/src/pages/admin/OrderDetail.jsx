@@ -7,7 +7,6 @@ import {
   RefreshCw,
   Save,
   ArrowUpRight,
-  FileText,
   X,
   ChevronLeft,
   ChevronRight,
@@ -67,17 +66,17 @@ export default function OrderDetail() {
     "Cancelled",
     "Refunded",
   ];
-  const STATUS_COLORS = {
-    Pending: "bg-yellow-100 text-yellow-800",
-    Processing: "bg-blue-100 text-blue-800",
-    Dispatched: "bg-indigo-100 text-indigo-800",
-    Shipped: "bg-sky-100 text-sky-800",
-    "Out for Delivery": "bg-orange-100 text-orange-800",
-    Delivered: "bg-green-100 text-green-800",
-    Cancelled: "bg-red-100 text-red-800",
-    Refunded: "bg-gray-100 text-gray-800",
-  };
-
+const STATUS_COLORS = {
+  pending: "bg-yellow-100 text-yellow-800",
+  confirmed: "bg-blue-100 text-blue-800",
+  processing: "bg-blue-100 text-blue-800",
+  dispatched: "bg-indigo-100 text-indigo-800",
+  shipped: "bg-sky-100 text-sky-800",
+  "out for delivery": "bg-orange-100 text-orange-800",
+  delivered: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
+  refunded: "bg-gray-100 text-gray-800",
+};
 // replace previous PLACEHOLDER constant or keep same one
 const PLACEHOLDER =
   "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'%3E%3Crect width='600' height='400' fill='%23f3f4f6'/%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' fill='%23909aa0' font-family='Arial, Helvetica, sans-serif' font-size='20'%3ENo image%3C/text%3E%3C/svg%3E";
@@ -110,20 +109,22 @@ const getItemImages = (item) => {
   return unique.length ? unique : [PLACEHOLDER];
 };
 
-  const fetchOrder = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(`/admin/orders/${id}`);
-      setOrder(res.data.order);
-      setSelectedStatus(res.data.order?.status || "");
-      setTrackingNumber(res.data.order?.shipment?.trackingNumber || "");
-    } catch (err) {
-      console.error(err);
-      setNotif({ type: "error", text: "Failed to load order." });
-    } finally {
-      setLoading(false);
-    }
-  };
+const fetchOrder = async () => {
+  try {
+    setLoading(true);
+    const res = await api.get(`/admin/orders/${id}`);
+    const ord = res.data.order;
+    setOrder(ord);
+    setSelectedStatus(res.data.order?.status || "");
+    setTrackingNumber(ord?.shipment?.trackingNumber || ord?.trackingNumber || "");
+  } catch (err) {
+    console.error(err);
+    setNotif({ type: "error", text: "Failed to load order." });
+  } finally {
+    setLoading(false);
+  }
+};
+;
 
   useEffect(() => {
     fetchOrder();
@@ -233,7 +234,7 @@ const getItemImages = (item) => {
 
 
   return (
-    <div className="max-w-6xl mx-auto p-6 space-y-6 text-neutral-900 dark:text-neutral-50">
+    <div className="mx-auto p-6 space-y-6 text-neutral-900 dark:text-neutral-50">
       {/* Notifications */}
       {notif && (
         <div
@@ -248,7 +249,23 @@ const getItemImages = (item) => {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Order #{order.orderNumber}</h1>
+         <div className="flex items-center gap-2">
+  <h1 className="text-2xl font-semibold tracking-tight">
+    Order #{order.orderNumber}
+  </h1>
+  {order.orderStatus && (
+    <Badge
+      className={
+        STATUS_COLORS[order.orderStatus]
+          ? STATUS_COLORS[order.orderStatus]
+          : "bg-gray-200 text-gray-800"
+      }
+    >
+      {order.orderStatus}
+    </Badge>
+  )}
+</div>
+
           <p className="text-sm text-neutral-500">Placed {formatDate(order.createdAt)}</p>
         </div>
         <div className="text-right">
@@ -272,9 +289,12 @@ const getItemImages = (item) => {
                 {order.shippingAddress?.firstName} {order.shippingAddress?.lastName}
               </p>
               <p className="text-neutral-500">{order.shippingAddress?.phone}</p>
-              <p className="text-neutral-500">
-                {order.shippingAddress?.address} {order.shippingAddress?.apartment ? `, ${order.shippingAddress.city}` : ""}, {order.shippingAddress?.state} 
-              </p>
+            <p className="text-neutral-500">
+              {order.shippingAddress?.address}
+              {order.shippingAddress?.apartment ? `, ${order.shippingAddress.apartment}` : ""}
+              {order.shippingAddress?.city ? `, ${order.shippingAddress.city}` : ""}
+              {order.shippingAddress?.state ? `, ${order.shippingAddress.state}` : ""}
+            </p>
               <p>{order.shippingAddress?.country}-{order.shippingAddress?.zip}</p>
             </CardContent>
           </Card>
@@ -301,19 +321,19 @@ const getItemImages = (item) => {
               <CardDescription>{order.items?.length || 0} items</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              {order.items?.map((it) => {
+              {order.items?.map((it,idx) => {
                 const images = getItemImages(it);
                 const lineTotal = (it.price || 0) * (it.quantity || 1);
                 return (
                   <div
-                    key={it._id || it.productId || `${it.name}-${Math.random()}`}
+                    key={it._id || it.productId || `${it.name}-${idx}`}
                     className="flex items-start gap-4 rounded-md p-3 hover:bg-neutral-50 dark:hover:bg-neutral-800 cursor-pointer"
                     onClick={() => openItemModal(it)}
                   >
                     <div className="w-16 h-16 flex-shrink-0 relative">
                       <img
                         src={images[0]}
-                        alt={it.name}
+                        alt={it.title || it.productId || "product image"}
                         loading="lazy"
                         onError={(e) => {
                           e.currentTarget.onerror = null;
@@ -404,13 +424,14 @@ const getItemImages = (item) => {
                   {order.statusHistory?.length ? (
                     order.statusHistory.map((h, i) => (
                       <div key={i} className="px-3 py-2 flex justify-between">
-                        <span>{h.status}</span>
-                        <span className="text-xs">{formatDate(h.at)}</span>
+                        <span className="capitalize">{h.status}</span>
+                        <span className="text-xs">{formatDate(h.updatedAt || h.createdAt || h.at)}</span>
                       </div>
                     ))
                   ) : (
                     <p className="px-3 py-2 text-neutral-400">No history</p>
                   )}
+
                 </div>
               </div>
             </CardContent>
@@ -478,11 +499,11 @@ const getItemImages = (item) => {
         <DialogContent className="max-w-3xl w-full">
           <DialogHeader>
             <DialogTitle>{openItem?.name}</DialogTitle>
-            <DialogClose asChild>
-              <button className="absolute right-4 top-4 rounded p-2 hover:bg-neutral-100">
-                <X />
-              </button>
-            </DialogClose>
+         <DialogClose asChild>
+  <button aria-label="Close item dialog" className="absolute right-4 top-4 rounded p-2 hover:bg-neutral-100">
+    <X />
+  </button>
+</DialogClose>
           </DialogHeader>
 
           {openItem && (

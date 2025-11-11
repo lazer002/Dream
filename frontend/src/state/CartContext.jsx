@@ -171,6 +171,23 @@ const remove = async (id, size, isBundle = false) => {
   }
 };
 
+const clearCart = async (opts = { server: true }) => {
+  setLoading(true);
+  try {
+    setItems([]);
+
+    if (opts.server) {
+      await client().post("/clear"); // backend should handle guestId or user from header/token
+    }
+    toast.success("Cart cleared");
+  } catch (err) {
+    console.error("Failed to clear cart:", err);
+    toast.error("Failed to clear cart");
+    await refresh();
+  } finally {
+    setLoading(false);
+  }
+};
 
 const addBundleToCart = async (bundle, selectedSizes) => {
   console.log("Adding bundle to cart:", bundle, selectedSizes);
@@ -247,7 +264,7 @@ const addBundleToCart = async (bundle, selectedSizes) => {
 };
 
 
-  const value = { items, add, update, remove, refresh, mergeGuestCart, addBundleToCart, loading };
+  const value = { items, add, update, remove, refresh, mergeGuestCart, addBundleToCart, clearCart, loading };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
 }

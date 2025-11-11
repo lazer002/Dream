@@ -6,14 +6,13 @@ import { Payment } from "../models/Payment.js";
 import axios from "axios"; // fixed import
 import { getNextOrderSeq } from "../models/Counter.js";
 import { sendEmail } from "../utils/sendEmail.js";
+import { templateForStatus } from "../utils/emailTemplates.js";
 
 const router = express.Router();
 
 // Create Order (COD or Razorpay)
 router.post("/create", async (req, res) => {
   try {
-  
-console.log("Create order request body:", req.body);
     const {
       items,
       subtotal,
@@ -139,7 +138,19 @@ console.log("Create order request body:", req.body);
       });
     }
 
-    // 7️⃣ COD flow
+    try {
+      const { subject, text, html } = templateForStatus("placed", { order });
+
+      await sendEmail({
+        to: contactEmail,
+        subject,
+        text,
+        html,
+      });
+    } catch (err) {
+      console.error("Error sending order email:", err.message);
+    }
+    
     res.json({
       success: true,
       orderNumber,

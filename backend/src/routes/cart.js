@@ -182,7 +182,24 @@ router.post('/remove', async (req, res) => {
   res.json({ message: 'Item removed from cart', item: result });
 });
 
+router.post('/clear', async (req, res) => {
+  try {
+    const key = cartKey(req); // returns { user: userId } or { guestId }
+    if (!key) {
+      return res.status(400).json({ error: 'Missing user or guest identifier' });
+    }
+    const result = await CartItem.deleteMany(key);
 
+    res.json({
+      success: true,
+      message: 'Cart cleared successfully',
+      deletedCount: result.deletedCount,
+    });
+  } catch (err) {
+    console.error('Clear cart error:', err);
+    res.status(500).json({ error: 'Failed to clear cart' });
+  }
+});
 // Merge guest cart after login
 router.post('/merge', requireAuth, async (req, res) => {
   const { guestId } = req.body

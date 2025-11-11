@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
+
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/CustomCheckbox.jsx";
@@ -8,10 +8,10 @@ import { useCart } from "@/state/CartContext";
 import { api } from "@/utils/config";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-
+import {Loader2 } from "lucide-react";
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { items } = useCart();
+  const { items , clearCart } = useCart();
   const [shippingMethod, setShippingMethod] = useState("free");
   const [billingSame, setBillingSame] = useState(true);
   const [contactEmail, setContactEmail] = useState("");
@@ -33,6 +33,7 @@ const [discountValue, setDiscountValue] = useState(0);
 const [discountError, setDiscountError] = useState("");
 const [discountSuccess, setDiscountSuccess] = useState("");
 const [loadingDiscount, setLoadingDiscount] = useState(false);
+
 
 const applyDiscount = async () => {
   if (!discountCode.trim()) return;
@@ -210,6 +211,14 @@ const handleCODOrder = async () => {
       `Order placed successfully! ${orderNumber ? `Order: ${orderNumber}` : `ID: ${data.orderId}`}`
     );
 
+    try {
+      if (typeof clearCart === "function") {
+        await clearCart(); 
+      }
+    } catch (e) {
+     toast.error("Failed to clear cart after order.");
+    }
+      await new Promise((r) => setTimeout(r, 1200));
 
     if (orderNumber) {
       navigate(`/trackorder?email=${encodeURIComponent(contactEmail)}&orderNumber=${encodeURIComponent(orderNumber)}`);
@@ -407,8 +416,22 @@ const handleCODOrder = async () => {
         </div>
 
         {/* Action Button */}
-        <button className="w-full bg-black text-white py-3 rounded-lg text-lg mt-4 hover:bg-gray-800" onClick={handlePlaceOrder}>
-          {paymentMethod === "razorpay" ? "Pay Now" : "Place Order"}
+        <button
+          onClick={handlePlaceOrder}
+          disabled={loading} // prevents double click
+          className={`w-full py-3 rounded-lg text-lg mt-4 flex items-center justify-center gap-2 transition-colors ${loading ? "bg-gray-700 cursor-wait" : "bg-black hover:bg-gray-800 text-white"
+            }`}
+        >
+          {loading ? (
+            <>
+              <Loader2 className="w-5 h-5 animate-spin" />
+              Placing Order...
+            </>
+          ) : paymentMethod === "razorpay" ? (
+            "Pay Now"
+          ) : (
+            "Place Order"
+          )}
         </button>
       </div>
     </div>

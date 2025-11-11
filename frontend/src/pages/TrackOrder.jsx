@@ -352,14 +352,14 @@ useEffect(() => {
                     <div className="text-sm text-gray-700">Tracking ID: {order.trackingId}</div>
                     <div className="text-xs text-gray-500">Estimated: {order.estimatedDelivery ? formatDate(order.estimatedDelivery) : "—"}</div>
                   </div>
-                  <a
+                  <Link 
                     className="text-sm inline-flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50"
-                    href={`https://www.trackcourier.example/track/${order.trackingId}`} // replace with real courier url if available
+                    to={`https://www.trackcourier.example/track/${order.trackingId}`} // replace with real courier url if available
                     target="_blank"
                     rel="noreferrer"
                   >
                     Track <span className="sr-only">tracking</span>
-                  </a>
+                  </Link>
                 </div>
               ) : (
                 <div className="text-sm text-gray-500">Tracking not yet available.</div>

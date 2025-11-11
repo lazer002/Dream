@@ -98,18 +98,17 @@ const total = subtotal + tax + deliveryFee - discount;
 
         {/* Buttons */}
         <div className="flex gap-4 mt-6">
-          <a
-            href="/products"
+          <Link to="/products"
             className="px-6 py-3 font-medium text-white bg-black rounded-lg hover:bg-gray-900 transition"
           >
             Continue Shopping
-          </a>
-          <a
-            href="/login"
+          </Link>
+          <Link
+            to="/login"
             className="px-6 py-3 font-medium text-black border-2 border-black rounded-lg hover:bg-black hover:text-white transition"
           >
             Sign In
-          </a>
+          </Link>
         </div>
       </div>
     )

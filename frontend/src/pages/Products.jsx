@@ -247,20 +247,45 @@ const handleSelectSize = (sizeKey) => {
                   </button>
                 </div>
 
-                <div className="p-4 flex flex-col gap-1">
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-sm font-bold text-black uppercase">{p.title}</h3>
-                    <button
-                      onClick={(e) => {   e.preventDefault();
-                         openModal(p); }}
-                      className="p-1 w-7 h-7 flex items-center justify-center   transition"
-                      title="Add to Cart"
-                    >
-                      <ShoppingBag className="w-10 h-10" />
-                    </button>
-                  </div>
-                  <span className="text-sm font-bold text-[#042354]">₹{p.price}</span>
-                </div>
+              <div className="p-4 flex flex-col gap-1">
+  <div className="flex items-center justify-between">
+    <h3 className="text-sm font-bold text-black uppercase truncate">{p.title}</h3>
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        openModal(p);
+      }}
+      className="p-1 w-7 h-7 flex items-center justify-center transition"
+      title="Add to Cart"
+    >
+      <ShoppingBag className="w-10 h-10" />
+    </button>
+  </div>
+
+  {/* 💰 Price Section */}
+  <div className="mt-1 flex items-center gap-2 flex-wrap">
+    {/* Actual Price */}
+    <span className="text-sm font-bold text-[#042354]">
+      ₹{Number(p.price).toLocaleString()}
+    </span>
+
+    {/* If on sale — show a mock original price and discount */}
+    {p.onSale && (
+      <>
+        {/* Fake original price (e.g. 30% higher) */}
+        <span className="text-xs text-gray-500 line-through">
+          ₹{Math.round(Number(p.price) / 0.7).toLocaleString()}
+        </span>
+
+        {/* Discount label */}
+        <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
+          30% OFF
+        </span>
+      </>
+    )}
+  </div>
+</div>
+
               </div>
             </Link>
           )

@@ -1,5 +1,6 @@
 import { Facebook, Instagram, MessageCircle } from "lucide-react";
 import { useState } from "react";
+import { Link } from "react-router-dom";
 export default function Footer() {
     const [email, setEmail] = useState("");
 
@@ -76,14 +77,14 @@ export default function Footer() {
                         <h3 className="font-bold mb-3 uppercase">SHOP</h3>
                         <ul className="space-y-2">
                             <li>
-                                <a href="/collections/men" className="hover:text-white">
+                                <Link to="/collections/men" className="hover:text-white">
                                     SHOP MEN&apos;S
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a href="/collections/women" className="hover:text-white">
+                                <Link to="/collections/women" className="hover:text-white">
                                     SHOP WOMEN&apos;S
-                                </a>
+                                </Link>
                             </li>
                         </ul>
                     </div>
@@ -93,24 +94,24 @@ export default function Footer() {
                         <h3 className="font-bold mb-3 uppercase">#KNOW BOWCHIKA</h3>
                         <ul className="space-y-2">
                             <li>
-                                <a href="/pages/contact" className="hover:text-white">
+                                <Link to="/pages/contact" className="hover:text-white">
                                     CONTACT US
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a href="/policies/refund-policy" className="hover:text-white">
+                                <Link to="/policies/refund-policy" className="hover:text-white">
                                     REFUND POLICY
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a href="/policies/shipping-policy" className="hover:text-white">
+                                <Link to="/policies/shipping-policy" className="hover:text-white">
                                     SHIPPING POLICY
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a href="/policies/privacy-policy" className="hover:text-white">
+                                <Link to="/policies/privacy-policy" className="hover:text-white">
                                     PRIVACY POLICY
-                                </a>
+                                </Link>
                             </li>
                         </ul>
                     </div>
@@ -120,32 +121,31 @@ export default function Footer() {
                         <h3 className="font-bold mb-3 uppercase">USEFUL LINKS</h3>
                         <ul className="space-y-2">
                             <li>
-                                <a href="/pages/faq" className="hover:text-white">
+                                <Link to="/pages/faq" className="hover:text-white">
                                     FAQ&apos;S
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a href="/pages/terms-conditions" className="hover:text-white">
+                                <Link to="/pages/terms-conditions" className="hover:text-white">
                                     TERMS & CONDITIONS
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a
-                                    href="mailto:contact@bowchika.com"
+                                <Link to="mailto:contact@bowchika.com"
                                     className="hover:text-white"
                                 >
                                     EMAIL US
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a href="tel:+919876543210" className="hover:text-white">
+                                <Link to="tel:+919876543210" className="hover:text-white">
                                     CALL US
-                                </a>
+                                </Link>
                             </li>
                             <li>
-                                <a href="/returns" className="hover:text-white">
+                                <Link to="/returns" className="hover:text-white">
                                     RETURN & EXCHANGE
-                                </a>
+                                </Link>
                             </li>
                         </ul>
                     </div>
@@ -157,30 +157,28 @@ export default function Footer() {
                     <div className="bg-[#1B1A1A] border border-white/10 px-4 py-2 flex items-center gap-3 rounded-md">
                         <span className="uppercase text-xs">Follow us on</span>
                         <div className="flex gap-3">
-                            <a
-                                href="https://facebook.com"
+                            <Link to="https://facebook.com"
                                 target="_blank"
                                 rel="noreferrer"
                                 className="hover:text-white"
                             >
                                 <Facebook size={18} />
-                            </a>
-                            <a
-                                href="https://instagram.com"
+                            </Link>
+                            <Link to="https://instagram.com"
                                 target="_blank"
                                 rel="noreferrer"
                                 className="hover:text-white"
                             >
                                 <Instagram size={18} />
-                            </a>
-                            <a
-                                href="https://wa.me/9876543210"
+                            </Link>
+                            <Link
+                                to="https://wa.me/9876543210"
                                 target="_blank"
                                 rel="noreferrer"
                                 className="hover:text-white"
                             >
                                 <MessageCircle size={18} />
-                            </a>
+                            </Link>
                         </div>
                     </div>
 

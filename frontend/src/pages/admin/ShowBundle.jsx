@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Pencil, Trash2 } from "lucide-react"
 import { api } from "@/utils/config"
+import { Link } from "react-router-dom"
 
 export default function ShowBundle() {
   const [bundles, setBundles] = useState([])
@@ -121,7 +122,7 @@ export default function ShowBundle() {
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold">Product Bundles</h1>
         <Button asChild className="bg-black text-white">
-          <a href="/admin/new/bundles">+ Create Bundle</a>
+          <Link to="/admin/new/bundles">+ Create Bundle</Link>
         </Button>
       </div>
 

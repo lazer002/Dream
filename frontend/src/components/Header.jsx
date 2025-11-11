@@ -17,7 +17,7 @@ const navItems = [
   {
     title: "COLLECTIONS", url: "/collections",
   },
-  { title: "NEW ARRIVALS", url: "/NEW" },
+  { title: "NEW ARRIVALS", url: "/newarrivals" },
 ];
 
 

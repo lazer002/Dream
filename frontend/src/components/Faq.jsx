@@ -8,9 +8,9 @@ const FAQ = () => {
       answer: (
         <>
           Orders typically ship within 5-7 working days from the purchase date. For more details, visit the Accounts page or email{" "}
-          <a href="mailto:info@mypepr.com" className="underline text-gray-900 hover:text-gray-700">
+          <Link to="mailto:info@mypepr.com" className="underline text-gray-900 hover:text-gray-700">
             info@mypepr.com
-          </a>.
+          </Link>.
         </>
       ),
     },

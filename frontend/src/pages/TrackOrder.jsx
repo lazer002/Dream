@@ -3,7 +3,7 @@ import React, { useEffect, useState,useRef } from "react";
 import { Loader2, Copy, Mail, ArrowLeft } from "lucide-react";
 import { api } from "@/utils/config"; // your axios instance
 import { Link } from "react-router-dom";
-import { useReactToPrint } from "react-to-print"
+
 
 function formatDate(ts) {
   if (!ts) return "";

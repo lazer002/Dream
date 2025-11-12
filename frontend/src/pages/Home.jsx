@@ -20,70 +20,91 @@ function useDebounce(value, delay = 350) {
 export default function Home() {
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [bundles, setBundles] = useState([]);
   const [q, setQ] = useState("");
 
-  // loading / error states
-  const [loadingProducts, setLoadingProducts] = useState(false);
-  const [productsError, setProductsError] = useState(null);
-  const [loadingCategories, setLoadingCategories] = useState(false);
+
 
   const debouncedQ = useDebounce(q, 350);
   const productAbortRef = useRef(null);
+const bundleAbortRef = useRef(null);
 
   // Fetch products with debounce + abort controller
-  useEffect(() => {
-    // abort previous request if any
-    if (productAbortRef.current) {
-      try {
-        productAbortRef.current.abort();
-      } catch (e) {
-        // ignore
+useEffect(() => {
+  // abort previous product request if any
+  if (productAbortRef.current) {
+    try {
+      productAbortRef.current.abort();
+    } catch (e) {}
+    productAbortRef.current = null;
+  }
+
+  // abort previous bundle request if any
+  if (bundleAbortRef.current) {
+    try {
+      bundleAbortRef.current.abort();
+    } catch (e) {}
+    bundleAbortRef.current = null;
+  }
+
+  const productController = new AbortController();
+  const bundleController = new AbortController();
+  productAbortRef.current = productController;
+  bundleAbortRef.current = bundleController;
+
+  const fetchProducts = async () => {
+    try {
+      const res = await api.get("/products", {
+        params: { q: debouncedQ || "" },
+        signal: productController.signal,
+      });
+      setProducts(res.data?.items || []);
+    } catch (err) {
+      if (err?.name !== "AbortError" && err?.message !== "canceled") {
+        console.error("Error fetching products:", err);
+        setProducts([]);
       }
+    } finally {
       productAbortRef.current = null;
     }
+  };
 
-    const controller = new AbortController();
-    productAbortRef.current = controller;
-
-    const fetchProducts = async () => {
-      setLoadingProducts(true);
-      setProductsError(null);
-      try {
-        // axios v1 supports `signal` option; if using older axios use CancelToken
-        const res = await api.get("/products", {
-          params: { q: debouncedQ || "" },
-          signal: controller.signal,
-        });
-        setProducts(res.data?.items || []);
-      } catch (err) {
-        // ignore abort errors
-        if (err?.name === "AbortError" || err?.message === "canceled") {
-          // aborted — do nothing
-        } else {
-          console.error("Error fetching products:", err);
-          setProducts([]);
-          setProductsError(err);
-        }
-      } finally {
-        setLoadingProducts(false);
+  const fetchBundles = async () => {
+    try {
+      const res = await api.get("/bundles", {
+        params: { limit: 3 },
+        signal: bundleController.signal,
+      });
+      console.log("Fetched bundles:", res.data);
+      setBundles(res.data.items || []);
+    } catch (err) {
+      if (err?.name !== "AbortError" && err?.message !== "canceled") {
+        console.error("Error fetching bundles:", err);
+        setBundles([]);
+        setError("Failed to load bundles. Try again.");
       }
-    };
+    } finally {
+      bundleAbortRef.current = null;
+    }
+  };
 
-    fetchProducts();
+  fetchProducts();
+  fetchBundles();
 
-    return () => {
-      // cleanup: abort when effect re-runs or component unmounts
-      try {
-        controller.abort();
-      } catch (e) {}
-    };
-  }, [debouncedQ]);
+  // cleanup: abort when effect re-runs or unmounts
+  return () => {
+    try {
+      productController.abort();
+      bundleController.abort();
+    } catch (e) {}
+  };
+}, [debouncedQ]);
+
 
   // Fetch categories once
   useEffect(() => {
     let mounted = true;
     (async () => {
-      setLoadingCategories(true);
       try {
         const res = await api.get("/categories");
         if (!mounted) return;
@@ -92,7 +113,7 @@ export default function Home() {
       } catch (error) {
         console.error("Error fetching categories:", error);
       } finally {
-        mounted && setLoadingCategories(false);
+        mounted 
       }
     })();
 
@@ -102,30 +123,32 @@ export default function Home() {
   }, []);
 
   // normalize product (memoized)
-  const normalize = useCallback((p) => {
-    const original = p.compareAtPrice ?? p.originalPrice ?? p.mrp ?? null;
-    const price = Number(p.price) || 0;
+const normalize = useCallback((p) => {
+  const original = p.compareAtPrice ?? p.originalPrice ?? p.mrp ?? null;
+  const price = Number(p.price) || 0;
 
-    let discountPercent = null;
-    if (p.discountPercent) {
-      discountPercent = Number(p.discountPercent);
-    } else if (original && Number(original) > price) {
-      discountPercent = Math.round(((Number(original) - price) / Number(original)) * 100);
-    }
+  let discountPercent = null;
+  if (p.discountPercent) {
+    discountPercent = Number(p.discountPercent);
+  } else if (original && Number(original) > price) {
+    discountPercent = Math.round(((Number(original) - price) / Number(original)) * 100);
+  }
 
-    return {
-      ...p,
-      displayPrice: price,
-      originalPrice: original ? Number(original) : null,
-      discountPercent,
-    };
-  }, []);
+  return {
+    ...p,
+    displayPrice: price,
+    originalPrice: original ? Number(original) : null,
+    discountPercent,
+  };
+}, []);
 
-  // memoized normalized list
-  const normalized = useMemo(() => (Array.isArray(products) ? products.map(normalize) : []), [products, normalize]);
+const normalized = useMemo(
+  () => (Array.isArray(products) ? products.map(normalize) : []),
+  [products, normalize]
+);
 
-  const hero = normalized[0];
-  const shelf = normalized.slice(1, 8);
+const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
+
   return (
 
     <div className="bg-white text-black">
@@ -345,7 +368,7 @@ export default function Home() {
           FEATURED PRODUCTS
       ====================================================== */}
       <section className="bg-white pt-12 pb-16 text-black">
-        <div className="mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+        <div className=" px-4 sm:px-6 lg:px-8 ">
           {/* Header */}
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
             <h2 className="text-3xl font-bold uppercase tracking-tight">FEATURED PRODUCTS</h2>
@@ -369,117 +392,95 @@ export default function Home() {
           </div>
 
           {/* Layout: hero left, scroller right */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
-            {/* Left: Hero product (if any) */}
-            {hero ? (
-              <article className="col-span-1 lg:col-span-2 bg-gray-50 rounded-lg overflow-hidden relative">
-                <Link to={`/product/${hero._id}`} className="group block overflow-hidden">
-                  <div className="relative h-72 sm:h-96 lg:h-[420px] overflow-hidden">
-                    <img
-                      src={hero.images?.[0] || "https://via.placeholder.com/800x600?text=No+Image"}
-                      alt={hero.title}
-                      className="w-full h-full object-cover transition-transform group-hover:scale-105"
-                    />
+<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+  {heroes && heroes.length > 0 ? (
+    heroes.map((p) => (
+      <article
+        key={p._id}
+        className="bg-gray-50 rounded-lg overflow-hidden relative group"
+      >
+        <Link to={`/product/${p._id}`} className="block overflow-hidden">
+          <div className="relative h-72 sm:h-80 lg:h-[420px] overflow-hidden">
+            <img
+              src={p.images?.[0] || "https://via.placeholder.com/800x600?text=No+Image"}
+              alt={p.title}
+              loading="lazy"
+              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+            />
 
-                    {/* hero badges */}
-                    <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
-                      {hero.isNewProduct && <span className="bg-black text-white px-3 py-1 text-xs uppercase font-semibold rounded">NEW</span>}
-                      {hero.onSale && hero.discountPercent ? (
-                        <span className="bg-red-600 text-white px-3 py-1 text-xs uppercase font-semibold rounded">{hero.discountPercent}% OFF</span>
-                      ) : hero.onSale ? (
-                        <span className="bg-red-600 text-white px-3 py-1 text-xs uppercase font-semibold rounded">SALE</span>
-                      ) : null}
-                    </div>
+            {/* Badges */}
+            <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
+              {p.isNewProduct && (
+                <span className="bg-black text-white px-3 py-1 text-xs uppercase font-semibold rounded">
+                  NEW
+                </span>
+              )}
+              {p.onSale && (
+                <span className="bg-red-600 text-white px-3 py-1 text-xs uppercase font-semibold rounded">
+                  SALE
+                </span>
+              )}
+            </div>
 
-                    {/* hero price box */}
-                    <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-md p-4 shadow-md max-w-xs">
-                      <h3 className="text-base font-bold uppercase truncate">{hero.title}</h3>
-                      <div className="mt-2 flex items-baseline gap-3">
-                        <div className="text-2xl font-extrabold">₹{hero.displayPrice.toLocaleString()}</div>
-                        {hero.originalPrice && hero.originalPrice > hero.displayPrice && (
-                          <div className="text-sm line-through text-gray-500">₹{Math.round(hero.originalPrice).toLocaleString()}</div>
-                        )}
-                        {hero.discountPercent ? (
-                          <div className="ml-auto bg-red-100 text-red-600 text-xs font-semibold px-2 py-0.5 rounded">{hero.discountPercent}% OFF</div>
-                        ) : null}
-                      </div>
+            {/* Info Box */}
+            <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-md p-4 shadow-md max-w-xs">
+              <h3 className="text-base font-bold uppercase truncate">
+                {p.title}
+              </h3>
 
-                      <div className="mt-3 flex gap-2">
-                        <Link to={`/product/${hero._id}`} className="bg-black text-white px-3 py-2 rounded text-sm font-semibold">View product</Link>
-                        <button
-                          onClick={() => {/* implement add to cart handler */ }}
-                          className="border border-gray-200 px-3 py-2 rounded text-sm font-medium hover:bg-gray-100"
-                          aria-label={`Add ${hero.title} to cart`}
-                        >
-                          Add to bag
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </Link>
-              </article>
-            ) : (
-              <div className="col-span-1 lg:col-span-2 h-72 sm:h-96 bg-gray-100 rounded-lg" />
-            )}
+              {/* Price + Discount Row */}
+              <div className="mt-2 flex items-center gap-2 flex-wrap">
+                {/* Actual Price */}
+                <span className="text-sm font-bold text-[#042354]">
+                  ₹{Number(p.price).toLocaleString()}
+                </span>
 
-            {/* Right: horizontal shelf of smaller cards */}
-            <div className="col-span-1">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-lg font-semibold">Curated picks</h3>
-                <Link to="/newarrivals" className="text-xs font-medium uppercase text-gray-700 hover:text-black">See all</Link>
+                {/* If on sale — show a fake original price and discount */}
+                {p.onSale && (
+                  <>
+                    <span className="text-xs text-gray-500 line-through">
+                      ₹{Math.round(Number(p.price) / 0.7).toLocaleString()}
+                    </span>
+                    <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                      30% OFF
+                    </span>
+                  </>
+                )}
               </div>
 
-              <div className="overflow-x-auto -mx-2 pb-2">
-                <div className="flex gap-4 px-2">
-                  {shelf.length === 0 && <div className="text-sm text-gray-500">No featured products</div>}
-
-                  {shelf.map((p) => (
-                    <div key={p._id} className="min-w-[200px] w-[200px] bg-white border border-gray-100 rounded-lg overflow-hidden group relative">
-                      <Link to={`/product/${p._id}`} className="block">
-                        <div className="relative h-44 overflow-hidden">
-                          <img src={p.images?.[0] || "https://via.placeholder.com/400x400?text=No+Image"} alt={p.title} className="w-full h-full object-cover transition-transform group-hover:scale-105" />
-                          <div className="absolute top-3 left-3">
-                            {p.isNewProduct && <span className="bg-black text-white px-2 py-0.5 text-xs uppercase font-semibold rounded">NEW</span>}
-                            {p.onSale && p.discountPercent ? (
-                              <span className="bg-red-600 text-white px-2 py-0.5 text-xs uppercase font-semibold rounded ml-2">{p.discountPercent}% OFF</span>
-                            ) : p.onSale ? (
-                              <span className="bg-red-600 text-white px-2 py-0.5 text-xs uppercase font-semibold rounded ml-2">SALE</span>
-                            ) : null}
-                          </div>
-                        </div>
-
-                        <div className="p-3">
-                          <h4 className="text-sm font-semibold uppercase truncate">{p.title}</h4>
-                          <div className="mt-2 flex items-center gap-2">
-                            <div className="text-base font-bold">₹{p.displayPrice.toLocaleString()}</div>
-                            {p.originalPrice && p.originalPrice > p.displayPrice && (
-                              <div className="text-xs line-through text-gray-400">₹{Math.round(p.originalPrice).toLocaleString()}</div>
-                            )}
-                          </div>
-                        </div>
-                      </Link>
-
-                      {/* quick actions on hover */}
-                      <div className="absolute inset-0 flex items-end justify-center p-3 pointer-events-none">
-                        <div className="opacity-0 group-hover:opacity-100 transition pointer-events-auto w-full flex gap-2">
-                          <button
-                            onClick={() => {/* add to cart */ }}
-                            className="flex-1 bg-black text-white text-xs py-2 rounded font-semibold"
-                            aria-label={`Add ${p.title} to cart`}
-                          >
-                            Add
-                          </button>
-                          <Link to={`/product/${p._id}`} className="flex-1 border border-gray-200 text-xs py-2 rounded text-center font-medium bg-white">
-                            View
-                          </Link>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div> {/* end horizontal scroll */}
+              {/* Buttons */}
+              <div className="mt-3 flex gap-2">
+                <Link
+                  to={`/product/${p._id}`}
+                  className="bg-black text-white px-3 py-2 rounded text-sm font-semibold"
+                >
+                  View Product
+                </Link>
+                <button
+                  onClick={() => {
+                    // add to cart logic here
+                  }}
+                  className="border border-gray-200 px-3 py-2 rounded text-sm font-medium hover:bg-gray-100"
+                  aria-label={`Add ${p.title} to cart`}
+                >
+                  Add to Bag
+                </button>
+              </div>
             </div>
           </div>
+        </Link>
+      </article>
+    ))
+  ) : (
+    <div className="col-span-3 h-72 sm:h-96 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
+      No featured products available
+    </div>
+  )}
+</div>
+
+
+
+
         </div>
       </section>
 
@@ -536,7 +537,118 @@ export default function Home() {
 
 
 
+{/* 🧩 Bundle Section */}
 
+<section className="max-w-[80vw] mx-auto px-4 sm:px-6 lg:px-8 py-20">
+  <div className="flex items-center justify-between mb-10">
+    <h2 className="text-3xl md:text-4xl font-bold text-black">Featured Bundle</h2>
+    <button className="text-sm text-gray-600 hover:text-black font-medium">
+      View All
+    </button>
+  </div>
+
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
+    {bundles.slice(0, 3).map((bundle) => {
+      const total =
+        bundle.products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0;
+      const bundlePrice = Number(bundle.bundlePrice || total);
+      const fakeOriginal = Math.round(bundlePrice / 0.7);
+  const discountPercent = Math.round(((fakeOriginal - bundlePrice) / fakeOriginal) * 100);
+
+      return (
+        <div
+          key={bundle._id}
+          className="group border border-gray-200 rounded-2xl bg-white hover:shadow-md transition overflow-hidden"
+        >
+          {/* Image */}
+          <div className="relative">
+            <img
+              src={
+                bundle.heroImage ||
+                bundle.mainImages?.[0] ||
+                bundle.products?.[0]?.images?.[0] ||
+                "/images/placeholder-800.png"
+              }
+              alt={bundle.title}
+              className="w-full h-72 object-cover"
+            />
+
+            {/* Bundle Tag */}
+            <span className="absolute top-4 left-4 bg-black text-white text-xs font-semibold px-3 py-1 rounded-full tracking-wide">
+              Bundle
+            </span>
+
+            {discountPercent > 0 && (
+              <span className="absolute top-4 right-4 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
+                {discountPercent}% OFF
+              </span>
+            )}
+          </div>
+
+          {/* Content */}
+          <div className="p-5 flex flex-col gap-3">
+            <h3 className="text-lg font-semibold text-black truncate">
+              {bundle.title}
+            </h3>
+            <p className="text-sm text-gray-500 line-clamp-2 mb-2">
+              {bundle.description || "Exclusive curated items in one pack."}
+            </p>
+
+            {/* Price */}
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-xl font-bold text-black">
+                ₹{bundlePrice.toLocaleString()}
+              </span>
+                 {bundle && (
+                  <>
+                    <span className="text-sm text-gray-500 line-through">
+                      ₹{Math.round(Number(bundle.price) / 0.7).toLocaleString()}
+                    </span>
+                    <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                      {discountPercent}% OFF
+                    </span>
+                  </>
+                )}
+            </div>
+
+            {/* Thumbnails */}
+            <div className="flex gap-1 mb-3">
+              {(bundle.products || []).slice(0, 4).map((p) => (
+                <img
+                  key={p._id}
+                  src={p.images?.[0] || "/images/placeholder.png"}
+                  alt={p.title}
+                  className="w-10 h-10 rounded-md border border-gray-200 object-cover"
+                />
+              ))}
+              {bundle.products?.length > 4 && (
+                <div className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-600 text-xs rounded-md border border-gray-200">
+                  +{bundle.products.length - 4}
+                </div>
+              )}
+            </div>
+
+            {/* Buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => openBundleModal(bundle)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-full hover:bg-gray-50 transition"
+              >
+                View
+              </button>
+              <button
+                onClick={() => handleAddBundle(bundle)}
+                className="flex-1 px-4 py-2.5 text-sm font-medium bg-black text-white rounded-full hover:bg-gray-900 transition"
+              >
+                Add Bundle
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</section>
 
 
 

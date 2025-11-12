@@ -1,12 +1,14 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { Link,useNavigate  } from "react-router-dom";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import FAQ from "@/components/Faq";
 import FeaturesCarousel from "@/components/FeaturesCarousel";
 import { api } from "@/utils/config";
+import { useCart } from "@/state/CartContext";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog.jsx";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 
+import { X } from "lucide-react";
 /* ---------- small debounce hook ---------- */
 function useDebounce(value, delay = 350) {
   const [debounced, setDebounced] = useState(value);
@@ -18,88 +20,122 @@ function useDebounce(value, delay = 350) {
 }
 
 export default function Home() {
+  const fmt = (v) => Number(v || 0).toLocaleString();
+  const { add, addBundleToCart } = useCart();
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
   const [bundles, setBundles] = useState([]);
   const [q, setQ] = useState("");
-
-
-
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isOpen, setIsOpen] = useState(false);
+  const [selectedBundle, setSelectedBundle] = useState(null);
+  const [selectedSizes, setSelectedSizes] = useState({});
   const debouncedQ = useDebounce(q, 350);
   const productAbortRef = useRef(null);
-const bundleAbortRef = useRef(null);
+  const bundleAbortRef = useRef(null);
 
-  // Fetch products with debounce + abort controller
-useEffect(() => {
-  // abort previous product request if any
-  if (productAbortRef.current) {
-    try {
-      productAbortRef.current.abort();
-    } catch (e) {}
-    productAbortRef.current = null;
-  }
+  const openModal = (product) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  };
+  const handleSelectSize = (sizeKey) => {
+    console.log("Selected size:", sizeKey);
+    if (!selectedProduct) return;
+    const qty = Number(selectedProduct.inventory?.[sizeKey] ?? 0);
+    if (qty <= 0) return; // disabled anyway
 
-  // abort previous bundle request if any
-  if (bundleAbortRef.current) {
-    try {
-      bundleAbortRef.current.abort();
-    } catch (e) {}
-    bundleAbortRef.current = null;
-  }
+    add(selectedProduct._id, sizeKey); // 👈 always with size
+    setIsModalOpen(false);
+    setSelectedProduct(null);
+  };
 
-  const productController = new AbortController();
-  const bundleController = new AbortController();
-  productAbortRef.current = productController;
-  bundleAbortRef.current = bundleController;
-
-  const fetchProducts = async () => {
-    try {
-      const res = await api.get("/products", {
-        params: { q: debouncedQ || "" },
-        signal: productController.signal,
-      });
-      setProducts(res.data?.items || []);
-    } catch (err) {
-      if (err?.name !== "AbortError" && err?.message !== "canceled") {
-        console.error("Error fetching products:", err);
-        setProducts([]);
-      }
-    } finally {
+  const openBundleModal = (bundle) => {
+    setSelectedBundle(bundle);
+    const initialSizes = (bundle.products || []).reduce((acc, p) => {
+      acc[p._id] = ""; // no preselection
+      return acc;
+    }, {});
+    setSelectedSizes(initialSizes);
+    setIsOpen(true);
+  };
+  const handleAddBundle = () => {
+    if (!selectedBundle) return;
+    addBundleToCart(selectedBundle, selectedSizes);
+    setIsOpen(false);
+  };
+  useEffect(() => {
+    // abort previous product request if any
+    if (productAbortRef.current) {
+      try {
+        productAbortRef.current.abort();
+      } catch (e) { }
       productAbortRef.current = null;
     }
-  };
 
-  const fetchBundles = async () => {
-    try {
-      const res = await api.get("/bundles", {
-        params: { limit: 4 },
-        signal: bundleController.signal,
-      });
-      console.log("Fetched bundles:", res.data);
-      setBundles(res.data.items || []);
-    } catch (err) {
-      if (err?.name !== "AbortError" && err?.message !== "canceled") {
-        console.error("Error fetching bundles:", err);
-        setBundles([]);
-        setError("Failed to load bundles. Try again.");
-      }
-    } finally {
+    // abort previous bundle request if any
+    if (bundleAbortRef.current) {
+      try {
+        bundleAbortRef.current.abort();
+      } catch (e) { }
       bundleAbortRef.current = null;
     }
+
+    const productController = new AbortController();
+    const bundleController = new AbortController();
+    productAbortRef.current = productController;
+    bundleAbortRef.current = bundleController;
+
+    const fetchProducts = async () => {
+      try {
+        const res = await api.get("/products", {
+          params: { q: debouncedQ || "" },
+          signal: productController.signal,
+        });
+        setProducts(res.data?.items || []);
+      } catch (err) {
+        if (err?.name !== "AbortError" && err?.message !== "canceled") {
+          console.error("Error fetching products:", err);
+          setProducts([]);
+        }
+      } finally {
+        productAbortRef.current = null;
+      }
+    };
+
+    const fetchBundles = async () => {
+      try {
+        const res = await api.get("/bundles", {
+          params: { limit: 4 },
+          signal: bundleController.signal,
+        });
+        console.log("Fetched bundles:", res.data);
+        setBundles(res.data.items || []);
+      } catch (err) {
+        if (err?.name !== "AbortError" && err?.message !== "canceled") {
+          console.error("Error fetching bundles:", err);
+          setBundles([]);
+          setError("Failed to load bundles. Try again.");
+        }
+      } finally {
+        bundleAbortRef.current = null;
+      }
+    };
+
+    fetchProducts();
+    fetchBundles();
+
+    // cleanup: abort when effect re-runs or unmounts
+    return () => {
+      try {
+        productController.abort();
+        bundleController.abort();
+      } catch (e) { }
+    };
+  }, [debouncedQ]);
+  const handleSizeChange = (productId, size) => {
+    setSelectedSizes((prev) => ({ ...prev, [productId]: size }));
   };
-
-  fetchProducts();
-  fetchBundles();
-
-  // cleanup: abort when effect re-runs or unmounts
-  return () => {
-    try {
-      productController.abort();
-      bundleController.abort();
-    } catch (e) {}
-  };
-}, [debouncedQ]);
-
 
   // Fetch categories once
   useEffect(() => {
@@ -113,7 +149,7 @@ useEffect(() => {
       } catch (error) {
         console.error("Error fetching categories:", error);
       } finally {
-        mounted 
+        mounted
       }
     })();
 
@@ -123,66 +159,66 @@ useEffect(() => {
   }, []);
 
   // normalize product (memoized)
-const normalize = useCallback((p) => {
-  const original = p.compareAtPrice ?? p.originalPrice ?? p.mrp ?? null;
-  const price = Number(p.price) || 0;
+  const normalize = useCallback((p) => {
+    const original = p.compareAtPrice ?? p.originalPrice ?? p.mrp ?? null;
+    const price = Number(p.price) || 0;
 
-  let discountPercent = null;
-  if (p.discountPercent) {
-    discountPercent = Number(p.discountPercent);
-  } else if (original && Number(original) > price) {
-    discountPercent = Math.round(((Number(original) - price) / Number(original)) * 100);
-  }
+    let discountPercent = null;
+    if (p.discountPercent) {
+      discountPercent = Number(p.discountPercent);
+    } else if (original && Number(original) > price) {
+      discountPercent = Math.round(((Number(original) - price) / Number(original)) * 100);
+    }
 
-  return {
-    ...p,
-    displayPrice: price,
-    originalPrice: original ? Number(original) : null,
-    discountPercent,
-  };
-}, []);
+    return {
+      ...p,
+      displayPrice: price,
+      originalPrice: original ? Number(original) : null,
+      discountPercent,
+    };
+  }, []);
 
-const normalized = useMemo(
-  () => (Array.isArray(products) ? products.map(normalize) : []),
-  [products, normalize]
-);
+  const normalized = useMemo(
+    () => (Array.isArray(products) ? products.map(normalize) : []),
+    [products, normalize]
+  );
 
-const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
+  const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
 
   return (
 
     <div className="bg-white text-black">
-   
-    <section className="relative min-h-[60vh] md:min-h-[72vh] lg:min-h-[80vh] flex items-center justify-start px-6 md:px-16 bg-black/10">
-  {/* Background Image - lazy loaded, uses aria-hidden since decorative */}
-  <img
-    src="/images/banner_web.webp"
-    alt=""
-    aria-hidden="true"
-    loading="lazy"
-    className="absolute inset-0 w-full h-full object-cover z-0"
-  />
 
-  {/* Overlay for contrast */}
-  <div className="absolute inset-0 bg-black/30 z-10" />
+      <section className="relative min-h-[60vh] md:min-h-[72vh] lg:min-h-[80vh] flex items-center justify-start px-6 md:px-16 bg-black/10">
+        {/* Background Image - lazy loaded, uses aria-hidden since decorative */}
+        <img
+          src="/images/banner_web.webp"
+          alt=""
+          aria-hidden="true"
+          loading="lazy"
+          className="absolute inset-0 w-full h-full object-cover z-0"
+        />
 
-  {/* Text content */}
-  <div className="relative z-20 max-w-xl text-white py-16">
-    <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold mb-4 leading-tight tracking-tight drop-shadow-lg">
-      REDEFINE YOUR STYLE
-    </h1>
-    <p className="text-gray-200 mb-8 text-base md:text-lg max-w-md">
-      Discover our latest collection of sweatshirts and hoodies.
-    </p>
+        {/* Overlay for contrast */}
+        <div className="absolute inset-0 bg-black/30 z-10" />
 
-    <Button
-      asChild
-      className="bg-white text-black px-6 md:px-8 py-2 md:py-3 text-sm md:text-base font-semibold tracking-wide hover:bg-gray-200 transition"
-    >
-      <Link to="/collections/hoodies">SHOP NOW</Link>
-    </Button>
-  </div>
-</section>
+        {/* Text content */}
+        <div className="relative z-20 max-w-xl text-white py-16">
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold mb-4 leading-tight tracking-tight drop-shadow-lg">
+            REDEFINE YOUR STYLE
+          </h1>
+          <p className="text-gray-200 mb-8 text-base md:text-lg max-w-md">
+            Discover our latest collection of sweatshirts and hoodies.
+          </p>
+
+          <Button
+            asChild
+            className="bg-white text-black px-6 md:px-8 py-2 md:py-3 text-sm md:text-base font-semibold tracking-wide hover:bg-gray-200 transition"
+          >
+            <Link to="/collections/hoodies">SHOP NOW</Link>
+          </Button>
+        </div>
+      </section>
 
 
       <section className="py-20 bg-white relative overflow-hidden">
@@ -392,91 +428,92 @@ const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
           </div>
 
           {/* Layout: hero left, scroller right */}
-<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {heroes && heroes.length > 0 ? (
-    heroes.map((p) => (
-      <article
-        key={p._id}
-        className="bg-gray-50 rounded-lg overflow-hidden relative group"
-      >
-        <Link to={`/product/${p._id}`} className="block overflow-hidden">
-          <div className="relative h-72 sm:h-80 lg:h-[420px] overflow-hidden">
-            <img
-              src={p.images?.[0] || "https://via.placeholder.com/800x600?text=No+Image"}
-              alt={p.title}
-              loading="lazy"
-              className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-            />
-
-            {/* Badges */}
-            <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
-              {p.isNewProduct && (
-                <span className="bg-black text-white px-3 py-1 text-xs uppercase font-semibold rounded">
-                  NEW
-                </span>
-              )}
-              {p.onSale && (
-                <span className="bg-red-600 text-white px-3 py-1 text-xs uppercase font-semibold rounded">
-                  SALE
-                </span>
-              )}
-            </div>
-
-            {/* Info Box */}
-            <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-md p-4 shadow-md max-w-xs">
-              <h3 className="text-base font-bold uppercase truncate">
-                {p.title}
-              </h3>
-
-              {/* Price + Discount Row */}
-              <div className="mt-2 flex items-center gap-2 flex-wrap">
-                {/* Actual Price */}
-                <span className="text-sm font-bold text-[#042354]">
-                  ₹{Number(p.price).toLocaleString()}
-                </span>
-
-                {/* If on sale — show a fake original price and discount */}
-                {p.onSale && (
-                  <>
-                    <span className="text-xs text-gray-500 line-through">
-                      ₹{Math.round(Number(p.price) / 0.7).toLocaleString()}
-                    </span>
-                    <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
-                      30% OFF
-                    </span>
-                  </>
-                )}
-              </div>
-
-              {/* Buttons */}
-              <div className="mt-3 flex gap-2">
-                <Link
-                  to={`/product/${p._id}`}
-                  className="bg-black text-white px-3 py-2 rounded text-sm font-semibold"
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {heroes && heroes.length > 0 ? (
+              heroes.map((p) => (
+                <article
+                  key={p._id}
+                  className="bg-gray-50 rounded-lg overflow-hidden relative group"
                 >
-                  View Product
-                </Link>
-                <button
-                  onClick={() => {
-                    // add to cart logic here
-                  }}
-                  className="border border-gray-200 px-3 py-2 rounded text-sm font-medium hover:bg-gray-100"
-                  aria-label={`Add ${p.title} to cart`}
-                >
-                  Add to Bag
-                </button>
+                  <Link to={`/product/${p._id}`} className="block overflow-hidden">
+                    <div className="relative h-72 sm:h-80 lg:h-[420px] overflow-hidden">
+                      <img
+                        src={p.images?.[0] || "https://via.placeholder.com/800x600?text=No+Image"}
+                        alt={p.title}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      />
+
+                      {/* Badges */}
+                      <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
+                        {p.isNewProduct && (
+                          <span className="bg-black text-white px-3 py-1 text-xs uppercase font-semibold rounded">
+                            NEW
+                          </span>
+                        )}
+                        {p.onSale && (
+                          <span className="bg-red-600 text-white px-3 py-1 text-xs uppercase font-semibold rounded">
+                            SALE
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Info Box */}
+                      <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-md p-4 shadow-md max-w-xs">
+                        <h3 className="text-base font-bold uppercase truncate">
+                          {p.title}
+                        </h3>
+
+                        {/* Price + Discount Row */}
+                        <div className="mt-2 flex items-center gap-2 flex-wrap">
+                          {/* Actual Price */}
+                          <span className="text-sm font-bold text-[#042354]">
+                            ₹{Number(p.price).toLocaleString()}
+                          </span>
+
+                          {/* If on sale — show a fake original price and discount */}
+                          {p.onSale && (
+                            <>
+                              <span className="text-xs text-gray-500 line-through">
+                                ₹{Math.round(Number(p.price) / 0.7).toLocaleString()}
+                              </span>
+                              <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                                30% OFF
+                              </span>
+                            </>
+                          )}
+                        </div>
+
+                        {/* Buttons */}
+                        <div className="mt-3 flex gap-2">
+                          <Link
+                            to={`/product/${p._id}`}
+                            className="bg-black text-white px-3 py-2 rounded text-sm font-semibold"
+                          >
+                            View Product
+                          </Link>
+                          <button
+                            onClick={(e) => {
+                              e.preventDefault();
+                              openModal(p);
+                            }}
+                            className="border border-gray-200 px-3 py-2 rounded text-sm font-medium hover:bg-gray-100"
+                            aria-label={`Add ${p.title} to cart`}
+                          >
+                            Add to Bag
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </Link>
+                </article>
+              ))
+            ) : (
+              <div className="col-span-3 h-72 sm:h-96 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
+                No featured products available
               </div>
-            </div>
+            )}
           </div>
-        </Link>
-      </article>
-    ))
-  ) : (
-    <div className="col-span-3 h-72 sm:h-96 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
-      No featured products available
-    </div>
-  )}
-</div>
 
 
 
@@ -537,118 +574,118 @@ const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
 
 
 
-{/* 🧩 Bundle Section */}
+      {/* 🧩 Bundle Section */}
 
-<section className=" mx-auto px-4 sm:px-6 lg:px-8 py-20">
-  <div className="flex items-center justify-between mb-10">
-    <h2 className="text-3xl md:text-4xl font-bold text-black">Featured Bundle</h2>
-    <button className="text-sm text-gray-600 hover:text-black font-medium">
-      View All
-    </button>
-  </div>
+      <section className=" mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="flex items-center justify-between mb-10">
+          <h2 className="text-3xl md:text-4xl font-bold text-black">Featured Bundle</h2>
+          <button className="text-sm text-gray-600 hover:text-black font-medium">
+            View All
+          </button>
+        </div>
 
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-    {bundles.slice(0, 4).map((bundle) => {
-      const total =
-        bundle.products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0;
-      const bundlePrice = Number(bundle.bundlePrice || total);
-      const fakeOriginal = Math.round(bundlePrice / 0.7);
-  const discountPercent = Math.round(((fakeOriginal - bundlePrice) / fakeOriginal) * 100);
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          {bundles.slice(0, 4).map((bundle) => {
+            const total =
+              bundle.products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0;
+            const bundlePrice = Number(bundle.bundlePrice || total);
+            const fakeOriginal = Math.round(bundlePrice / 0.7);
+            const discountPercent = Math.round(((fakeOriginal - bundlePrice) / fakeOriginal) * 100);
 
-      return (
-        <div
-          key={bundle._id}
-          className="group border border-gray-200 rounded-2xl bg-white hover:shadow-md transition overflow-hidden"
-        >
-          {/* Image */}
-          <div className="relative">
-            <img
-              src={
-                bundle.heroImage ||
-                bundle.mainImages?.[0] ||
-                bundle.products?.[0]?.images?.[0] ||
-                "/images/placeholder-800.png"
-              }
-              alt={bundle.title}
-              className="w-full h-72 object-cover"
-            />
+            return (
+              <div
+                key={bundle._id}
+                className="group border border-gray-200 rounded-2xl bg-white hover:shadow-md transition overflow-hidden"
+              >
+                {/* Image */}
+                <div className="relative">
+                  <img
+                    src={
+                      bundle.heroImage ||
+                      bundle.mainImages?.[0] ||
+                      bundle.products?.[0]?.images?.[0] ||
+                      "/images/placeholder-800.png"
+                    }
+                    alt={bundle.title}
+                    className="w-full h-72 object-cover"
+                  />
 
-            {/* Bundle Tag */}
-            <span className="absolute top-4 left-4 bg-black text-white text-xs font-semibold px-3 py-1 rounded-full tracking-wide">
-              Bundle
-            </span>
+                  {/* Bundle Tag */}
+                  <span className="absolute top-4 left-4 bg-black text-white text-xs font-semibold px-3 py-1 rounded-full tracking-wide">
+                    Bundle
+                  </span>
 
-            {discountPercent > 0 && (
-              <span className="absolute top-4 right-4 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                {discountPercent}% OFF
-              </span>
-            )}
-          </div>
-
-          {/* Content */}
-          <div className="p-5 flex flex-col gap-3">
-            <h3 className="text-lg font-semibold text-black truncate">
-              {bundle.title}
-            </h3>
-            <p className="text-sm text-gray-500 line-clamp-2 mb-2">
-              {bundle.description || "Exclusive curated items in one pack."}
-            </p>
-
-            {/* Price */}
-            <div className="flex items-center gap-2 mb-2">
-              <span className="text-xl font-bold text-black">
-                ₹{bundlePrice.toLocaleString()}
-              </span>
-                 {bundle && (
-                  <>
-                    <span className="text-sm text-gray-500 line-through">
-                      ₹{Math.round(Number(bundle.price) / 0.7).toLocaleString()}
-                    </span>
-                    <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                  {discountPercent > 0 && (
+                    <span className="absolute top-4 right-4 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
                       {discountPercent}% OFF
                     </span>
-                  </>
-                )}
-            </div>
-
-            {/* Thumbnails */}
-            <div className="flex gap-1 mb-3">
-              {(bundle.products || []).slice(0, 4).map((p) => (
-                <img
-                  key={p._id}
-                  src={p.images?.[0] || "/images/placeholder.png"}
-                  alt={p.title}
-                  className="w-10 h-10 rounded-md border border-gray-200 object-cover"
-                />
-              ))}
-              {bundle.products?.length > 4 && (
-                <div className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-600 text-xs rounded-md border border-gray-200">
-                  +{bundle.products.length - 4}
+                  )}
                 </div>
-              )}
-            </div>
 
-            {/* Buttons */}
-            <div className="flex gap-2">
-              <button
-                onClick={() => openBundleModal(bundle)}
-                className="flex-1 px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-full hover:bg-gray-50 transition"
-              >
-                View
-              </button>
-              <button
-                onClick={() => handleAddBundle(bundle)}
-                className="flex-1 px-4 py-2.5 text-sm font-medium bg-black text-white rounded-full hover:bg-gray-900 transition"
-              >
-                Add Bundle
-              </button>
-            </div>
-          </div>
+                {/* Content */}
+                <div className="p-5 flex flex-col gap-3">
+                  <h3 className="text-lg font-semibold text-black truncate">
+                    {bundle.title}
+                  </h3>
+                  <p className="text-sm text-gray-500 line-clamp-2 mb-2">
+                    {bundle.description || "Exclusive curated items in one pack."}
+                  </p>
+
+                  {/* Price */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xl font-bold text-black">
+                      ₹{bundlePrice.toLocaleString()}
+                    </span>
+                    {bundle && (
+                      <>
+                        <span className="text-sm text-gray-500 line-through">
+                          ₹{Math.round(Number(bundle.price) / 0.7).toLocaleString()}
+                        </span>
+                        <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                          {discountPercent}% OFF
+                        </span>
+                      </>
+                    )}
+                  </div>
+
+                  {/* Thumbnails */}
+                  <div className="flex gap-1 mb-3">
+                    {(bundle.products || []).slice(0, 4).map((p) => (
+                      <img
+                        key={p._id}
+                        src={p.images?.[0] || "/images/placeholder.png"}
+                        alt={p.title}
+                        className="w-10 h-10 rounded-md border border-gray-200 object-cover"
+                      />
+                    ))}
+                    {bundle.products?.length > 4 && (
+                      <div className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-600 text-xs rounded-md border border-gray-200">
+                        +{bundle.products.length - 4}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Buttons */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => openBundleModal(bundle)}
+                      className="flex-1 px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-full hover:bg-gray-50 transition"
+                    >
+                      View
+                    </button>
+                    <button
+                      onClick={() => openBundleModal(bundle)}
+                      className="flex-1 px-4 py-2.5 text-sm font-medium bg-black text-white rounded-full hover:bg-gray-900 transition"
+                    >
+                      Add Bundle
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
-      );
-    })}
-  </div>
-</section>
+      </section>
 
 
 
@@ -774,7 +811,164 @@ const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
           </form>
         </div>
       </section>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+        <DialogContent className="max-w-sm w-[90%]">
+          <DialogHeader>
+            <DialogTitle>Select Size</DialogTitle>
+            <DialogClose />
+          </DialogHeader>
 
+          <div className="p-4 flex flex-col gap-4">
+            {selectedProduct && (
+              <>
+
+
+                <div>
+                  <div className="text-sm text-gray-600 mb-2">Choose Size</div>
+                  <div className="flex flex-wrap gap-2">
+                    {Object.entries(selectedProduct.inventory || {}).map(([size, qty]) => (
+                      <button
+                        key={size}
+                        onClick={() => handleSelectSize(size)}
+                        disabled={qty <= 0}
+                        className={`px-4 py-2 rounded-full border text-sm font-medium transition
+                    ${qty <= 0
+                            ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200"
+                            : "hover:bg-black hover:text-white"
+                          }`}
+                        title={qty <= 0 ? "Out of stock" : `Add ${size} to cart`}
+                      >
+                        <div className="flex flex-col items-center">
+                          <span>{size}</span>
+                          <small className="text-xs">{qty > 0 ? `${qty} left` : "Out"}</small>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  {Object.values(selectedProduct.inventory || {}).every((q) => q <= 0) && (
+                    <div className="mt-3 text-sm text-red-500 font-medium">Out of Stock</div>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); }}>
+        <DialogContent className="max-w-3xl w-full bg-white  p-6 relative ">
+          {/* Close X */}
+          <button
+            onClick={() => {
+              setIsOpen(false);
+
+            }}
+            aria-label="Close"
+            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center  hover:bg-gray-100 transition"
+          >
+            <X className="w-5 h-5 text-gray-600" />
+          </button>
+
+          {/* Top header: title + price + small see details */}
+          <div className="flex items-start justify-between gap-4 mb-6">
+            <div className="flex items-center gap-3">
+              <img
+                src={selectedBundle?.mainImages?.[0] || selectedBundle?.products?.[0]?.images?.[0] || "/images/placeholder.png"}
+                alt={selectedBundle?.title}
+                className="w-14 h-14 object-cover rounded-md border"
+              />
+              <div>
+                <h3 className="text-lg font-semibold">{selectedBundle?.title}</h3>
+                <div className="text-sm text-gray-700 font-semibold">₹{fmt(selectedBundle?.price || selectedBundle?.bundlePrice || 0)}</div>
+                <button
+                  onClick={() => selectedBundle && navigate(`/collections/${selectedBundle._id}`)}
+                  className="text-xs text-gray-500 underline mt-1"
+                >
+                  See Details
+                </button>
+              </div>
+            </div>
+
+            <div className="text-right text-gray-500 text-sm"></div>
+          </div>
+
+          {/* Main row: product cards side-by-side with + in the middle */}
+          <div className="w-full bg-white border-t border-b py-6 px-2 mb-6 relative  overflow-y-auto h-[300px]">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-start justify-between relative">
+              {(selectedBundle?.products || []).map((p, idx) => (
+                <div
+                  key={p._id}
+                  className="bg-white flex flex-col sm:flex-row gap-4 items-start"
+                >
+                  {/* product image */}
+                  <div className="w-full sm:w-44 flex-shrink-0">
+                    <img
+                      src={p.images?.[0] || "/images/placeholder.png"}
+                      alt={p.title}
+                      className="w-full h-44 object-cover rounded-md border"
+                    />
+                  </div>
+
+                  {/* product meta + select */}
+                  <div className="flex-1">
+
+                    <div className="text-sm font-semibold text-black">{p.title}</div>
+
+
+                    <div className="text-sm font-semibold text-gray-900">
+                      ₹{fmt(p.price)}
+                    </div>
+
+                    {/* size guide + size select */}
+                    <div className="mt-4">
+
+
+                      {/* Hardcoded sizes Select */}
+                      <div className="mt-24 max-w-xs">
+
+                        <Select
+                          value={selectedSizes[p._id] ?? ""}
+                          onValueChange={(val) => handleSizeChange(p._id, val)}
+                        >
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Select Size" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
+                              <SelectItem key={size} value={size}>
+                                {size}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+
+
+            </div>
+
+          </div>
+
+          {/* Quantity + CTA row */}
+          <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
+            {/* left: quantity control */}
+
+
+            {/* CTA */}
+            <div className="w-full sm:w-1/3">
+              <button
+                onClick={handleAddBundle}
+                className="w-full  text-white py-3  font-semibold bg-black transition"
+              >
+                Add To Cart
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

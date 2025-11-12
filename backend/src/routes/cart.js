@@ -2,7 +2,7 @@ import express from 'express'
 import { CartItem } from '../models/CartItem.js'
 import { Product } from '../models/Product.js'
 import { requireAuth } from '../middleware/auth.js'
-
+import mongoose from 'mongoose'
 const router = express.Router()
 
 // Helper to get cart key (user or guest)
@@ -60,68 +60,107 @@ router.post('/add', async (req, res) => {
 
 router.post('/addbundle', async (req, res) => {
   console.log("Add bundle to cart request body:", req.body);
-  const key = cartKey(req); // { user: userId } or { guestId }
-  const { bundleId, bundleProducts, quantity = 1 } = req.body;
+  const key = cartKey(req);
+  const { bundleId, bundleProducts, quantity = 1, mainImage } = req.body;
 
-  if (!key || !bundleId || !bundleProducts?.length)
+  if (!key || !bundleId || !Array.isArray(bundleProducts) || bundleProducts.length === 0)
     return res.status(400).json({ error: 'Missing fields' });
 
-  // Format bundleProducts
-  const formattedProducts = bundleProducts.map(p => ({
-    product: p.productId, // ObjectId
-    size: p.size,
-    quantity: p.quantity || 1,
+  for (const p of bundleProducts) {
+    if (!p.productId || !mongoose.isValidObjectId(p.productId)) {
+      return res.status(400).json({ error: `Invalid productId: ${p.productId}` });
+    }
+  }
+
+  const forCompare = bundleProducts.map(p => ({
+    product: String(p.productId),
+    size: p.size ?? "",
+    quantity: Number(p.quantity ?? 1),
   }));
 
+  const forSave = bundleProducts.map(p => ({
+    product: new mongoose.Types.ObjectId(p.productId),
+    size: p.size ?? "",
+    quantity: Number(p.quantity ?? 1),
+  }));
+
+  const canonical = arr =>
+    arr
+      .map(x => `${x.product}:${x.size}:${x.quantity}`)
+      .sort()
+      .join("|");
+
+  const newSig = canonical(forCompare);
+
   try {
-    // Find any bundle with same bundleId and same number of products
-    const existing = await CartItem.findOne({
+    const existingRows = await CartItem.find({
       ...key,
-      bundle: bundleId,
-      bundleProducts: { $size: formattedProducts.length }
+      bundle: mongoose.isValidObjectId(bundleId) ? new mongoose.Types.ObjectId(bundleId) : bundleId,
+    }).exec();
+
+    const matchingRow = existingRows.find((row) => {
+      const existingCompare = (row.bundleProducts || []).map(bp => ({
+        product: bp.product ? bp.product.toString() : String(bp.product),
+        size: bp.size ?? "",
+        quantity: Number(bp.quantity ?? 1),
+      }));
+      const existingSig = canonical(existingCompare);
+      return existingSig === newSig;
     });
 
-    let exactMatch = false;
-    if (existing) {
-      exactMatch = existing.bundleProducts.every((bp, idx) => {
-        // Convert ObjectIds to strings safely
-        const existingProductId = bp.product ? bp.product.toString() : null;
-        const newProductId = formattedProducts[idx].product.toString();
-        return existingProductId === newProductId && bp.size === formattedProducts[idx].size;
-      });
-    }
-
-    if (exactMatch) {
-      existing.quantity += quantity;
-      await existing.save();
-      await existing.populate([
+    if (matchingRow) {
+      matchingRow.quantity = (matchingRow.quantity || 0) + Number(quantity || 1);
+      await matchingRow.save();
+      await matchingRow.populate([
         { path: 'bundle', select: 'title price images' },
         { path: 'bundleProducts.product', select: 'title price images' },
       ]);
-      return res.json({ message: 'Bundle quantity updated', item: existing });
+      return res.json({ message: 'Bundle quantity updated', item: matchingRow });
     }
 
-    // Create new cart entry
-const newItem = await CartItem.create({
-  ...key,
-  bundle: bundleId,
-    mainImage: req.body.mainImage || null,
-  bundleProducts: formattedProducts,
-  quantity
-});
+    const createDoc = {
+      ...key,
+      bundle: mongoose.isValidObjectId(bundleId) ? new mongoose.Types.ObjectId(bundleId) : bundleId,
+      mainImage: mainImage || null,
+      bundleProducts: forSave,
+      quantity: Number(quantity || 1),
+    };
+    delete createDoc.product;
+    delete createDoc.size;
 
-// fetch it again to populate
-const populatedItem = await CartItem.findById(newItem._id)
-  .populate('bundle', 'title price images')
-  .populate('bundleProducts.product', 'title price images');
+    let newItem;
+    try {
+      newItem = await CartItem.create(createDoc);
+    } catch (err) {
+      if (err && err.code === 11000) {
+        const doc = await CartItem.findOne({
+          ...key,
+          bundle: mongoose.isValidObjectId(bundleId) ? new mongoose.Types.ObjectId(bundleId) : bundleId,
+        });
+        if (doc) {
+          doc.quantity = (doc.quantity || 0) + Number(quantity || 1);
+          await doc.save();
+          await doc.populate([
+            { path: 'bundle', select: 'title price images' },
+            { path: 'bundleProducts.product', select: 'title price images' },
+          ]);
+          return res.json({ message: 'Bundle quantity updated (after race)', item: doc });
+        }
+      }
+      throw err;
+    }
 
-res.json({ message: 'Bundle added to cart', item: populatedItem });
+    const populatedItem = await CartItem.findById(newItem._id)
+      .populate('bundle', 'title price images')
+      .populate('bundleProducts.product', 'title price images');
 
+    return res.json({ message: 'Bundle added to cart', item: populatedItem });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to add bundle' });
+    console.error('addbundle error:', err);
+    return res.status(500).json({ error: 'Failed to add bundle' });
   }
 });
+
 
 
 

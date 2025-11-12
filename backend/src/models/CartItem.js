@@ -1,63 +1,62 @@
 import mongoose from "mongoose";
 
-const cartItemSchema = new mongoose.Schema(
-  {
-    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
-    guestId: { type: String, index: true },
+const bundleProductSchema = new mongoose.Schema({
+  product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+  size: { type: String },
+  quantity: { type: Number, default: 1 },
+}, { _id: false });
 
-    // Single product
-    product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-    size: { type: String },
+const cartItemSchema = new mongoose.Schema({
+  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
+  guestId: { type: String, index: true },
 
-    // Bundle
-    bundle: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle" },
-    mainImage: { type: String },
-    bundleProducts: [
-      {
-        product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-        size: { type: String },
-        quantity: { type: Number, default: 1 },
-      },
-    ],
+  // Single product
+  product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
+  size: { type: String },
 
-    quantity: { type: Number, default: 1, min: 1 }, // applies to bundle or single product
-  },
-  { timestamps: true }
-);
+  // Bundle
+  bundle: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle" },
+  mainImage: { type: String },
+  bundleProducts: { type: [bundleProductSchema], default: undefined },
 
-/* 
----------------------------------------------------
-🧩 FIXED INDEXES (Safe for all cases)
----------------------------------------------------
-*/
+  quantity: { type: Number, default: 1, min: 1 },
+}, { timestamps: true });
 
-// 🔹 1. Single product (for logged-in users)
+// Clean up fields automatically
+cartItemSchema.pre("validate", function(next) {
+  if (this.bundle) {
+    this.product = undefined;
+    this.size = undefined;
+  }
+  next();
+});
+
+// --- Single product unique indexes ---
 cartItemSchema.index(
   { user: 1, product: 1, size: 1 },
   {
     unique: true,
     partialFilterExpression: {
       user: { $exists: true, $ne: null },
-      product: { $exists: true },
-      bundle: { $exists: false }, // 👈 ensures bundle items don't conflict
+      product: { $exists: true, $ne: null },
+      bundle: { $exists: false },
     },
   }
 );
 
-// 🔹 2. Single product (for guest users)
 cartItemSchema.index(
   { guestId: 1, product: 1, size: 1 },
   {
     unique: true,
     partialFilterExpression: {
       guestId: { $exists: true, $ne: null },
-      product: { $exists: true },
+      product: { $exists: true, $ne: null },
       bundle: { $exists: false },
     },
   }
 );
 
-// 🔹 3. Bundle (for logged-in users)
+// --- Bundles: one per user/guest ---
 cartItemSchema.index(
   { user: 1, bundle: 1 },
   {
@@ -69,7 +68,6 @@ cartItemSchema.index(
   }
 );
 
-// 🔹 4. Bundle (for guest users)
 cartItemSchema.index(
   { guestId: 1, bundle: 1 },
   {
@@ -82,3 +80,4 @@ cartItemSchema.index(
 );
 
 export const CartItem = mongoose.model("CartItem", cartItemSchema);
+    

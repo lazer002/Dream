@@ -72,7 +72,7 @@ useEffect(() => {
   const fetchBundles = async () => {
     try {
       const res = await api.get("/bundles", {
-        params: { limit: 3 },
+        params: { limit: 4 },
         signal: bundleController.signal,
       });
       console.log("Fetched bundles:", res.data);
@@ -539,7 +539,7 @@ const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
 
 {/* 🧩 Bundle Section */}
 
-<section className="max-w-[80vw] mx-auto px-4 sm:px-6 lg:px-8 py-20">
+<section className=" mx-auto px-4 sm:px-6 lg:px-8 py-20">
   <div className="flex items-center justify-between mb-10">
     <h2 className="text-3xl md:text-4xl font-bold text-black">Featured Bundle</h2>
     <button className="text-sm text-gray-600 hover:text-black font-medium">
@@ -547,8 +547,8 @@ const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
     </button>
   </div>
 
-  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-8">
-    {bundles.slice(0, 3).map((bundle) => {
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+    {bundles.slice(0, 4).map((bundle) => {
       const total =
         bundle.products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0;
       const bundlePrice = Number(bundle.bundlePrice || total);

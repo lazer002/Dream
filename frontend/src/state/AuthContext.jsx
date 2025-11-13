@@ -99,6 +99,7 @@ export function AuthProvider({ children }) {
 
   // 🔐 Google Login
   const loginWithGoogle = async (googleToken) => {
+    console.log("Logging in with Google token:", googleToken);
     try {
       const { data } = await baseApi.post(`/auth/google`, { token: googleToken }, { withCredentials: true });
       setUser(data.user);

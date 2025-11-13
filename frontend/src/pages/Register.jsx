@@ -2,14 +2,14 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
+import toast from "react-hot-toast";
 
 export default function Signup() {
-  const { register, signupWithGoogle } = useAuth();
+  const { register, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
 
   const [form, setForm] = useState({ name: "", email: "", password: "" });
   const [error, setError] = useState("");
-
   const googleBtnRef = useRef(null);
   const innerBtnRef = useRef(null);
 
@@ -30,7 +30,7 @@ export default function Signup() {
   const handleGoogleLogin = async (res) => {
     if (!res?.credential) return;
     try {
-      await signupWithGoogle(res.credential);
+      await loginWithGoogle(res.credential);
       navigate("/");
       toast.success("Signed up with Google");
     } catch {

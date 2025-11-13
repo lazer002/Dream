@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema(
     name: { type: String, required: true },
     passwordHash: { type: String }, // optional for social login
     role: { type: String, enum: ['user', 'admin'], default: 'user', index: true },
+    googleId: { type: String, unique: true, sparse: true },
     provider: { type: String, default: 'local' },
     avatar: { type: String, default: '' },
     phone: { type: String, default: '' },

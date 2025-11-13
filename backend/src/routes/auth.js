@@ -124,6 +124,74 @@ router.post('/otp/verify', async (req, res) => {
   }
 });
 
+router.post("/change-password", async (req, res) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+
+    const { currentPassword, newPassword, confirmPassword } = req.body;
+    if (!newPassword || !confirmPassword) {
+      return res.status(400).json({ error: "newPassword and confirmPassword are required" });
+    }
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: "Passwords do not match" });
+    }
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: "Password must be at least 8 characters long" });
+    }
+
+    // Load user and include password field (if your schema uses select:false)
+    const user = await User.findById(userId).select("+password +provider");
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // If user already has a password -> require and verify currentPassword
+    if (user.password) {
+      if (!currentPassword) {
+        return res.status(400).json({ error: "currentPassword is required to change your password" });
+      }
+
+      const match = await bcrypt.compare(currentPassword, user.password);
+      if (!match) {
+        return res.status(401).json({ error: "Current password is incorrect" });
+      }
+
+      // Prevent reusing same password
+      const sameAsOld = await bcrypt.compare(newPassword, user.password);
+      if (sameAsOld) {
+        return res.status(400).json({ error: "New password must be different from the current password" });
+      }
+    } else {
+      // No existing password (likely Google-only account)
+      // Optionally: extra checks here (e.g., require 2FA or recently logged-in)
+      // We allow setting password without currentPassword because user is authenticated via Google.
+    }
+
+    // Hash and save the new password
+    const salt = await bcrypt.genSalt(10);
+    const hashed = await bcrypt.hash(newPassword, salt);
+    user.password = hashed;
+    user.provider = "local"; // optional: mark account as local-enabled
+    await user.save();
+
+    // Issue fresh tokens (so the client doesn't need to re-login)
+    const payload = {
+      id: user._id.toString(),
+      role: user.role,
+      email: user.email,
+      name: user.name,
+    };
+    const accessToken = signAccessToken(payload);
+    const refreshToken = signRefreshToken(payload);
+
+    return res.json({ message: "Password updated", accessToken, refreshToken });
+  } catch (err) {
+    console.error("change-password error:", err);
+    return res.status(500).json({ error: "Failed to change password" });
+  }
+});
+
+
+
 router.post("/google", googleLogin);
 
 export default router

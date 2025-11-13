@@ -300,7 +300,20 @@ router.post("/track-email", async (req, res) => {
   }
 });
 
+router.get("/mine", async (req, res) => {
+  try {
+    const userId = req.user.id;
 
+    const orders = await Order.find({ user: userId })
+      .populate("items.product", "title price images")
+      .sort({ createdAt: -1 });
+
+    res.json({ orders });
+  } catch (err) {
+    console.error("Get user orders error:", err);
+    res.status(500).json({ error: "Failed to fetch orders" });
+  }
+});
 
 
 

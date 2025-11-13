@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { api } from "@/utils/config";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
@@ -107,6 +107,7 @@ const BundlesPage = () => {
               const discountPercent = Math.round(((fakeOriginal - bundlePrice) / fakeOriginal) * 100);
 
               return (
+                <Link key={bundle._id} to={`/collections/${bundle._id}`}>
                 <div
                   key={bundle._id}
                   className="group border border-gray-200 rounded-2xl bg-white hover:shadow-lg transition overflow-hidden"
@@ -164,7 +165,7 @@ const BundlesPage = () => {
 
                     <div className="flex gap-2">
                       <button
-                        onClick={() => openBundleModal(bundle)}
+                        onClick={() => navigate(`/collections/${bundle._id}`)}
                         className="flex-1 px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-full hover:bg-gray-50 transition"
                       >
                         View
@@ -178,6 +179,7 @@ const BundlesPage = () => {
                     </div>
                   </div>
                 </div>
+                </Link>
               );
             })}
           </div>

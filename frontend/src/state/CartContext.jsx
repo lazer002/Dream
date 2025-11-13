@@ -190,7 +190,7 @@ const clearCart = async (opts = { server: true }) => {
 };
 
 const addBundleToCart = async (bundle, selectedSizes) => {
-  console.log("Adding bundle to cart:", bundle, selectedSizes);
+  // console.log("Adding bundle to cart:", bundle, selectedSizes);
 
   // Ensure all products have a selected size
   const allSizesSelected =

@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
+import toast from "react-hot-toast";
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
@@ -30,6 +31,7 @@ export default function Login() {
     try {
       await loginWithGoogle(res.credential);
       navigate("/");
+      toast.success("Logged in with Google");
     } catch {
       setError("Google login failed");
     }

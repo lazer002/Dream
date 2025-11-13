@@ -25,9 +25,7 @@ export default function BundlePDP() {
   const [activeImage, setActiveImage] = useState(0);
   const [openZoom, setOpenZoom] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
-  const [selectedSizes, setSelectedSizes] = useState(
-    bundle?.products?.map(() => "") || []
-  );
+  const [selectedSizes, setSelectedSizes] = useState({});
 
 
   useEffect(() => {
@@ -44,6 +42,10 @@ export default function BundlePDP() {
     };
     fetchBundle();
   }, [id]);
+
+    const handleSizeChange = (productId, size) => {
+    setSelectedSizes((prev) => ({ ...prev, [productId]: size }));
+  };
 
   if (loading) return <div className="text-center py-20">Loading bundle...</div>;
   if (!bundle) return <div className="text-center py-20">Bundle not found.</div>;
@@ -84,7 +86,7 @@ export default function BundlePDP() {
       </div>
 
       {/* Right: Scrollable Details */}
-      <div className="md:w-[40%] flex flex-col gap-6 pr-2 md:h-auto md:overflow-y-visible">
+      <div className="md:w-[40%] flex flex-col  pr-2 md:h-auto md:overflow-y-visible">
         <h1 className="text-[44px] font-bold text-gray-900">{bundle.title}</h1>
 
         <p className="text-[19px] text-gray-700 leading-relaxed">
@@ -93,42 +95,7 @@ export default function BundlePDP() {
         </p>
 
         {/* Included Products */}
-        <div className="flex flex-col gap-4 mt-2">
-          {bundle.products.map((p, idx) => (
-            <div key={p._id} className="flex flex-col gap-2">
-              <Card className="flex-shrink-0 w-[30vh] h-[30vh] p-2 relative overflow-hidden group">
-                <img
-                  src={p.images[0]}
-                  alt={p.title}
-                  className="w-full h-full object-cover rounded-md transition-transform duration-500 group-hover:scale-105"
-                />
-                <div className="absolute bottom-2 left-2 right-2 bg-black bg-opacity-60 text-white p-2 rounded">
-                  <p className="text-sm font-semibold truncate">{p.title}</p>
-                  <p className="text-xs opacity-90">₹{p.price}</p>
-                </div>
-              </Card>
-
-              {/* Shadcn Size Dropdown */}
-              <Select
-                value={selectedSizes[idx] || ""}
-                onValueChange={(val) => {
-                  const newSizes = [...selectedSizes];
-                  newSizes[idx] = val;
-                  setSelectedSizes(newSizes);
-                }}
-              >
-                <SelectTrigger className="w-[30vh]">
-                  <SelectValue placeholder="Select Size" />
-                </SelectTrigger>
-                <SelectContent>
-                  {(p.sizes || ["S", "M", "L", "XL", "XXL"]).map((size) => (
-                    <SelectItem key={size} value={size}>{size}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          ))}
-        </div>
+    
 
 
         {/* Price Section */}
@@ -151,7 +118,53 @@ export default function BundlePDP() {
           Inclusive of all taxes
         </span>
 
+   <div className="flex flex-col gap-4 mt-4">
+  {bundle.products.map((p, idx) => (
+    <div
+      key={p._id}
+      className="flex items-center justify-between gap-4 border border-gray-200 rounded-xl p-3 hover:shadow-md transition-all bg-white"
+    >
+      {/* Left: Image + info */}
+      <div className="flex items-center gap-3 flex-1 min-w-0">
+        <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
+          <img
+            src={p.images?.[0] || "/images/placeholder.png"}
+            alt={p.title}
+            className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
+          />
+        </div>
+        <div className="flex flex-col justify-center truncate">
+          <p className="font-medium text-black text-sm truncate">
+            {p.title}
+          </p>
+          <p className="text-xs text-gray-500">₹{p.price}</p>
+        </div>
+      </div>
+
+      {/* Right: Size selector */}
+      <div className="flex-shrink-0 w-36">
+        <Select
+       value={selectedSizes[p._id] ?? ""}
+                    onValueChange={(val) => handleSizeChange(p._id, val)}
+        >
+          <SelectTrigger className="w-full border-gray-300 rounded-lg focus:ring-1 focus:ring-black text-sm">
+            <SelectValue placeholder="Select Size" />
+          </SelectTrigger>
+          <SelectContent>
+            {(p.sizes || ["S", "M", "L", "XL", "XXL"]).map((size) => (
+              <SelectItem key={size} value={size}>
+                {size}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  ))}
+</div>
+
         <Separator className="my-4" />
+        
 
         {/* Buttons */}
         <div className="flex flex-col gap-3">

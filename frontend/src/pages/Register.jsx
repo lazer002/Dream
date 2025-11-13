@@ -21,6 +21,7 @@ export default function Signup() {
     try {
       await register(form.name, form.email, form.password);
       navigate("/");
+      toast.success("Account created successfully");
     } catch {
       setError("Signup failed");
     }
@@ -31,6 +32,7 @@ export default function Signup() {
     try {
       await signupWithGoogle(res.credential);
       navigate("/");
+      toast.success("Signed up with Google");
     } catch {
       setError("Google signup failed");
     }

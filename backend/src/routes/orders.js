@@ -7,12 +7,18 @@ import axios from "axios"; // fixed import
 import { getNextOrderSeq } from "../models/Counter.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { templateForStatus } from "../utils/emailTemplates.js";
+import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
 
-// Create Order (COD or Razorpay)
-router.post("/create", async (req, res) => {
+
+router.post("/create", requireAuth, async (req, res) => {
   try {
+    console.log("Create order request body:", req.body);
+    // defensive read: prefer normalized id set by requireAuth
+    const userId = req.user?.id || req.user?._id || null;
+    console.log("Resolved userId:", userId);
+
     const {
       items,
       subtotal,
@@ -25,35 +31,38 @@ router.post("/create", async (req, res) => {
       paymentMethod,
       discountCode,
       source,
-      
     } = req.body;
 
     if (!items || items.length === 0) {
       return res.status(400).json({ success: false, error: "Cart is empty" });
     }
 
-    let userId = req.user?._id || null;
     let guestId = null;
 
-    // 1️⃣ Create guest user if not logged in
+    // Only create guest if there's no logged-in user
     if (!userId) {
-      const guest = await GuestUser.create({
-        email: contactEmail,
-        firstName: shippingAddress.firstName,
-        lastName: shippingAddress.lastName,
-        address: shippingAddress.address,
-        apartment: shippingAddress.apartment || "",
-        city: shippingAddress.city,
-        state: shippingAddress.state || "Delhi",
-        zip: shippingAddress.zip || "110045",
-        country: shippingAddress.country || "India",
-        phone: shippingAddress.phone,
-      });
+      // find or create guest by email to avoid duplicates
+      let guest = null;
+      if (contactEmail) {
+        guest = await GuestUser.findOne({ email: contactEmail });
+      }
+      if (!guest) {
+        guest = await GuestUser.create({
+          email: contactEmail,
+          firstName: shippingAddress.firstName,
+          lastName: shippingAddress.lastName,
+          address: shippingAddress.address,
+          apartment: shippingAddress.apartment || "",
+          city: shippingAddress.city,
+          state: shippingAddress.state || "Delhi",
+          zip: shippingAddress.zip || "110045",
+          country: shippingAddress.country || "India",
+          phone: shippingAddress.phone,
+        });
+      }
       guestId = guest._id;
     }
 
-
-    // 3️⃣ Prepare order items (support bundle)
     const orderItems = items.map((i) => ({
       productId: i.productId || null,
       bundleId: i.bundleId || null,
@@ -66,14 +75,13 @@ router.post("/create", async (req, res) => {
       mainImage: i.mainImage || "",
     }));
 
-
-      const nextSeq = await getNextOrderSeq(new Date().getFullYear());
+    const nextSeq = await getNextOrderSeq(new Date().getFullYear());
     const orderNumber = `DD-${new Date().getFullYear()}-${String(nextSeq).padStart(4, "0")}`;
 
     const order = await Order.create({
-      userId,
-      guestId,
-      email: contactEmail,
+      userId: userId || null,           // <-- IMPORTANT: save userId when logged-in
+      guestId: userId ? null : guestId, // clear guestId for logged-in users
+      email: userId ? (req.user.email || contactEmail) : contactEmail,
       orderNumber,
       shippingMethod,
       billingSame,
@@ -86,20 +94,17 @@ router.post("/create", async (req, res) => {
       paymentMethod,
       source,
       paymentStatus: paymentMethod === "cod" ? "pending" : "initiated",
-      orderStatus: "pending", // 👈 only this, pre-save hook will handle statusHistory
+      orderStatus: "pending",
     });
 
-    // 5️⃣ Link order to guest (for future guest tracking)
     if (!userId && guestId) {
-      await GuestUser.findByIdAndUpdate(guestId, {
-        $push: { orders: order._id },
-      });
+      await GuestUser.findByIdAndUpdate(guestId, { $push: { orders: order._id } });
     }
 
-    // 6️⃣ Razorpay flow
+    // Razorpay flow (unchanged)
     if (paymentMethod === "razorpay") {
       const razorpayOptions = {
-        amount: total * 100, // amount in paise
+        amount: total * 100,
         currency: "INR",
         receipt: order._id.toString(),
       };
@@ -111,11 +116,7 @@ router.post("/create", async (req, res) => {
         },
       };
 
-      const razorpayOrder = await axios.post(
-        "https://api.razorpay.com/v1/orders",
-        razorpayOptions,
-        razorpayAuth
-      );
+      const razorpayOrder = await axios.post("https://api.razorpay.com/v1/orders", razorpayOptions, razorpayAuth);
 
       await Payment.create({
         orderId: order._id,
@@ -138,19 +139,14 @@ router.post("/create", async (req, res) => {
       });
     }
 
+    // send email (unchanged)
     try {
       const { subject, text, html } = templateForStatus("placed", { order });
-
-      await sendEmail({
-        to: contactEmail,
-        subject,
-        text,
-        html,
-      });
+      await sendEmail({ to: order.email, subject, text, html });
     } catch (err) {
       console.error("Error sending order email:", err.message);
     }
-    
+
     res.json({
       success: true,
       orderNumber,
@@ -162,6 +158,7 @@ router.post("/create", async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 
 // Razorpay payment success webhook
 router.post("/payment-success", async (req, res) => {
@@ -300,21 +297,19 @@ router.post("/track-email", async (req, res) => {
   }
 });
 
-router.get("/mine", async (req, res) => {
+router.get("/mine", requireAuth, async (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.user?.id;
+    if (!userId) return res.status(401).json({ error: "Unauthorized" });
 
-    const orders = await Order.find({ user: userId })
-      .populate("items.product", "title price images")
-      .sort({ createdAt: -1 });
-
+    const orders = await Order.find({ userId: userId }).sort({ createdAt: -1 });
+    console.log(`Found ${orders.length} orders for user ${userId}`);
     res.json({ orders });
   } catch (err) {
     console.error("Get user orders error:", err);
     res.status(500).json({ error: "Failed to fetch orders" });
   }
 });
-
 
 
 export default router;

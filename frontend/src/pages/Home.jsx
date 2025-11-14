@@ -109,7 +109,6 @@ export default function Home() {
           params: { limit: 4 },
           signal: bundleController.signal,
         });
-        console.log("Fetched bundles:", res.data);
         setBundles(res.data.items || []);
       } catch (err) {
         if (err?.name !== "AbortError" && err?.message !== "canceled") {

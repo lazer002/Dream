@@ -44,7 +44,6 @@ router.get("/", async (req, res) => {
       .sort(sortOption)
       .skip((Number(page) - 1) * Number(limit))
       .limit(Number(limit));
-    console.log(products.length, 'products.length')
     res.json({ items: products, total });
   } catch (error) {
     console.error(error);

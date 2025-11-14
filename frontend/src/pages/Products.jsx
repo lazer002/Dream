@@ -4,16 +4,17 @@ import { useEffect, useState } from "react";
 import { Heart, ShoppingBag, Filter, ArrowUpDown, Heart as HeartOutline } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCart } from "../state/CartContext.jsx"
-import { api } from "@/utils/config.js";
+import { useWishlist } from "../state/WishlistContext.jsx"
+import api  from "@/utils/config.jsx";
 import { useLocation } from "react-router-dom";
 import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@/components/ui/dialog.jsx";
 
 
 export default function Products() {
   const { add } = useCart()
+  const { wishlist,addToWishlist ,removeFromWishlist ,toggleWishlist} = useWishlist();
   const [products, setProducts] = useState([]);
   const [sort, setSort] = useState("newest");
-  const [wishlist, setWishlist] = useState(() => JSON.parse(localStorage.getItem("wishlist")) || []);
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({ categories: [], priceRange: "", brand: [] });
   const [categories, setCategories] = useState([]);
@@ -145,13 +146,8 @@ const handleSelectSize = (sizeKey) => {
   useEffect(() => {
     fetchCategories();
   }, []);
-  const toggleWishlist = (productId) => {
-    let updated;
-    if (wishlist.includes(productId)) updated = wishlist.filter((id) => id !== productId);
-    else updated = [...wishlist, productId];
-    setWishlist(updated);
-    localStorage.setItem("wishlist", JSON.stringify(updated));
-  };
+
+
 
   const handleFilterChange = (type, value) => {
     setSelectedFilters(prev => {
@@ -209,6 +205,7 @@ const handleSelectSize = (sizeKey) => {
       {/* Products Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-10">
         {products.map((p) => {
+          console.log("wishlist", wishlist);
           return (
             <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">
               <div className="bg-white border border-gray-200 transition overflow-hidden relative">
@@ -234,17 +231,19 @@ const handleSelectSize = (sizeKey) => {
                       SALE
                     </span>
                   )}
-                  <button
-                    onClick={() => toggleWishlist(p._id)}
-                    aria-label={wishlist.includes(p._id) ? "Remove from wishlist" : "Add to wishlist"}
-                    className="absolute bottom-2 right-2 p-1 flex items-center justify-center w-7 h-7 hover:scale-110 transition"
-                  >
-                    {wishlist.includes(p._id) ? (
-                      <Heart className="h-10 w-10 text-red-500 fill-red-500" />
-                    ) : (
-                      <HeartOutline className="h-10 w-10 text-black" />
-                    )}
-                  </button>
+                    <button
+                      onClick={() => toggleWishlist(p._id)}
+                      aria-label={wishlist.includes(String(p._id)) ? "Remove from wishlist" : "Add to wishlist"}
+                      className="absolute bottom-2 right-2 p-1 flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
+                    >
+                      {wishlist.includes(String(p._id)) ? (
+                        <Heart className="h-10 w-10 text-red-500 fill-red-500" />
+                      ) : (
+                        <HeartOutline className="h-10 w-10 text-black" />
+                      )}
+                    </button>
+
+
                 </div>
 
               <div className="p-4 flex flex-col gap-1">

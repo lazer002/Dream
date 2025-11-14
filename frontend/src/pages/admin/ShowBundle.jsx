@@ -19,7 +19,7 @@ import {
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Pencil, Trash2 } from "lucide-react"
-import { api } from "@/utils/config"
+import api  from "@/utils/config"
 import { Link } from "react-router-dom"
 
 export default function ShowBundle() {

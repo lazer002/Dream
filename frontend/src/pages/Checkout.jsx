@@ -5,7 +5,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/CustomCheckbox.jsx";
 import { useCart } from "@/state/CartContext";
-import { api } from "@/utils/config";
+import api  from "@/utils/config";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import {Loader2 } from "lucide-react";

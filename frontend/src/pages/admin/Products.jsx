@@ -48,7 +48,7 @@ import {
 } from "lucide-react"
 
 export default function ProductList() {
-  const { api } = useAuth()
+  const api  = useAuth()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)

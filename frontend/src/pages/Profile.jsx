@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState,useRef } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
-import { api } from "@/utils/config.js";
+import api  from "@/utils/config.jsx";
 import {
   Box,
   Heart,
@@ -378,14 +378,14 @@ function formatDate(iso) {
 
               {/* CLICKABLE TITLE TO PDP */}
               {firstItem?.title && (
-                <a
-                  href={pdpUrl}
+                <Link
+                  to={pdpUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="text-blue-600 text-sm hover:underline"
                 >
                   {firstItem.title}
-                </a>
+                </Link>
               )}
 
               <div className="text-sm text-gray-600">
@@ -569,12 +569,12 @@ function formatDate(iso) {
               Cancel Order
             </button>
 
-            <a
-              href={`mailto:support@yourdomain.com?subject=Order%20${encodeURIComponent(modalOrder.orderNumber || modalOrder._id)}&body=Hi%2C%0A%0AI%20need%20help%20with%20order%20${encodeURIComponent(modalOrder.orderNumber || modalOrder._id)}.%0A%0AThanks`}
+            <Link
+              to={`mailto:support@yourdomain.com?subject=Order%20${encodeURIComponent(modalOrder.orderNumber || modalOrder._id)}&body=Hi%2C%0A%0AI%20need%20help%20with%20order%20${encodeURIComponent(modalOrder.orderNumber || modalOrder._id)}.%0A%0AThanks`}
               className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50"
             >
               Contact Support
-            </a>
+            </Link>
           </div>
         </div>
       </div>

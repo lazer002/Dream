@@ -1,7 +1,7 @@
 // src/pages/BundlePDP.jsx
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { api } from "@/utils/config.js";
+import api  from "@/utils/config.jsx";
 import {
   Dialog,
   DialogContent,

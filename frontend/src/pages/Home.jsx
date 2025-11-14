@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import FAQ from "@/components/Faq";
 import FeaturesCarousel from "@/components/FeaturesCarousel";
-import { api } from "@/utils/config";
+import api  from "@/utils/config";
 import { useCart } from "@/state/CartContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog.jsx";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";

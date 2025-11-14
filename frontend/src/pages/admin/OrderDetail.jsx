@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useParams } from "react-router-dom";
-import { api } from "@/utils/config";
+import api  from "@/utils/config";
 import {
   Loader2,
   Mail,

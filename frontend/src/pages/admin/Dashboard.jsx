@@ -24,7 +24,7 @@ import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 
 export default function AdminDashboard() {
-  const { api } = useAuth();
+  const api  = useAuth();
   const [stats, setStats] = useState({
     users: 0,
     products: 0,

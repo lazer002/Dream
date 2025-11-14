@@ -10,7 +10,7 @@ import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
 import axios from "axios"
-import { api } from "@/utils/config.js"
+import api  from "@/utils/config.jsx"
 export default function ProductDetail() {
   const { id } = useParams()
   const { add } = useCart()

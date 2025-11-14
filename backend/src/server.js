@@ -15,6 +15,7 @@ import searchRouter from './routes/search.js'
 import publicRouter from './routes/public.js'
 import bundleRoutes from "./routes/bundles.js";
 import adminOrdersRouter from './routes/adminOrder.js'
+import wishlistRouter from './routes/wishlist.js'
 
 dotenv.config()
 
@@ -54,6 +55,7 @@ app.use('/api/admin/stats', statsRouter)
 app.use("/api/bundles", bundleRoutes);
 app.use('/api/admin/orders', adminOrdersRouter);
 app.use('/api', publicRouter)
+app.use('/api/wishlist', wishlistRouter);
 
 
 const port = process.env.PORT || 4000

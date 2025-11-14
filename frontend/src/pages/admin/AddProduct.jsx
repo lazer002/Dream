@@ -23,7 +23,7 @@ import { Switch } from "@/components/ui/switch.jsx";
 export default function AddProduct() {
   const [categories, setCategories] = useState([]);
   const fileInputRef = useRef(null);
-  const { api } = useAuth();
+  const api  = useAuth();
 
   const [form, setForm] = useState({
     title: "",

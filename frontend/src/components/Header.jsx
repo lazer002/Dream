@@ -4,7 +4,7 @@ import { ShoppingCart, Search, User, Menu, ChevronDown, X } from "lucide-react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { useCart } from "../state/CartContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
-import { api } from "@/utils/config.js";
+import api  from "@/utils/config.jsx";
 import { useNavigate } from "react-router-dom";
 
 const navItems = [

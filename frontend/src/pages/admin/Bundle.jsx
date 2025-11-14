@@ -1,6 +1,6 @@
 // src/pages/admin/AdminBundles.jsx
 import { useState, useEffect } from "react";
-import { api } from "@/utils/config.js";
+import api  from "@/utils/config.jsx";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";

@@ -33,6 +33,8 @@ import TrackOrder from "./pages/TrackOrder.jsx";
 import Orders from "./pages/admin/Orders.jsx";
 import OrderDetail from "./pages/admin/OrderDetail.jsx";
 import NewArrivals from "./pages/NewArrivals.jsx";
+import { WishlistProvider } from "./state/WishlistContext.jsx";
+import WishlistPage from "./pages/WishlistPage.jsx";
 
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
@@ -47,6 +49,7 @@ export default function App() {
 
   return (
     <AuthProvider>
+        <WishlistProvider>
       <CartProvider>
         <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
           {/* Hide header/footer for admin routes */}
@@ -69,6 +72,7 @@ export default function App() {
               <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/trackorder" element={<TrackOrder />} />
               <Route path="/newarrivals" element={<NewArrivals />} />
+              <Route path="/wishlist" element={<WishlistPage />} />
 
               
               {/* 👤 User Profile */}
@@ -112,6 +116,7 @@ export default function App() {
           }}
         />
       </CartProvider>
+      </WishlistProvider>
     </AuthProvider>
   );
 }

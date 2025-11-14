@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Pencil, Trash2 } from "lucide-react";
 
 export default function CategoriesAdmin() {
-  const { api } = useAuth();
+  const api  = useAuth();
   const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
 

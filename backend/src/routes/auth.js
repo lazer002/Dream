@@ -24,35 +24,74 @@ router.post('/register', async (req, res) => {
   }
 })
 
+// POST /auth/login
 router.post('/login', async (req, res) => {
   try {
-    const { email, password } = req.body
-    const user = await User.findOne({ email })
-    if (!user) return res.status(401).json({ error: 'Invalid credentials' })
-    const ok = await user.verifyPassword(password)
-    if (!ok) return res.status(401).json({ error: 'Invalid credentials' })
-    const payload = { id: user._id.toString(), role: user.role, email: user.email, name: user.name }
+    const { email, password } = req.body;
+    const user = await User.findOne({ email });
+    if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const ok = await user.verifyPassword(password);
+    if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+    const payload = {
+      id: user._id.toString(),
+      role: user.role,
+      email: user.email,
+      name: user.name,
+    };
+
+    const accessToken = signAccessToken(payload);
+    const refreshToken = signRefreshToken(payload);
+
+    // Set refresh token as an httpOnly cookie (do NOT expose it to JS)
+    const cookieOptions = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production', // true in prod (HTTPS)
+      sameSite: 'lax', // or 'none' if cross-site and using HTTPS
+      path: '/',
+      // optionally set maxAge (in ms). adjust to your refresh token lifetime
+      maxAge: 30 * 24 * 60 * 60 * 1000, // example: 30 days
+    };
+
+    res.cookie('refreshToken', refreshToken, cookieOptions);
+
+    // Return user + access token only (no refreshToken in response body)
     res.json({
       user: { id: payload.id, email: user.email, name: user.name, role: user.role },
-      accessToken: signAccessToken(payload),
-      refreshToken: signRefreshToken(payload)
-    })
+      accessToken,
+    });
   } catch (e) {
-    res.status(500).json({ error: 'Login failed' })
+    console.error('Login error:', e);
+    res.status(500).json({ error: 'Login failed' });
   }
-})
+});
+
 
 router.post('/refresh', async (req, res) => {
   try {
-    const { refreshToken } = req.body
-    if (!refreshToken) return res.status(400).json({ error: 'Missing refreshToken' })
-    const payload = verifyRefreshToken(refreshToken)
-    const accessToken = signAccessToken({ id: payload.id, role: payload.role, email: payload.email, name: payload.name })
-    res.json({ accessToken })
+    const refreshToken = req.cookies?.refreshToken; 
+    if (!refreshToken) {
+      return res.status(400).json({ error: 'Missing refreshToken' });
+    }
+
+    const payload = verifyRefreshToken(refreshToken);
+
+    const accessToken = signAccessToken({
+      id: payload.id,
+      role: payload.role,
+      email: payload.email,
+      name: payload.name
+    });
+
+    res.json({ accessToken });
+
   } catch (e) {
-    res.status(401).json({ error: 'Invalid refresh token' })
+    res.clearCookie("refreshToken");
+    res.status(401).json({ error: 'Invalid refresh token' });
   }
-})
+});
+
 router.post('/otp/send', async (req, res) => {
   try {
     const { email } = req.body;

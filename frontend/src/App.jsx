@@ -33,7 +33,7 @@ import TrackOrder from "./pages/TrackOrder.jsx";
 import Orders from "./pages/admin/Orders.jsx";
 import OrderDetail from "./pages/admin/OrderDetail.jsx";
 import NewArrivals from "./pages/NewArrivals.jsx";
-import { WishlistProvider } from "./state/WishlistContext.jsx";
+
 import WishlistPage from "./pages/WishlistPage.jsx";
 
 // ✅ Protect admin routes
@@ -48,8 +48,8 @@ export default function App() {
   const isAdminRoute = location.pathname.startsWith("/admin");
 
   return (
-    <AuthProvider>
-        <WishlistProvider>
+
+     
       <CartProvider>
         <div className="min-h-screen flex flex-col bg-gray-50 text-gray-900">
           {/* Hide header/footer for admin routes */}
@@ -116,7 +116,7 @@ export default function App() {
           }}
         />
       </CartProvider>
-      </WishlistProvider>
-    </AuthProvider>
+    
+
   );
 }

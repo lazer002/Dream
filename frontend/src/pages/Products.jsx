@@ -12,7 +12,7 @@ import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@
 
 export default function Products() {
   const { add } = useCart()
-  const { wishlist,addToWishlist ,removeFromWishlist ,toggleWishlist} = useWishlist();
+  const { wishlist ,toggleWishlist} = useWishlist();
   const [products, setProducts] = useState([]);
   const [sort, setSort] = useState("newest");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
@@ -174,6 +174,7 @@ const handleSelectSize = (sizeKey) => {
       </div>
     );
   }
+  // console.log("Products rendered:", wishlist);
   return (
     <div className="bg-white min-h-screen text-black relative">
       {/* Top Controls */}
@@ -205,7 +206,6 @@ const handleSelectSize = (sizeKey) => {
       {/* Products Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-10">
         {products.map((p) => {
-          console.log("wishlist", wishlist);
           return (
             <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">
               <div className="bg-white border border-gray-200 transition overflow-hidden relative">
@@ -232,7 +232,12 @@ const handleSelectSize = (sizeKey) => {
                     </span>
                   )}
                     <button
-                      onClick={() => toggleWishlist(p._id)}
+                    onClick={(e) => {
+                      // prevent the Link from handling this click
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleWishlist(p._id);
+                    }}
                       aria-label={wishlist.includes(String(p._id)) ? "Remove from wishlist" : "Add to wishlist"}
                       className="absolute bottom-2 right-2 p-1 flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
                     >

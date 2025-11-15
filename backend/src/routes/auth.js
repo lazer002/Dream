@@ -142,7 +142,7 @@ router.post("/change-password", async (req, res) => {
 
     // Load user and include password field (if your schema uses select:false)
     const user = await User.findById(userId).select("+password +provider");
-    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user) return res.status(404).json({ error: "User not found%" });
 
     // If user already has a password -> require and verify currentPassword
     if (user.password) {

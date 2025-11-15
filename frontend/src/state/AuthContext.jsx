@@ -5,12 +5,15 @@ import api, { setAccessToken, setRefreshToken, clearAuth } from "../utils/config
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => {
-    try {
-      const raw = localStorage.getItem("ds_user");
-      return raw ? JSON.parse(raw) : null;
-    } catch { return null; }
-  });
+const [user, setUser] = useState(() => {
+  try {
+    const raw = localStorage.getItem("ds_user");
+    return raw ? JSON.parse(raw) : undefined;  
+  } catch {
+    return undefined;
+  }
+});
+;
 
   useEffect(() => {
     try {
@@ -30,6 +33,9 @@ export function AuthProvider({ children }) {
     setUser(data.user ?? null);
     if (data.accessToken) setAccessToken(data.accessToken);
     if (data.refreshToken) setRefreshToken(data.refreshToken);
+
+    window.dispatchEvent(new Event("auth:login"));
+
     return data;
   }, []);
 
@@ -38,6 +44,9 @@ export function AuthProvider({ children }) {
     setUser(data.user ?? null);
     if (data.accessToken) setAccessToken(data.accessToken);
     if (data.refreshToken) setRefreshToken(data.refreshToken);
+
+    window.dispatchEvent(new Event("auth:login"));
+
     return data;
   }, []);
 
@@ -46,6 +55,9 @@ export function AuthProvider({ children }) {
     setUser(data.user ?? null);
     if (data.accessToken) setAccessToken(data.accessToken);
     if (data.refreshToken) setRefreshToken(data.refreshToken);
+
+    window.dispatchEvent(new Event("auth:login"));
+
     return data;
   }, []);
 

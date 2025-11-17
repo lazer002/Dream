@@ -12,8 +12,8 @@ import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@
 
 export default function Products() {
   const { add } = useCart()
-  const { wishlist ,toggleWishlist} = useWishlist();
   const [products, setProducts] = useState([]);
+  const { wishlist ,toggleWishlist} = useWishlist();
   const [sort, setSort] = useState("newest");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({ categories: [], priceRange: "", brand: [] });
@@ -174,7 +174,7 @@ const handleSelectSize = (sizeKey) => {
       </div>
     );
   }
-  // console.log("Products rendered:", wishlist);
+  console.log("wishlist ", wishlist);
   return (
     <div className="bg-white min-h-screen text-black relative">
       {/* Top Controls */}
@@ -206,6 +206,8 @@ const handleSelectSize = (sizeKey) => {
       {/* Products Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-10">
         {products.map((p) => {
+          // console.log("[ProductCard] render", { _id: p._id, isWished: wishlist.includes(String(p._id)), wishlistSample: wishlist.slice(0, 6) });
+            const id = String(p._id);
           return (
             <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">
               <div className="bg-white border border-gray-200 transition overflow-hidden relative">
@@ -233,15 +235,14 @@ const handleSelectSize = (sizeKey) => {
                   )}
                     <button
                     onClick={(e) => {
-                      // prevent the Link from handling this click
                       e.preventDefault();
                       e.stopPropagation();
-                      toggleWishlist(p._id);
+                      toggleWishlist(id);
                     }}
-                      aria-label={wishlist.includes(String(p._id)) ? "Remove from wishlist" : "Add to wishlist"}
+                      aria-label={wishlist.includes(id) ? "Remove from wishlist" : "Add to wishlist"}
                       className="absolute bottom-2 right-2 p-1 flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
                     >
-                      {wishlist.includes(String(p._id)) ? (
+                      {wishlist.includes(id)? (
                         <Heart className="h-10 w-10 text-red-500 fill-red-500" />
                       ) : (
                         <HeartOutline className="h-10 w-10 text-black" />

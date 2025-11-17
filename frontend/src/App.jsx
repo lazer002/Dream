@@ -23,7 +23,6 @@ import Footer from "./components/Footer.jsx";
 
 import { Toaster } from "react-hot-toast";
 import Checkout from "./pages/Checkout.jsx";
-import AuthCallback from "./pages/AuthCallback.jsx";
 import Profile from "./pages/Profile.jsx";
 import Collections from "./pages/Collections.jsx";
 import Bundle from "./pages/admin/Bundle.jsx";
@@ -33,8 +32,8 @@ import TrackOrder from "./pages/TrackOrder.jsx";
 import Orders from "./pages/admin/Orders.jsx";
 import OrderDetail from "./pages/admin/OrderDetail.jsx";
 import NewArrivals from "./pages/NewArrivals.jsx";
-
 import WishlistPage from "./pages/WishlistPage.jsx";
+import ReturnExchange from "./pages/ReturnExchange.jsx";
 
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
@@ -69,10 +68,10 @@ export default function App() {
               <Route path="/login" element={<Login />} />
               <Route path="/register" element={<Register />} />
               <Route path="/collections/:id" element={<BundlePDP />} />
-              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/trackorder" element={<TrackOrder />} />
               <Route path="/newarrivals" element={<NewArrivals />} />
               <Route path="/wishlist" element={<WishlistPage />} />
+              <Route path="/return" element={<ReturnExchange />} />
 
               
               {/* 👤 User Profile */}

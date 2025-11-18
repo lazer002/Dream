@@ -17,6 +17,7 @@ import publicRouter from './routes/public.js'
 import bundleRoutes from "./routes/bundles.js";
 import adminOrdersRouter from './routes/adminOrder.js'
 import wishlistRouter from './routes/wishlist.js'
+import returnsRouter from './routes/return.js'
 
 dotenv.config()
 
@@ -80,6 +81,7 @@ app.use("/api/bundles", bundleRoutes)
 app.use('/api/admin/orders', adminOrdersRouter)
 app.use('/api', publicRouter)
 app.use('/api/wishlist', wishlistRouter)
+app.use('/api/returns', returnsRouter)
 
 /* -------------------------------------------------------------------------- */
 /*                           SERVER START + LOCAL IP                           */

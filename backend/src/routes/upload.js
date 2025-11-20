@@ -7,7 +7,7 @@ dotenv.config()
 const router = express.Router()
 
 
-router.post('/image', upload.single('file'), async (req, res) => {
+router.post('/image',requireAuth, requireAdmin, upload.single('file'), async (req, res) => {
 console.log("req.body:", req.body);
   console.log("req.file:", req.file);
   try {
@@ -26,6 +26,9 @@ console.log("req.body:", req.body);
     res.status(500).json({ error: 'Upload failed' })
   }
 })
+
+
+
 
 export default router
 

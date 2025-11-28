@@ -3,6 +3,7 @@ import express from "express";
 import mongoose from "mongoose";
 import { Return } from "../models/Return.js";
 import { Order } from "../models/Order.js"; // adjust path to your Order model
+import { requireAuth, requireAdmin } from '../middleware/auth.js'
 
 const router = express.Router();
 
@@ -89,6 +90,8 @@ router.post("/", async (req, res) => {
         // per-item details and photos (frontend must send these per-item)
         details: it.details || "",
         photos: Array.isArray(it.photos) ? it.photos.filter(Boolean) : [],
+        exchangeSize: it.exchangeSize || null,
+
       });
     }
 
@@ -125,6 +128,142 @@ router.post("/", async (req, res) => {
     }
 
     return res.status(500).json({ success: false, message: "Server error" });
+  }
+});
+
+
+
+router.get("/order/:orderNumber", async (req, res) => {
+  try {
+    const { orderNumber } = req.params;
+    const { email } = req.query;
+
+    const query = { orderNumber: String(orderNumber) };
+    if (email) query.guestEmail = String(email).toLowerCase();
+
+    const ret = await Return.findOne(query).sort({ createdAt: -1 }).lean();
+
+    if (!ret) return res.status(404).json({ message: "No return found" });
+
+    return res.json(ret);
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+router.get("/", async (req, res) => {
+  try {
+    const { orderNumber, rmaNumber, limit = 20 } = req.query;
+
+    const q = {};
+    if (orderNumber) q.orderNumber = String(orderNumber);
+    if (rmaNumber) q.rmaNumber = String(rmaNumber);
+
+    let query = Return.find(q).sort({ createdAt: -1 }).limit(Math.min(Number(limit) || 20, 100));
+
+    const returns = await query.lean();
+
+    return res.json(returns);
+  } catch (err) {
+    return res.status(500).json({ message: "Server error" });
+  }
+});
+
+router.get("/:rmaNumber", async (req, res) => {
+  try {
+    console.log("Fetching return request for RMA:", req.params.rmaNumber);
+    console.log("Authenticated user:", req.user);
+    const { rmaNumber } = req.params;
+
+    if (!rmaNumber) {
+      return res.status(400).json({
+        success: false,
+        message: "RMA number is required",
+      });
+    }
+
+    // Find by rmaNumber
+    const returnReq = await Return.findOne({ rmaNumber }).lean();
+
+    if (!returnReq) {
+      return res.status(404).json({
+        success: false,
+        message: `Return request not found for RMA ${rmaNumber}`,
+      });
+    }
+
+    return res.json({
+      success: true,
+      returnRequest: returnReq,
+    });
+  } catch (error) {
+    console.error("GET /returns/:rmaNumber error:", error);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+// UPDATE RETURN STATUS + NOTE (ADMIN ONLY)
+router.patch("/:id/status", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status, note = "" } = req.body;
+
+    // Validate status
+    const allowed = [
+      "submitted",
+      "awaiting_shipment",
+      "received",
+      "inspecting",
+      "approved",
+      "refunded",
+      "completed",
+      "rejected",
+      "cancelled",
+    ];
+
+    if (!status || !allowed.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: `Invalid status: ${status}`,
+      });
+    }
+
+    // Find return request
+    const ret = await Return.findById(id);
+    if (!ret) {
+      return res.status(404).json({
+        success: false,
+        message: "Return request not found",
+      });
+    }
+
+    const prevStatus = ret.status;
+
+    // Apply update
+    ret.status = status;
+    ret.statusHistory.push({
+      from: prevStatus,
+      to: status,
+      by: req.user?._id || null,
+      note,
+      at: new Date(),
+    });
+
+    const saved = await ret.save();
+
+    return res.json({
+      success: true,
+      message: "Status updated",
+      rma: saved,
+    });
+  } catch (error) {
+    console.error("PATCH /returns/:id/status error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error while updating status",
+    });
   }
 });
 

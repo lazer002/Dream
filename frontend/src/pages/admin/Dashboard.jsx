@@ -22,9 +22,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-
+import api from "@/utils/config";
 export default function AdminDashboard() {
-  const api  = useAuth();
+
   const [stats, setStats] = useState({
     users: 0,
     products: 0,

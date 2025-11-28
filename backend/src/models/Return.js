@@ -20,6 +20,7 @@ const ReturnItemSchema = new Schema({
 
   // per-item photos (array of URLs)
   photos: [{ type: String }],
+   exchangeSize: { type: String, default: null }
 }, { _id: false });
 
 const StatusEntry = new Schema({

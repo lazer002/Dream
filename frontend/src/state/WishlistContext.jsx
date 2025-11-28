@@ -68,15 +68,8 @@ export function WishlistProvider({ children }) {
     };
   }, []);
 
-  // debug mounts
-  useEffect(() => {
-    console.log("[WCTX] provider mounted. initial wishlist:", wishlist);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // run once
 
-  useEffect(() => {
-    console.log("[WCTX] wishlist changed ->", wishlist);
-  }, [wishlist]);
+
 
   // Helper to drain pending actions and apply them via callback (sync or async)
   // Returns a Promise that resolves when callback finishes or rejects on error
@@ -155,11 +148,9 @@ export function WishlistProvider({ children }) {
       // If auth explicitly indicates guest, load from storage normally
       if (user === null) {
         const items = safeReadWishlist();
-        console.log("[Wishlist] loading guest wishlist from localStorage:", items);
 
         const pending = pendingRef.current.slice();
         if (pending.length > 0) {
-          console.log("[Wishlist] merging pending actions into loaded guest wishlist:", pending);
           let current = items.slice();
           for (const a of pending) {
             const pid = normalizeId(a.productId);
@@ -195,7 +186,6 @@ export function WishlistProvider({ children }) {
 
         // replay pending actions to server
         await applyPending(async (actions) => {
-          console.log("[Wishlist] replaying pending actions to server:", actions);
           for (const a of actions) {
             const pid = normalizeId(a.productId);
             try {

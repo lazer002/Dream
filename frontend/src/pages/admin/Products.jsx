@@ -46,9 +46,8 @@ import {
   Eye,
   Search
 } from "lucide-react"
-
+import api from "@/utils/config";
 export default function ProductList() {
-  const api  = useAuth()
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null)

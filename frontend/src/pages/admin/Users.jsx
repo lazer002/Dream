@@ -17,9 +17,9 @@ import {
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Search, Trash2, ShieldCheck, Loader2, User } from "lucide-react";
-
+import api from "@/utils/config";
 export default function Users() {
-  const api  = useAuth();
+
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [roleFilter, setRoleFilter] = useState("all");

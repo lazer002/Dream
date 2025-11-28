@@ -19,11 +19,11 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch.jsx";
-
+import api from "@/utils/config";
 export default function AddProduct() {
   const [categories, setCategories] = useState([]);
   const fileInputRef = useRef(null);
-  const api  = useAuth();
+
 
   const [form, setForm] = useState({
     title: "",

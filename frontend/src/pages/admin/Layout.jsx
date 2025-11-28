@@ -1,7 +1,7 @@
 // src/pages/admin/Layout.jsx
 import {  NavLink, Outlet, useLocation } from 'react-router-dom'
 import { useMemo, useState } from 'react'
-import { Menu, LogOut, Search, Bell, LayoutGrid, Package, PlusSquare, Users, Tag } from 'lucide-react'
+import { Menu, LogOut, Search, Bell, LayoutGrid, Package, PlusSquare, Users, Tag,RefreshCw } from 'lucide-react'
 
 export default function AdminLayout() {
   const [collapsed, setCollapsed] = useState(false)
@@ -16,6 +16,7 @@ export default function AdminLayout() {
     { name: 'Bundles', href: '/admin/bundles', icon: Package },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Category', href: '/admin/category', icon: Tag },
+     { name: "Returns", href: "/admin/returnslist", icon: RefreshCw },
   ]), [])
 
  const isActive = (href) => location.pathname === href;

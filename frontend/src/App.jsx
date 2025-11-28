@@ -34,6 +34,10 @@ import OrderDetail from "./pages/admin/OrderDetail.jsx";
 import NewArrivals from "./pages/NewArrivals.jsx";
 import WishlistPage from "./pages/WishlistPage.jsx";
 import ReturnExchange from "./pages/ReturnExchange.jsx";
+import ReturnStatusPage  from "./pages/ReturnStatusPage.jsx";
+import AdminReturns from "./pages/admin/ReturnList.jsx";
+import AdminReturnDetail from "./pages/admin/ReturnDetail.jsx";
+
 
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
@@ -72,6 +76,7 @@ export default function App() {
               <Route path="/newarrivals" element={<NewArrivals />} />
               <Route path="/wishlist" element={<WishlistPage />} />
               <Route path="/return" element={<ReturnExchange />} />
+              <Route path="/return/:orderNumber" element={<ReturnStatusPage />} />
 
               
               {/* 👤 User Profile */}
@@ -95,6 +100,8 @@ export default function App() {
                 <Route path="category" element={<CategoriesAdmin />} />
                 <Route path="orders" element={<Orders />} />
                 <Route path="orders/:id" element={<OrderDetail />} />
+                <Route path="returnslist" element={<AdminReturns />} />
+                <Route path="returnslist/:rmaNumber" element={<AdminReturnDetail />} />
               </Route>
             </Routes>
           </main>

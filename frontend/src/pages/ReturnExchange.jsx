@@ -4,14 +4,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import toast from "react-hot-toast";
-import { Upload, ArrowRight, Check } from "lucide-react";
+import { Upload, ArrowRight, Check, Trash2 } from "lucide-react";
 import { useAuth } from "../state/AuthContext.jsx";
+import { useNavigate } from "react-router-dom";
 
-// Simple return/exchange page — **global photos removed**
-// Per-item photos are uploaded and included per item in payload
-
+// Simple return/exchange page — per-item photos only + validation
 const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL"];
 
 function Stepper({ step }) {
@@ -54,7 +52,7 @@ function OrderCard({ order }) {
   );
 }
 
-function FileUploader({ previews = [], onFiles, label = "Attach photos", limit = 5 }) {
+function FileUploader({ previews = [], onFiles, label = "Attach photos", limit = 5, onRemove }) {
   return (
     <div>
       <label className="flex items-center gap-2 cursor-pointer text-sm text-gray-700 border rounded px-3 py-2 inline-flex">
@@ -71,8 +69,13 @@ function FileUploader({ previews = [], onFiles, label = "Attach photos", limit =
 
       <div className="mt-2 flex gap-2 flex-wrap">
         {previews.map((u, i) => (
-          <div key={i} className="w-20 h-20 overflow-hidden rounded border flex items-center justify-center text-xs p-1">
+          <div key={i} className="w-20 h-20 overflow-hidden rounded border relative">
             <img src={u} alt={`preview-${i}`} className="w-full h-full object-cover" />
+            {onRemove && (
+              <button type="button" onClick={() => onRemove(i)} className="absolute top-0 right-0 p-1 bg-white/90 rounded-bl">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -108,6 +111,7 @@ function getReasonsForAction(action) {
 export default function ReturnExchangePage() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
+const navigate = useNavigate();
 
   const [orderId, setOrderId] = useState("");
   const [email, setEmail] = useState("");
@@ -124,7 +128,10 @@ export default function ReturnExchangePage() {
   const [perItemFiles, setPerItemFiles] = useState({}); // File objects per item
   const [perItemPreviews, setPerItemPreviews] = useState({}); // preview URLs per item
 
-  // global simple fields (no global photos anymore)
+  // validation errors: { [itemId]: { reason: string|null, exchangeSize: string|null, qty: string|null } }
+  const [errors, setErrors] = useState({});
+
+  // global simple fields
   const [actionType, setActionType] = useState("refund");
   const [reason, setReason] = useState("");
   const [additionalDetails, setAdditionalDetails] = useState("");
@@ -169,6 +176,7 @@ export default function ReturnExchangePage() {
         (perItemPreviews[itemId] || []).forEach((u) => { try { URL.revokeObjectURL(u); } catch {} });
         setPerItemFiles((s) => { const c = { ...s }; delete c[itemId]; return c; });
         setPerItemPreviews((s) => { const c = { ...s }; delete c[itemId]; return c; });
+        setErrors((s) => { const c = { ...s }; delete c[itemId]; return c; });
       } else {
         next[itemId] = qty;
         setPerItemAction((s) => ({ ...s, [itemId]: s[itemId] || actionType || "refund" }));
@@ -183,6 +191,18 @@ export default function ReturnExchangePage() {
     const previews = arr.map((f) => URL.createObjectURL(f));
     (perItemPreviews[itemId] || []).forEach((u) => { try { URL.revokeObjectURL(u); } catch {} });
     setPerItemPreviews((p) => ({ ...p, [itemId]: previews }));
+  }
+
+  function removePerItemPreview(itemId, index) {
+    const previews = (perItemPreviews[itemId] || []).slice();
+    const files = (perItemFiles[itemId] || []).slice();
+    if (previews[index]) {
+      try { URL.revokeObjectURL(previews[index]); } catch {}
+      previews.splice(index, 1);
+      files.splice(index, 1);
+      setPerItemPreviews((p) => ({ ...p, [itemId]: previews }));
+      setPerItemFiles((p) => ({ ...p, [itemId]: files }));
+    }
   }
 
   async function lookupOrderGuest() {
@@ -201,41 +221,90 @@ export default function ReturnExchangePage() {
 
   const hasDeliverableItems = useMemo(() => order && order.orderStatus === "delivered" && (order.items || []).length > 0, [order]);
 
-  // ---------- SIMPLE submit: upload only per-item photos and post items with photos array ----------
-  async function submitReturnRequest() {
-    setLoading(true);
-    console.log("submitReturnRequest START", {
-      orderId: order?._id || order?.id || order?.orderNumber,
-      itemsSelected,
-      perItemFilesKeys: Object.keys(perItemFiles || {}),
-    });
+  // Validation function returns boolean; sets `errors` state and shows toast for top-level issues
+  function validateSubmission() {
+    if (!order && !orderId) {
+      toast.error("Select an order first");
+      return false;
+    }
+    if (!hasDeliverableItems) {
+      toast.error("Only delivered orders are eligible for returns / exchanges.");
+      return false;
+    }
+    const itemIds = Object.keys(itemsSelected);
+    if (!itemIds.length) {
+      toast.error("Select item(s) to return or exchange");
+      return false;
+    }
 
+    const newErrors = {};
+    let ok = true;
+
+    for (const id of itemIds) {
+      const selectedQty = itemsSelected[id] || 0;
+      const it = (order?.items || []).find((o) => (o._id || o.id || o.sku) === id) || {};
+      const orderedQty = Number(it.quantity || it.orderedQty || 1);
+
+      if (!selectedQty || selectedQty <= 0) {
+        newErrors[id] = { ...(newErrors[id] || {}), qty: "Select at least 1 quantity" };
+        ok = false;
+      } else if (selectedQty > orderedQty) {
+        newErrors[id] = { ...(newErrors[id] || {}), qty: `Max ${orderedQty} allowed` };
+        ok = false;
+      }
+
+      const act = perItemAction[id] || actionType;
+      const itemReason = perItemReason[id] || reason;
+      if (!itemReason) {
+        newErrors[id] = { ...(newErrors[id] || {}), reason: "Please choose a reason" };
+        ok = false;
+      }
+
+      if (act === "exchange") {
+        const ex = perItemExchangeSize[id];
+        if (!ex) {
+          newErrors[id] = { ...(newErrors[id] || {}), exchangeSize: "Choose exchange size" };
+          ok = false;
+        } else {
+          const orig = (it?.variant || it?.size || "").toString();
+          if (orig && ex.toString() === orig.toString()) {
+            newErrors[id] = { ...(newErrors[id] || {}), exchangeSize: "Select a different size than ordered" };
+            ok = false;
+          }
+        }
+      }
+    }
+
+    setErrors(newErrors);
+    if (!ok) {
+      toast.error("Please fix the errors in selected items");
+    }
+    return ok;
+  }
+
+  // submit: upload per-item photos and post items with photos array
+  async function submitReturnRequest() {
+    if (!validateSubmission()) return;
+    setLoading(true);
     try {
       const perItemUploaded = {}; // itemId -> [urls]
       const itemIds = Object.keys(itemsSelected || {});
 
-      // upload per-item files (one-by-one)
       for (const itemId of itemIds) {
         perItemUploaded[itemId] = [];
         const files = perItemFiles[itemId] || [];
         for (const f of files) {
-          console.log(`Uploading file for item ${itemId}:`, f.name || f);
           const fd = new FormData();
           fd.append("file", f);
-          // upload endpoint - keep same pattern you used successfully
           const res = await api.post("/upload/image", fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });
-          console.log("per-item upload resp:", res?.data);
           if (res?.data?.url) perItemUploaded[itemId].push(res.data.url);
           else if (res?.data?.path) perItemUploaded[itemId].push(res.data.path);
           else if (res?.data?.publicUrl) perItemUploaded[itemId].push(res.data.publicUrl);
         }
       }
 
-      console.log("perItemUploaded:", perItemUploaded);
-
-      // build items payload (simple, minimal)
       const payloadItems = itemIds.map((itemId) => {
         const it = (order?.items || []).find((o) => (o._id || o.id || o.sku) === itemId) || {};
         return {
@@ -253,7 +322,6 @@ export default function ReturnExchangePage() {
         };
       });
 
-      // final payload — **no global photos field**
       const payload = {
         orderId: order?._id?.toString ? order._id.toString() : order?.id || order?.orderNumber || orderId,
         orderNumber: order?.orderNumber || order?.id || null,
@@ -263,16 +331,19 @@ export default function ReturnExchangePage() {
         notes: notes || "",
       };
 
-      console.log("Final payload to /returns (no global photos):", payload);
-
       const { data } = await api.post("/returns", payload, { headers: { "Content-Type": "application/json" } });
-      console.log("Returned from /returns:", data);
-
       if (data && data.success) {
-        setRma(data.rma || data.return || { id: data.rmaId || "RMA12345", status: data.status || "pending" });
+      const saved = data.rma || data.return || data;
+      const targetOrderNumber = payload.orderNumber || saved?.orderNumber || saved?.orderId || order?.orderNumber;
+      setRma(saved);
+      if (targetOrderNumber) {
+        navigate(`/return/${targetOrderNumber}`);
+        return; // we redirect; skip setStep(3) UI here
+      } else {
         setStep(3);
         toast.success("Return request created");
-      } else {
+      }
+    } else {
         console.error("Returns API responded (not success):", data);
         toast.error(data?.message || "Failed to create return");
       }
@@ -281,10 +352,13 @@ export default function ReturnExchangePage() {
       toast.error(err?.response?.data?.message || err.message || "Error creating return");
     } finally {
       setLoading(false);
-      console.log("submitReturnRequest DONE");
     }
   }
-  // ---------- END submit ----------
+
+  // helper to show inline error for itemId/field
+  function itemError(itemId, field) {
+    return errors[itemId] && errors[itemId][field] ? errors[itemId][field] : null;
+  }
 
   return (
     <main className="min-h-screen bg-gray-50 py-12">
@@ -344,7 +418,7 @@ export default function ReturnExchangePage() {
                   {(order?.items || []).map((it) => {
                     const id = it._id || it.id || it.sku;
                     const img = it.mainImage || it.image || (it.images && it.images[0]) || "/images/placeholder.png";
-                    const orderedQty = it.quantity || 1;
+                    const orderedQty = Number(it.quantity || it.orderedQty || 1);
                     const selectedQty = itemsSelected[id] || 0;
                     const action = perItemAction[id] || actionType;
                     const reasonOptions = getReasonsForAction(action);
@@ -372,7 +446,7 @@ export default function ReturnExchangePage() {
                             <div className="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
                               <div>
                                 <Label>Action</Label>
-                                <Select value={action} onValueChange={(v) => { setPerItemAction((s) => ({ ...s, [id]: v })); setPerItemReason((r) => ({ ...r, [id]: "" })); }}>
+                                <Select value={action} onValueChange={(v) => { setPerItemAction((s) => ({ ...s, [id]: v })); setPerItemReason((r) => ({ ...r, [id]: "" })); setErrors((s) => ({ ...s, [id]: { ...(s[id] || {}), exchangeSize: null } })); }}>
                                   <SelectTrigger className="w-full"><SelectValue placeholder="Select action" /></SelectTrigger>
                                   <SelectContent>
                                     <SelectItem value="refund">Refund</SelectItem>
@@ -390,23 +464,45 @@ export default function ReturnExchangePage() {
                                     {(reasonOptions || []).map((r) => <SelectItem key={r.value} value={r.value}>{r.label}</SelectItem>)}
                                   </SelectContent>
                                 </Select>
+                                {itemError(id, "reason") && <div className="text-xs text-red-600 mt-1">{itemError(id, "reason")}</div>}
                               </div>
 
                               <div>
                                 <Label>Qty</Label>
-                                <div className="px-3 py-1 border rounded">{itemsSelected[id] || 1}</div>
+                                <div className="px-3 py-1 border rounded flex items-center justify-between">
+                                  <div>{itemsSelected[id] || 1}</div>
+                                  {itemError(id, "qty") && <div className="text-xs text-red-600 ml-2">{itemError(id, "qty")}</div>}
+                                </div>
                               </div>
 
                               {(perItemAction[id] || actionType) === 'exchange' && (
                                 <div className="md:col-span-3">
-                                  <Label>Exchange size</Label>
-                                  <div className="flex gap-2 mt-2 flex-wrap">
-                                    {SIZE_OPTIONS.map((s) => (
-                                      <button key={s} type="button" onClick={() => setPerItemExchangeSize((p) => ({ ...p, [id]: s }))} className={`px-3 py-1 border rounded ${perItemExchangeSize[id] === s ? 'bg-black text-white' : 'bg-white'}`}>
-                                        {s}
-                                      </button>
-                                    ))}
+                                  <div className="flex items-center justify-between">
+                                    <Label>Exchange size</Label>
+                                    {/* small helper text showing current/original size */}
+                                    <div className="text-xs text-gray-500">Current size: <span className="font-medium">{(it?.variant || it?.size || "—")}</span></div>
                                   </div>
+
+                                  <div className="flex gap-2 mt-2 flex-wrap">
+                                    {SIZE_OPTIONS.map((s) => {
+                                      const orig = (it?.variant || it?.size || "").toString();
+                                      const disabled = orig && orig.toString() === s.toString(); // disable original size
+                                      return (
+                                        <button
+                                          key={s}
+                                          type="button"
+                                          onClick={() => setPerItemExchangeSize((p) => ({ ...p, [id]: s }))}
+                                          className={`px-3 py-1 border rounded ${perItemExchangeSize[id] === s ? 'bg-black text-white' : 'bg-white'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                          disabled={disabled}
+                                          title={disabled ? "Current size — cannot select" : ""}
+                                          aria-disabled={disabled}
+                                        >
+                                          {s}
+                                        </button>
+                                      );
+                                    })}
+                                  </div>
+                                  {itemError(id, "exchangeSize") && <div className="text-xs text-red-600 mt-1">{itemError(id, "exchangeSize")}</div>}
                                 </div>
                               )}
 
@@ -417,7 +513,12 @@ export default function ReturnExchangePage() {
 
                               <div>
                                 <Label>Photos</Label>
-                                <FileUploader previews={perItemPreviews[id] || []} onFiles={(files) => handlePerItemFiles(id, files)} label="Attach photos" />
+                                <FileUploader
+                                  previews={perItemPreviews[id] || []}
+                                  onFiles={(files) => handlePerItemFiles(id, files)}
+                                  onRemove={(index) => removePerItemPreview(id, index)}
+                                  label="Attach photos"
+                                />
                               </div>
                             </div>
                           )}
@@ -438,7 +539,13 @@ export default function ReturnExchangePage() {
                     </div>
 
                     <div className="mt-4 flex gap-2">
-                      <Button className="bg-black text-white" onClick={() => { if (!hasDeliverableItems) { toast.error("No delivered items available for return/exchange."); return; } setStep(3); }}><ArrowRight /> Continue</Button>
+                      <Button
+                        className="bg-black text-white"
+                        onClick={() => { if (!hasDeliverableItems) { toast.error("No delivered items available for return/exchange."); return; } setStep(3); }}
+                        disabled={!hasDeliverableItems || Object.keys(itemsSelected).length === 0}
+                      >
+                        <ArrowRight /> Continue
+                      </Button>
                       <Button variant="outline" onClick={() => setStep(1)}>Back</Button>
                     </div>
                   </div>
@@ -540,16 +647,6 @@ export default function ReturnExchangePage() {
 
                                 <div className="mt-3 flex items-center gap-2">
                                   <Button variant="ghost" onClick={() => setStep(2)}>Edit</Button>
-                                  <Button variant="outline" onClick={() => {
-                                    setItemsSelected((p) => { const c = { ...p }; delete c[id]; return c; });
-                                    setPerItemAction((p) => { const c = { ...p }; delete c[id]; return c; });
-                                    setPerItemReason((p) => { const c = { ...p }; delete c[id]; return c; });
-                                    setPerItemDetails((p) => { const c = { ...p }; delete c[id]; return c; });
-                                    setPerItemExchangeSize((p) => { const c = { ...p }; delete c[id]; return c; });
-                                    (perItemPreviews[id] || []).forEach((u) => { try { URL.revokeObjectURL(u); } catch {} });
-                                    setPerItemFiles((p) => { const c = { ...p }; delete c[id]; return c; });
-                                    setPerItemPreviews((p) => { const c = { ...p }; delete c[id]; return c; });
-                                  }}>Remove</Button>
                                 </div>
                               </div>
                             </div>
@@ -601,7 +698,6 @@ export default function ReturnExchangePage() {
                 This order has status <strong>{order.orderStatus}</strong>. Returns & exchanges are allowed only after delivery.
               </div>
             )}
-
           </section>
         </div>
       </div>

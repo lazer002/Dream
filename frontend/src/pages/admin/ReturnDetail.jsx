@@ -288,9 +288,12 @@ async function handleUpdateStatus() {
 
         <CardContent className="space-y-6 pt-6">
           <div className="grid gap-6 lg:grid-cols-[2fr,1.2fr]">
-            {/* Left: status bar + items */}
+
+
+
+
          <div className="space-y-4">
-  {/* Status bar */}
+
   <div className="rounded-xl border border-neutral-200 bg-neutral-50 px-4 py-3">
     <div className="flex items-center justify-between text-[11px] text-muted-foreground mb-2">
       <span>
@@ -302,53 +305,53 @@ async function handleUpdateStatus() {
       </span>
     </div>
 
-    {/* ✔ continuous line in the middle connecting circles */}
-    <div className="relative mt-1 pb-1">
-      {/* base track */}
-      <div className="absolute left-[16px] right-[16px] top-[15px] h-[2px] rounded-full bg-neutral-300" />
-      {/* filled track up to current step */}
-      <div
-        className="absolute left-[16px] top-[15px] h-[2px] rounded-full bg-black transition-all"
-        style={{ width: `${progressPercent}%` }}
-      />
-
-      <div className="relative flex flex-row items-start justify-between gap-2 overflow-x-auto">
+    {/* status bar */}
+    <div className="w-full pb-2">
+      <div className="flex items-start">
         {RETURN_STATUS_STEPS.map((step, index) => {
-          const isCompleted =
-            currentIndex !== -1 && index < currentIndex;
-          const isCurrent = index === currentIndex;
-          const isFuture = index > currentIndex;
+          const isCompleted = currentIndex > index;
+          const isCurrent = currentIndex === index;
 
           const dotClasses = [
             "flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-semibold transition-all",
             isCompleted || isCurrent
               ? "bg-black text-white border-black"
               : "bg-white text-black border-neutral-400",
-          ]
-            .filter(Boolean)
-            .join(" ");
+          ].join(" ");
 
           return (
             <div
               key={step}
-              className="flex min-w-[75px] flex-1 flex-col items-center text-center"
+              className="flex flex-1 items-start"
             >
-              {/* dot sits on the line */}
-              <div className={dotClasses}>{index + 1}</div>
+              {/* Circle + text (centered) */}
+              <div className="w-[75px] flex flex-col items-center text-center">
+                <div className={dotClasses}>{index + 1}</div>
 
-              <div className="mt-1 text-[10px] leading-tight font-medium text-black">
-                {STATUS_LABELS[step]}
+                <div className="mt-1 text-[10px] font-medium text-black">
+                  {STATUS_LABELS[step]}
+                </div>
+
+                {index > currentIndex && (
+                  <div className="mt-0.5 text-[9px] text-muted-foreground">
+                    Pending
+                  </div>
+                )}
+
+                {isCurrent && (
+                  <div className="mt-0.5 text-[9px] text-black font-semibold">
+                    In progress
+                  </div>
+                )}
               </div>
 
-              {isFuture && (
-                <div className="mt-0.5 text-[9px] text-muted-foreground">
-                  Pending
-                </div>
-              )}
-              {isCurrent && (
-                <div className="mt-0.5 text-[9px] font-medium text-black">
-                  In progress
-                </div>
+              {/* Connector line (touches both circles) */}
+              {index < RETURN_STATUS_STEPS.length - 1 && (
+                <div
+                  className={`h-[2px] flex-1 mt-[14px] -mx-6 rounded-full ${
+                    currentIndex > index ? "bg-black" : "bg-neutral-300"
+                  }`}
+                />
               )}
             </div>
           );
@@ -357,12 +360,13 @@ async function handleUpdateStatus() {
     </div>
   </div>
 
-  {/* Items (unchanged) */}
+  {/* ITEMS BELOW – unchanged */}
   <div className="space-y-3">
     <div className="flex items-center justify-between">
       <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
         Items in this return
       </div>
+
       {stats && (
         <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
           <span>
@@ -450,15 +454,14 @@ async function handleUpdateStatus() {
                 <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
                   <span>Variant: {item.variant}</span>
                   <span>Qty: {item.qty}</span>
-                  {item.action === "exchange" &&
-                    item.exchangeSize && (
-                      <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[10px]">
-                        Exchange to{" "}
-                        <span className="ml-1 font-semibold">
-                          {item.exchangeSize}
-                        </span>
+                  {item.action === "exchange" && item.exchangeSize && (
+                    <span className="inline-flex items-center rounded-full bg-neutral-100 px-2 py-0.5 text-[10px]">
+                      Exchange to{" "}
+                      <span className="ml-1 font-semibold">
+                        {item.exchangeSize}
                       </span>
-                    )}
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -493,6 +496,11 @@ async function handleUpdateStatus() {
     </div>
   </div>
 </div>
+
+
+
+
+
 
 
             {/* Right: status control + history */}

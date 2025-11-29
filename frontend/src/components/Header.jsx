@@ -363,7 +363,7 @@ export default function Header() {
             }`}
         >
           <div
-            className={`relative bg-white w-full max-w-7xl rounded-md p-6 transform transition-all duration-1000 ${searchOpen ? "scale-100 translate-y-0 opacity-100" : "scale-95 -translate-y-6 opacity-0"
+            className={`relative bg-white w-full max-w-7xl rounded-md p-6 transform transition-all duration-1000 h-[90vh] overflow-y-scroll ${searchOpen ? "scale-100 translate-y-0 opacity-100" : "scale-95 -translate-y-6 opacity-0"
               }`}
           >
             {/* ✅ Smooth close button */}

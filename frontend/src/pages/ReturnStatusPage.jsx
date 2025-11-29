@@ -306,223 +306,219 @@ export default function ReturnStatusPage() {
               Current step and items included in this return.
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-5">
-            {/* horizontal status bar */}
-            <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-2">
-              <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-                <span>
-                  Step {currentIndex >= 0 ? currentIndex + 1 : "-"} of{" "}
-                  {RETURN_STATUS_STEPS.length}
-                </span>
-                <span className="font-medium text-foreground">
-                  {STATUS_LABELS[data.status]}
-                </span>
+<CardContent className="space-y-5">
+  {/* horizontal status bar */}
+  <div className="space-y-2 rounded-lg border bg-muted/40 px-3 py-2">
+    <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+      <span>
+        Step {currentIndex >= 0 ? currentIndex + 1 : "-"} of{" "}
+        {RETURN_STATUS_STEPS.length}
+      </span>
+      <span className="font-medium text-foreground">
+        {STATUS_LABELS[data.status]}
+      </span>
+    </div>
+
+    {/* FIXED: removed gap-2 so connectors can touch both circles */}
+    <div className="flex items-start overflow-x-auto pb-1">
+      {RETURN_STATUS_STEPS.map((step, index) => {
+        const isCompleted = currentIndex !== -1 && index < currentIndex;
+        const isCurrent = index === currentIndex;
+        const isFuture = index > currentIndex;
+
+        const dotClasses = [
+          "flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-semibold transition-all",
+          isCompleted || isCurrent
+            ? "bg-black text-white border-black"
+            : "bg-white text-black border-black",
+        ]
+          .filter(Boolean)
+          .join(" ");
+
+        // only completed segments are black
+        const connectorClasses = [
+          "h-[2px] flex-1 mt-[14px] -mx-6 rounded-full transition-colors",
+          isCompleted ? "bg-black" : "bg-muted",
+        ].join(" ");
+
+        return (
+          <div
+            key={step}
+            className="flex flex-1 items-start min-w-[90px]"
+          >
+            {/* circle + text */}
+            <div className="w-[75px] flex flex-col items-center text-center">
+              <div className={dotClasses}>{index + 1}</div>
+
+              <div className="mt-1 text-[10px] leading-tight font-medium text-black">
+                {STATUS_LABELS[step]}
               </div>
 
-              <div className="flex flex-row items-start justify-between gap-2 overflow-x-auto pb-1">
-                {RETURN_STATUS_STEPS.map((step, index) => {
-                  const isCompleted =
-                    currentIndex !== -1 && index < currentIndex;
-                  const isCurrent = index === currentIndex;
-                  const isFuture = index > currentIndex;
+              {isFuture && (
+                <div className="mt-0.5 text-[9px] text-muted-foreground">
+                  Pending
+                </div>
+              )}
 
-                  const dotClasses = [
-                    "flex h-7 w-7 items-center justify-center rounded-full border text-[10px] font-semibold transition-all",
-                    isCompleted || isCurrent
-                      ? "bg-black text-white border-black"
-                      : "bg-white text-black border-black",
-                  ]
-                    .filter(Boolean)
-                    .join(" ");
-
-                  const lineClasses = [
-                    "h-px w-full transition-colors",
-                    isCompleted
-                      ? "bg-black"
-                      : isCurrent
-                      ? "bg-black"
-                      : "bg-muted",
-                  ].join(" ");
-
-                  return (
-                    <div
-                      key={step}
-                      className="relative flex min-w-[75px] flex-1 flex-col items-center text-center"
-                    >
-                      {index !== 0 && (
-                        <div className="absolute left-0 right-0 top-[15px] -z-10 flex items-center">
-                          <div className={lineClasses} />
-                        </div>
-                      )}
-
-                      <div className={dotClasses}>
-                        {index + 1}
-                      </div>
-
-                      <div className="mt-1 text-[10px] leading-tight font-medium text-black">
-                        {STATUS_LABELS[step]}
-                      </div>
-
-                      {isFuture && (
-                        <div className="mt-0.5 text-[9px] text-muted-foreground">
-                          Pending
-                        </div>
-                      )}
-
-                      {isCurrent && (
-                        <div className="mt-0.5 text-[9px] font-medium text-black">
-                          In progress
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
-              </div>
+              {isCurrent && (
+                <div className="mt-0.5 text-[9px] font-medium text-black">
+                  In progress
+                </div>
+              )}
             </div>
 
-            <Separator />
+            {/* connector between this step and the next */}
+            {index < RETURN_STATUS_STEPS.length - 1 && (
+              <div className={connectorClasses} />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  </div>
 
-            {/* items list right under status bar */}
-            <div className="space-y-3">
-              {/* header row */}
-              <div className="flex items-center justify-between">
-                <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
-                  Items in this return
+  <Separator />
+
+  {/* items list right under status bar */}
+  <div className="space-y-3">
+    {/* header row */}
+    <div className="flex items-center justify-between">
+      <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+        Items in this return
+      </div>
+      <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
+        <span>
+          {data.items.length} item
+          {data.items.length > 1 ? "s" : ""}
+        </span>
+        <span className="h-1 w-1 rounded-full bg-muted-foreground" />
+        <span className="font-medium">
+          {stats ? formatCurrency(stats.subtotal) : "-"}
+        </span>
+      </div>
+    </div>
+
+    {/* items list */}
+    <div className="space-y-3">
+      {data.items.map((item, idx) => {
+        const photos = Array.isArray(item.photos)
+          ? item.photos.filter(Boolean)
+          : [];
+        const firstPhoto = photos[0] || null;
+
+        const actionLabel =
+          item.action === "exchange"
+            ? "Exchange"
+            : item.action === "refund"
+            ? "Refund"
+            : item.action === "repair"
+            ? "Repair"
+            : item.action || "Return";
+
+        const rowBg =
+          idx % 2 === 0 ? "bg-background" : "bg-muted/30";
+
+        return (
+          <div
+            key={item.orderItemId}
+            className={`flex gap-3 rounded-lg border ${rowBg} p-3 transition-colors`}
+          >
+            {/* left: main image + strip */}
+            <div className="flex flex-col gap-2">
+              <div className="aspect-square h-20 w-20 overflow-hidden rounded-md border bg-muted">
+                {firstPhoto ? (
+                  <img
+                    src={firstPhoto}
+                    alt={item.title}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
+                    No image
+                  </div>
+                )}
+              </div>
+
+              {photos.length > 1 && (
+                <div className="flex max-w-[120px] items-center gap-1 overflow-x-auto">
+                  {photos.map((url, idx2) => (
+                    <Link
+                      key={idx2}
+                      to={url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="h-7 w-7 flex-shrink-0 overflow-hidden rounded border bg-muted cursor-pointer"
+                    >
+                      <img
+                        src={url}
+                        alt={`${item.title} ${idx2 + 1}`}
+                        className="h-full w-full object-cover"
+                      />
+                    </Link>
+                  ))}
                 </div>
-                <div className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                  <span>
-                    {data.items.length} item
-                    {data.items.length > 1 ? "s" : ""}
+              )}
+            </div>
+
+            {/* right: content */}
+            <div className="flex flex-1 flex-col justify-between text-xs">
+              <div className="space-y-1">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="line-clamp-2 text-sm font-medium">
+                    {item.title}
+                  </div>
+                  <span className="whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {actionLabel}
                   </span>
-                  <span className="h-1 w-1 rounded-full bg-muted-foreground" />
-                  <span className="font-medium">
-                    {stats ? formatCurrency(stats.subtotal) : "-"}
-                  </span>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
+                  <span>Variant: {item.variant}</span>
+                  <span>Qty: {item.qty}</span>
+                  {item.action === "exchange" && item.exchangeSize && (
+                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px]">
+                      Exchange to{" "}
+                      <span className="ml-1 font-semibold">
+                        {item.exchangeSize}
+                      </span>
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {item.reason && (
+                    <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
+                      Reason:{" "}
+                      <span className="ml-1 text-foreground">
+                        {item.reason}
+                      </span>
+                    </span>
+                  )}
+                  {item.details && (
+                    <span className="line-clamp-1 text-[11px] text-muted-foreground">
+                      “{item.details}”
+                    </span>
+                  )}
                 </div>
               </div>
 
-              {/* items list */}
-              <div className="space-y-3">
-                {data.items.map((item, idx) => {
-                  const photos = Array.isArray(item.photos)
-                    ? item.photos.filter(Boolean)
-                    : [];
-                  const firstPhoto = photos[0] || null;
-
-                  const actionLabel =
-                    item.action === "exchange"
-                      ? "Exchange"
-                      : item.action === "refund"
-                      ? "Refund"
-                      : item.action === "repair"
-                      ? "Repair"
-                      : item.action || "Return";
-
-                  const rowBg =
-                    idx % 2 === 0
-                      ? "bg-background"
-                      : "bg-muted/30";
-
-                  return (
-                    <div
-                      key={item.orderItemId}
-                      className={`flex gap-3 rounded-lg border ${rowBg} p-3 transition-colors`}
-                    >
-                      {/* left: main image + strip */}
-                      <div className="flex flex-col gap-2">
-                        <div className="aspect-square h-20 w-20 overflow-hidden rounded-md border bg-muted">
-                          {firstPhoto ? (
-                            <img
-                              src={firstPhoto}
-                              alt={item.title}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <div className="flex h-full w-full items-center justify-center text-[10px] text-muted-foreground">
-                              No image
-                            </div>
-                          )}
-                        </div>
-
-                              {photos.length > 1 && (
-                                  <div className="flex max-w-[120px] items-center gap-1 overflow-x-auto">
-                                      {photos.map((url, idx2) => (
-                                          <Link
-                                              key={idx2}
-                                              to={url}
-                                              target="_blank"
-                                              rel="noreferrer"
-                                              className="h-7 w-7 flex-shrink-0 overflow-hidden rounded border bg-muted cursor-pointer"
-                                          >
-                                              <img
-                                                  src={url}
-                                                  alt={`${item.title} ${idx2 + 1}`}
-                                                  className="h-full w-full object-cover"
-                                              />
-                                          </Link>
-                                      ))}
-                                  </div>
-                              )}
-
-                      </div>
-
-                      {/* right: content */}
-                      <div className="flex flex-1 flex-col justify-between text-xs">
-                        <div className="space-y-1">
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="line-clamp-2 text-sm font-medium">
-                              {item.title}
-                            </div>
-                            <span className="whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground">
-                              {actionLabel}
-                            </span>
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-muted-foreground">
-                            <span>Variant: {item.variant}</span>
-                            <span>Qty: {item.qty}</span>
-                            {item.action === "exchange" && item.exchangeSize && (
-                              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px]">
-                                Exchange to{" "}
-                                <span className="ml-1 font-semibold">
-                                  {item.exchangeSize}
-                                </span>
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap items-center gap-2">
-                            {item.reason && (
-                              <span className="inline-flex items-center rounded-full bg-muted px-2 py-0.5 text-[10px] text-muted-foreground">
-                                Reason:{" "}
-                                <span className="ml-1 text-foreground">
-                                  {item.reason}
-                                </span>
-                              </span>
-                            )}
-                            {item.details && (
-                              <span className="line-clamp-1 text-[11px] text-muted-foreground">
-                                “{item.details}”
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="mt-2 flex items-center justify-between text-xs">
-                          <span className="text-[11px] text-muted-foreground">
-                            Per item
-                          </span>
-                          <span className="text-sm font-semibold">
-                            {formatCurrency(item.price)}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
+              <div className="mt-2 flex items-center justify-between text-xs">
+                <span className="text-[11px] text-muted-foreground">
+                  Per item
+                </span>
+                <span className="text-sm font-semibold">
+                  {formatCurrency(item.price)}
+                </span>
               </div>
             </div>
-          </CardContent>
+          </div>
+        );
+      })}
+    </div>
+  </div>
+</CardContent>
+
+
         </Card>
 
         {/* bottom row: overview + history */}

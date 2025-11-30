@@ -329,28 +329,126 @@ ${menOpen ? "opacity-100 visible translate-y-0 pointer-events-auto" : "opacity-0
       </div>
 
       {/* Mobile Sidebar */}
-      {mobileOpen && (
-        <div className="lg:hidden fixed inset-0 bg-black bg-opacity-40 z-40">
-          <div className="bg-white w-64 h-full p-6 transition-transform duration-300 ease-in-out transform translate-x-0">
-            <button
-              onClick={() => setMobileOpen(false)}
-              className="mb-4 font-bold"
-            >
-              Close
-            </button>
-            <ul className="space-y-4">
-              {navItems.map((item) => (
-                <li key={item.title}>
-                  <Link to={item.url || "#"}>{item.title}</Link>
-                </li>
-              ))}
-              <li>
-                <Link to="/wishlist">Wishlist</Link>
+    {mobileOpen && (
+  <div className="fixed inset-0 z-40 lg:hidden">
+    {/* Backdrop */}
+    <div
+      className="absolute inset-0 bg-black/40"
+      onClick={() => setMobileOpen(false)}
+    />
+
+    {/* Drawer */}
+    <div className="absolute left-0 top-0 h-full w-72 max-w-xs bg-white shadow-2xl flex flex-col
+                    transform translate-x-0 transition-transform duration-300 ease-out">
+      {/* Header row */}
+      <div className="flex items-center justify-between mb-6 px-4 pt-5 pb-3 border-b border-gray-200">
+        <Link
+          to="/"
+          className="text-lg font-semibold tracking-[0.25em] uppercase"
+          onClick={() => setMobileOpen(false)}
+        >
+          DRIPDESI
+        </Link>
+        <button
+          onClick={() => setMobileOpen(false)}
+          className="p-1.5 rounded-full border border-gray-200 hover:bg-gray-100 active:scale-95 transition"
+        >
+          <span className="block text-sm font-semibold">×</span>
+        </button>
+      </div>
+
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto px-4 pb-6">
+        {/* Main nav */}
+        <nav>
+          <ul className="space-y-2">
+            {navItems.map((item) => (
+              <li key={item.title}>
+                <Link
+                  to={item.url || "#"}
+                  onClick={() => setMobileOpen(false)}
+                  className="block px-2 py-2.5 rounded-lg text-sm font-semibold tracking-wide uppercase
+                             hover:bg-black hover:text-white transition-colors"
+                >
+                  {item.title}
+                </Link>
               </li>
-            </ul>
-          </div>
+            ))}
+
+            <li className="pt-2">
+              <Link
+                to="/wishlist"
+                onClick={() => setMobileOpen(false)}
+                className="block px-2 py-2.5 rounded-lg text-sm font-semibold tracking-wide uppercase
+                           hover:bg-black hover:text-white transition-colors"
+              >
+                Wishlist
+              </Link>
+            </li>
+          </ul>
+        </nav>
+
+        {/* Divider */}
+        <div className="my-5 h-px bg-gray-200" />
+
+        {/* Account section (optional, assumes `user` & `logout` exist in Header) */}
+        <div className="space-y-2">
+          {user ? (
+            <>
+              <p className="px-2 text-xs uppercase tracking-[0.2em] text-gray-400">
+                Account
+              </p>
+              <Link
+                to="/profile"
+                onClick={() => setMobileOpen(false)}
+                className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
+              >
+                My Profile
+              </Link>
+              <Link
+                to="/trackorder"
+                onClick={() => setMobileOpen(false)}
+                className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
+              >
+                Track Order
+              </Link>
+              <button
+                onClick={() => {
+                  logout();
+                  setMobileOpen(false);
+                }}
+                className="w-full text-left px-2 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
+              >
+                Logout
+              </button>
+            </>
+          ) : (
+            <>
+              <p className="px-2 text-xs uppercase tracking-[0.2em] text-gray-400">
+                Account
+              </p>
+              <Link
+                to="/login"
+                onClick={() => setMobileOpen(false)}
+                className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
+              >
+                Log In
+              </Link>
+              <Link
+                to="/register"
+                onClick={() => setMobileOpen(false)}
+                className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
+              >
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
-      )}
+      </div>
+    </div>
+  </div>
+)}
+
 
       {/* Search Overlay */}
       {visible && (

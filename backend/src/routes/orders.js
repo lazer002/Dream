@@ -7,12 +7,13 @@ import axios from "axios"; // fixed import
 import { getNextOrderSeq } from "../models/Counter.js";
 import { sendEmail } from "../utils/sendEmail.js";
 import { templateForStatus } from "../utils/emailTemplates.js";
-import { requireAuth } from "../middleware/auth.js";
+import { requireAuth ,optionalAuth} from "../middleware/auth.js";
+import mongoose from "mongoose";
 
 const router = express.Router();
 
 
-router.post("/create", requireAuth, async (req, res) => {
+router.post("/create", optionalAuth, async (req, res) => {
   try {
     console.log("Create order request body:", req.body);
     // defensive read: prefer normalized id set by requireAuth
@@ -39,15 +40,16 @@ router.post("/create", requireAuth, async (req, res) => {
 
     let guestId = null;
 
-    // Only create guest if there's no logged-in user
     if (!userId) {
-      // find or create guest by email to avoid duplicates
+      const clientGuestId = req.headers["x-guest-id"];
+      guestId = clientGuestId; // ✅ USE SAME ID AS APP
       let guest = null;
       if (contactEmail) {
         guest = await GuestUser.findOne({ email: contactEmail });
       }
       if (!guest) {
         guest = await GuestUser.create({
+          guestId,
           email: contactEmail,
           firstName: shippingAddress.firstName,
           lastName: shippingAddress.lastName,
@@ -58,9 +60,9 @@ router.post("/create", requireAuth, async (req, res) => {
           zip: shippingAddress.zip || "110045",
           country: shippingAddress.country || "India",
           phone: shippingAddress.phone,
+         
         });
       }
-      guestId = guest._id;
     }
 
     const orderItems = items.map((i) => ({
@@ -88,7 +90,7 @@ router.post("/create", requireAuth, async (req, res) => {
       shippingAddress,
       items: orderItems,
       subtotal,
-      shippingFee: shipping || 100,
+      shippingFee: shipping ,
       total,
       discountCode: discountCode || "",
       paymentMethod,
@@ -97,9 +99,15 @@ router.post("/create", requireAuth, async (req, res) => {
       orderStatus: "pending",
     });
 
-    if (!userId && guestId) {
-      await GuestUser.findByIdAndUpdate(guestId, { $push: { orders: order._id } });
-    }
+if (!userId) {
+  await GuestUser.findOneAndUpdate(
+    { email: contactEmail },
+    {
+      $push: { orders: order._id }, // ✅ store ORDER ID (not productId)
+    },
+    { upsert: true }
+  );
+}
 
     // Razorpay flow (unchanged)
     if (paymentMethod === "razorpay") {
@@ -190,6 +198,7 @@ router.post("/payment-success", async (req, res) => {
 
 router.get("/track", async (req, res) => {
   try {
+    console.log("Track order query:", req.query);
     const { email, orderNumber } = req.query;
     if (!email && !orderNumber) {
       return res.status(400).json({ success: false, message: "email or orderNumber required" });
@@ -297,19 +306,105 @@ router.post("/track-email", async (req, res) => {
   }
 });
 
-router.get("/mine", requireAuth, async (req, res) => {
+router.get("/mine", optionalAuth, async (req, res) => {
   try {
     const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const guestId = req.headers["x-guest-id"];
 
-    const orders = await Order.find({ userId: userId }).sort({ createdAt: -1 });
-    console.log(`Found ${orders.length} orders for user ${userId}`);
-    res.json({ orders });
+    console.log("Fetching orders:", { userId, guestId });
+
+    let orders = [];
+
+    if (userId) {
+      orders = await Order.find({ userId });
+    } else if (guestId) {
+      orders = await Order.find({ guestId });
+    } else {
+      return res.status(400).json({ error: "No identity" });
+    }
+console.log("Fetched orders:", orders.length);
+    res.json({
+      orders: orders.sort((a, b) => b.createdAt - a.createdAt),
+    });
   } catch (err) {
-    console.error("Get user orders error:", err);
+    console.error("Get orders error:", err);
     res.status(500).json({ error: "Failed to fetch orders" });
   }
 });
+router.post("/merge-orders", requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const guestId = req.headers["x-guest-id"];
 
+    console.log("🔄 MERGING guestId:", guestId, "→ user:", userId);
 
+    if (!guestId) {
+      return res.json({ message: "No guest orders" });
+    }
+
+    const result = await Order.updateMany(
+      { guestId }, // ✅ THIS IS KEY
+      {
+        $set: { userId },
+        $unset: { guestId: "" },
+      }
+    );
+
+    console.log("✅ Orders merged:", result.modifiedCount);
+
+    res.json({ success: true, merged: result.modifiedCount });
+  } catch (err) {
+    console.error("❌ Merge failed:", err);
+    res.status(500).json({ error: "Merge failed" });
+  }
+});
+
+router.put("/cancel", async (req, res) => {
+  try {
+    const { orderId } = req.body;
+    const guestId = req.headers["x-guest-id"];
+    const userId = req.user?.id || null;
+
+    const order = await Order.findById(orderId);
+
+    if (!order) {
+      return res.status(404).json({ error: "Order not found" });
+    }
+
+    /* 🔒 SECURITY */
+    if (userId) {
+      if (order.userId?.toString() !== userId.toString()) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    } else {
+      if (order.guestId !== guestId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+    }
+
+    /* 🚫 VALIDATION */
+    if (!["pending", "confirmed"].includes(order.orderStatus)) {
+      return res.status(400).json({
+        error: "Order cannot be cancelled now",
+      });
+    }
+
+    // ✅ USE THIS INSTEAD OF save()
+    const updatedOrder = await Order.findByIdAndUpdate(
+      orderId,
+      { orderStatus: "cancelled" }, // middleware will handle history
+      { new: true }
+    );
+
+    res.json({
+      success: true,
+      message: "Order cancelled successfully",
+      order: updatedOrder,
+    });
+
+  } catch (err) {
+    console.error("Cancel error:", err);
+    res.status(500).json({ error: "Cancel failed" });
+  }
+});
 export default router;

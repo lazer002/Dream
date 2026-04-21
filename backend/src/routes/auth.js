@@ -1,12 +1,15 @@
 import express from 'express'
 import { User } from '../models/User.js'
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js'
-import { googleLogin } from '../utils/gauth.js'
-
+import { googleLogin, googleLoginMobile } from '../utils/gauth.js'
+import { OTP } from '../models/Otp.js'
+import bcrypt from 'bcryptjs'
+import { sendOtpMail } from '../utils/mailer.js'
 const router = express.Router()
 
 router.post('/register', async (req, res) => {
   try {
+    console.log("Registration request body:", req.body);
     const { email, name, password } = req.body
     if (!email || !name || !password) return res.status(400).json({ error: 'Missing fields' })
     const existing = await User.findOne({ email })
@@ -232,6 +235,7 @@ router.post("/change-password", async (req, res) => {
 
 
 router.post("/google", googleLogin);
+router.post("/google/mobile", googleLoginMobile);
 
 export default router
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useWishlist } from "../state/WishlistContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
-import api from "../utils/config.jsx";
+import api from "../utils/config.js";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingBag, X, Heart as HeartOutline } from "lucide-react"; // or your icon set
 

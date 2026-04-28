@@ -5,7 +5,7 @@ import { Heart, ShoppingBag, Filter, ArrowUpDown, Heart as HeartOutline } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCart } from "../state/CartContext.jsx"
 import { useWishlist } from "../state/WishlistContext.jsx"
-import api  from "@/utils/config.jsx";
+import api  from "@/utils/config";
 import { useLocation } from "react-router-dom";
 import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@/components/ui/dialog.jsx";
 

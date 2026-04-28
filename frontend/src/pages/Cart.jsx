@@ -1,7 +1,8 @@
 // src/pages/Cart.jsx
 import { Link } from "react-router-dom"
 import { useCart } from "../state/CartContext.jsx"
-import { X } from "lucide-react"
+import { Trash } from "lucide-react"
+import { getDeliveryDate } from "@/utils/public.js";
 
 export default function Cart() {
   const { items, update, remove, loading } = useCart()
@@ -116,159 +117,148 @@ const total = subtotal + tax + deliveryFee - discount;
 return (
   <div className="flex flex-col md:flex-row gap-6 px-6 py-8 min-h-screen">
     {/* Left: Cart Items */}
-    <div className="md:w-2/3 flex flex-col gap-4">
-    {items.map((it) => {
+    
+        <div className="md:w-2/3 flex flex-col gap-4">
+{items.map((it) => {
   const isBundle = !!it.bundle;
   const key = isBundle ? it.bundle._id : `${it.product._id}-${it.size}`;
 
-  // 👇 Choose correct image for bundles or single products
-const imageSrc = isBundle
-  ? it.mainImage || "/placeholder.jpg"
-  : it.product?.images?.[0] || "/placeholder.jpg";
-
+  const imageSrc = isBundle
+    ? it.mainImage || "/placeholder.jpg"
+    : it.product?.images?.[0] || "/placeholder.jpg";
 
   return (
     <div
       key={key}
-      className="flex flex-col gap-4 p-5 border border-gray-200 rounded-xl bg-white shadow-sm hover:shadow-md transition duration-300"
+      className="flex flex-col p-4 border border-gray-200 rounded-xl bg-white hover:shadow-sm transition"
     >
-      {/* Top Row */}
-      <div className="flex items-start justify-between">
-        {/* Left: Product Info */}
-        <div className="flex items-start gap-4">
-          {/* Image */}
+      {/* 🔹 MAIN ROW */}
+      <div className="flex items-center justify-between">
+
+        {/* LEFT */}
+        <div className="flex items-center gap-4 flex-1">
           <img
             src={imageSrc}
-            alt={isBundle ? it.bundle?.title : it.product?.title}
-            className="w-20 h-20 rounded-lg object-cover border border-gray-200"
+            alt=""
+            className="w-20 h-20 rounded-lg object-cover border"
           />
 
-          {/* Title + Info */}
-          <div className="flex flex-col justify-between">
-            <h3 className="text-lg font-semibold text-gray-900">
+          <div className="flex flex-col gap-1 flex-1">
+            <h3 className="text-base font-semibold text-gray-900">
               {isBundle ? it.bundle.title : it.product.title}
             </h3>
 
             {isBundle ? (
-              <p className="text-sm text-gray-600 mt-1">
-                Bundle of {it.bundleProducts?.length || 0} products
+              <p className="text-xs text-gray-500">
+                Bundle of {it.bundleProducts?.length || 0} items
               </p>
             ) : (
               it.size && (
-                <p className="text-sm text-gray-600 mt-1">
+                <p className="text-xs text-gray-500">
                   Size: <span className="font-medium">{it.size}</span>
                 </p>
               )
             )}
+
+            {/* ✅ Inline quantity */}
+            <div className="flex items-center gap-2 mt-2">
+              <div className="flex items-center border rounded-full overflow-hidden">
+                <button
+                  onClick={() => {
+                    if (it.quantity === 1) {
+                      isBundle
+                        ? remove(it.bundle._id)
+                        : remove(it.product._id, it.size);
+                    } else {
+                      update(
+                        isBundle ? it.bundle._id : it.product._id,
+                        it.quantity - 1,
+                        it.size,
+                        isBundle
+                      );
+                    }
+                  }}
+                  className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+                >
+                  -
+                </button>
+
+                <span className="px-3 text-sm font-medium">
+                  {it.quantity}
+                </span>
+
+                <button
+                  onClick={() =>
+                    update(
+                      isBundle ? it.bundle._id : it.product._id,
+                      it.quantity + 1,
+                      it.size,
+                      isBundle
+                    )
+                  }
+                  className="px-3 py-1 text-gray-600 hover:bg-gray-100"
+                >
+                  +
+                </button>
+              </div>
+            </div>
           </div>
         </div>
 
-        {/* Right: Remove & Price */}
-        <div className="flex flex-col items-end">
-          <X
-            className="cursor-pointer text-gray-400 hover:text-red-600 hover:bg-gray-100 rounded-full p-1 transition"
+        {/* RIGHT */}
+        <div className="flex flex-col items-end gap-2">
+          <Trash
+            className="cursor-pointer text-gray-400 hover:text-red-500 transition size-5"
             onClick={() =>
               isBundle
                 ? remove(it.bundle._id, null, true)
                 : remove(it.product._id, it.size)
             }
           />
-          <div className="mt-3 text-right">
-            <p className="text-sm text-gray-600">
-              Delivery by{" "}
-              <span className="font-medium text-gray-900">Oct 3</span>
-            </p>
-            <p className="font-bold text-[#042354] text-lg">
-              ₹{" "}
-              {(isBundle
-                ? it.bundle.price * it.quantity
-                : it.product.price * it.quantity
-              ).toLocaleString()}
-            </p>
-          </div>
+
+          <p className="text-xs text-gray-500">
+            Delivery by{" "}
+            <span className="font-medium text-gray-800">
+              {getDeliveryDate()}
+            </span>
+          </p>
+
+          <p className="font-semibold text-lg text-gray-900">
+            ₹{" "}
+            {(isBundle
+              ? it.bundle.price * it.quantity
+              : it.product.price * it.quantity
+            ).toLocaleString()}
+          </p>
         </div>
       </div>
 
-      {/* 🧩 Bundle Products (if applicable) */}
+      {/* 🔹 BUNDLE ITEMS (clean + minimal, no heavy divider) */}
       {isBundle && (
-        <div className="ml-6 mt-3 border-t pt-3 space-y-2">
+        <div className="mt-4 ml-24 space-y-2">
           {it.bundleProducts?.map((bp, i) => (
             <div
               key={i}
-              className="flex items-center gap-3 text-sm text-gray-700"
+              className="flex items-center gap-3 text-xs text-gray-600"
             >
               <img
                 src={bp.product?.images?.[0] || "/placeholder.jpg"}
-                alt={bp.product?.title}
-                className="w-14 h-14 rounded border object-cover"
+                alt=""
+                className="w-10 h-10 rounded object-cover border"
               />
+
               <div>
-                <p className="font-medium">{bp.product?.title}</p>
+                <p className="font-medium text-gray-800">
+                  {bp.product?.title}
+                </p>
                 {bp.size && (
-                  <p className="text-gray-600 text-xs">Size: {bp.size}</p>
+                  <p className="text-gray-500">Size: {bp.size}</p>
                 )}
               </div>
             </div>
           ))}
         </div>
       )}
-
-      {/* Quantity Section */}
-      <div className="flex items-center justify-between mt-3 border-t pt-3">
-        <div className="flex items-center gap-3">
-          <span className="text-gray-700 text-sm font-medium">Qty:</span>
-          <div className="flex items-center border border-gray-300 rounded overflow-hidden">
-            <button
-              onClick={() => {
-                if (it.quantity === 1) {
-                  isBundle
-                    ? remove(it.bundle._id)
-                    : remove(it.product._id, it.size);
-                } else {
-                  update(
-                    isBundle ? it.bundle._id : it.product._id,
-                    it.quantity - 1,
-                    it.size,
-                    isBundle
-                  );
-                }
-              }}
-              className="px-3 py-1 text-gray-700 font-bold hover:bg-gray-100 transition"
-            >
-              -
-            </button>
-
-            <input
-              type="number"
-              min={1}
-              value={it.quantity}
-              onChange={(e) =>
-                update(
-                  isBundle ? it.bundle._id : it.product._id,
-                  Number(e.target.value),
-                  it.size,
-                  isBundle
-                )
-              }
-              className="w-14 text-center border-l border-r border-gray-300 focus:outline-none"
-            />
-
-            <button
-              onClick={() =>
-                update(
-                  isBundle ? it.bundle._id : it.product._id,
-                  it.quantity + 1,
-                  it.size,
-                  isBundle
-                )
-              }
-              className="px-3 py-1 text-gray-700 font-bold hover:bg-gray-100 transition"
-            >
-              +
-            </button>
-          </div>
-        </div>
-      </div>
     </div>
   );
 })}
@@ -277,7 +267,7 @@ const imageSrc = isBundle
 
     {/* Right: Order Summary */}
     <div className="md:w-1/3 flex flex-col gap-4">
-      <div className="p-5 border rounded-lg shadow-sm flex flex-col gap-4 sticky top-6 bg-white">
+      <div className="p-5 border rounded-lg shadow-sm flex flex-col gap-4 sticky top-24 bg-white">
         <h2 className="text-2xl font-bold text-gray-900">Order Summary</h2>
 
         <div className="flex justify-between text-gray-700 text-sm">

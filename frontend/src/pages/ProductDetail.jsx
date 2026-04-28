@@ -9,7 +9,7 @@ import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
-import api  from "@/utils/config.jsx"
+import api  from "@/utils/config"
 import toast from "react-hot-toast"
 
 export default function ProductDetail() {

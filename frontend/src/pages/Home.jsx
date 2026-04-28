@@ -699,7 +699,7 @@ export default function Home() {
             </h2>
             <p className="text-gray-700 text-lg md:text-xl max-w-2xl mx-auto">
               Got questions, ideas, or just wanna vibe with us? At{" "}
-              <span className="font-bold uppercase">Dream</span>, we’re all ears.
+              <span className="font-bold uppercase">MONKIESS</span>, we’re all ears.
             </p>
           </div>
 

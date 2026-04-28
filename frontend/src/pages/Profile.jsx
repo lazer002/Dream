@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState,useRef } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
-import api  from "@/utils/config.jsx";
+import api  from "@/utils/config";
 import {
   Box,
   Heart,

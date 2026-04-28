@@ -6,7 +6,7 @@ import { useCart } from "../state/CartContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import api from "@/utils/config";
 import { useNavigate } from "react-router-dom";
-
+import { useWishlist } from "../state/WishlistContext.jsx";
 const navItems = [
   { title: "HOME", url: "/" },
   {
@@ -23,6 +23,7 @@ const navItems = [
 
 export default function Header() {
   const { user, logout } = useAuth();
+  const { wishlist } = useWishlist();
   const { items } = useCart();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -96,19 +97,19 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 bg-white shadow-sm">
-      <div className="flex items-center justify-between px-6 py-5">
+      <div className="grid grid-cols-3 items-center px-6 py-5">
         {/* Left: Mobile Menu + Nav */}
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 justify-start w-max">
           {/* Mobile Hamburger */}
           <button
-            className="lg:hidden"
+            className="xl:hidden"
             onClick={() => setMobileOpen(!mobileOpen)}
           >
             <Menu className="w-6 h-6" />
           </button>
 
           {/* Desktop Nav */}
-          <nav className="hidden lg:flex gap-8">
+          <nav className="hidden xl:flex gap-8">
             {navItems.map((item) => {
               // ✅ MEN with hover dropdown
               if (item.showCategories) {
@@ -133,7 +134,7 @@ ${menOpen ? "opacity-100 visible translate-y-0 pointer-events-auto" : "opacity-0
                     >
                       <div className="relative flex items-center justify-center py-12 px-8 gap-8">
                         {/* LEFT PROMO BANNER */}
-                        <div className="hidden lg:flex flex-col justify-center items-center 
+                        <div className="hidden xl:flex flex-col justify-center items-center 
       bg-gradient-to-br from-white to-gray-100 text-gray-900 
       rounded-2xl p-8 w-72 h-[350px] shadow-md hover:shadow-lg 
       hover:scale-[1.02] transition-all duration-300 border border-gray-200"
@@ -243,12 +244,14 @@ ${menOpen ? "opacity-100 visible translate-y-0 pointer-events-auto" : "opacity-0
         </div>
 
         {/* Logo */}
-        <Link to="/" className="font-bold text-2xl">
-          MONKIESS
-        </Link>
+        <div className="flex justify-center">
+          <Link to="/" className="font-bold text-2xl">
+            MONKIESS
+          </Link>
+        </div>
 
         {/* Right Icons */}
-        <div className="flex items-center gap-6 ps-32">
+        <div className="flex items-center gap-6 justify-end">
           {user ? (
             <Link to="/admin">
               <div className="text-gray-600 hover:text-black text-sm">admin</div>
@@ -262,8 +265,12 @@ ${menOpen ? "opacity-100 visible translate-y-0 pointer-events-auto" : "opacity-0
 
           {/* Profile Section */}
           <div className="relative group">
-            <button className="p-2 rounded-full border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-colors">
+            <button className="relative p-2 rounded-full border border-transparent hover:border-gray-200 hover:bg-gray-50 transition-colors">
               <User className="w-5 h-5 text-gray-800" />
+
+              {wishlist.length > 0 && (
+                <span className="absolute top-1 right-1 w-2 h-2 bg-green-500 rounded-full ring-2 ring-white"></span>
+              )}
             </button>
 
             <div
@@ -302,9 +309,15 @@ ${menOpen ? "opacity-100 visible translate-y-0 pointer-events-auto" : "opacity-0
                   </Link>
                   <Link
                     to="/wishlist"
-                    className="block px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black transition-colors"
+                    className="relative flex items-center justify-between px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-100 hover:text-black transition-colors"
                   >
                     Wishlist
+
+                    {wishlist.length > 0 && (
+                      <span className="ml-2 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                        {wishlist.length}
+                      </span>
+                    )}
                   </Link>
                   <Link
                     to="/login"
@@ -326,145 +339,158 @@ ${menOpen ? "opacity-100 visible translate-y-0 pointer-events-auto" : "opacity-0
             )}
           </Link>
         </div>
+
+
       </div>
 
       {/* Mobile Sidebar */}
-    {mobileOpen && (
-  <div className="fixed inset-0 z-40 lg:hidden">
-    {/* Backdrop */}
-    <div
-      className="absolute inset-0 bg-black/40"
-      onClick={() => setMobileOpen(false)}
-    />
+  <div
+  className={`fixed inset-0 z-40 xl:hidden transition-all duration-300 ${
+    mobileOpen ? "visible" : "invisible"
+  }`}
+>
+  {/* Backdrop */}
+  <div
+    onClick={() => setMobileOpen(false)}
+    className={`absolute inset-0 bg-black/40 transition-opacity duration-300 ${
+      mobileOpen ? "opacity-100" : "opacity-0"
+    }`}
+  />
 
-    {/* Drawer */}
-    <div className="absolute left-0 top-0 h-full w-72 max-w-xs bg-white shadow-2xl flex flex-col
-                    transform translate-x-0 transition-transform duration-300 ease-out">
-      {/* Header row */}
-      <div className="flex items-center justify-between mb-6 px-4 pt-5 pb-3 border-b border-gray-200">
-        <Link
-          to="/"
-          className="text-lg font-semibold tracking-[0.25em] uppercase"
-          onClick={() => setMobileOpen(false)}
-        >
-          DRIPDESI
-        </Link>
-        <button
-          onClick={() => setMobileOpen(false)}
-          className="p-1.5 rounded-full border border-gray-200 hover:bg-gray-100 active:scale-95 transition"
-        >
-          <span className="block text-sm font-semibold">×</span>
-        </button>
-      </div>
-
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto px-4 pb-6">
-        {/* Main nav */}
-        <nav>
-          <ul className="space-y-2">
-            {navItems.map((item) => (
-              <li key={item.title}>
-                <Link
-                  to={item.url || "#"}
-                  onClick={() => setMobileOpen(false)}
-                  className="block px-2 py-2.5 rounded-lg text-sm font-semibold tracking-wide uppercase
-                             hover:bg-black hover:text-white transition-colors"
-                >
-                  {item.title}
-                </Link>
-              </li>
-            ))}
-
-            <li className="pt-2">
+  {/* Drawer */}
+  <div
+    className={`absolute left-0 top-0 h-full w-72 max-w-xs bg-white shadow-2xl flex flex-col
+    transform transition-transform duration-300 ease-in-out
+    ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
+  >
+            {/* Header row */}
+            <div className="flex items-center justify-between mb-6 px-4 pt-5 pb-3 border-b border-gray-200">
               <Link
-                to="/wishlist"
+                to="/"
+                className="text-lg font-semibold tracking-[0.25em] uppercase"
                 onClick={() => setMobileOpen(false)}
-                className="block px-2 py-2.5 rounded-lg text-sm font-semibold tracking-wide uppercase
-                           hover:bg-black hover:text-white transition-colors"
               >
-                Wishlist
-              </Link>
-            </li>
-          </ul>
-        </nav>
-
-        {/* Divider */}
-        <div className="my-5 h-px bg-gray-200" />
-
-        {/* Account section (optional, assumes `user` & `logout` exist in Header) */}
-        <div className="space-y-2">
-          {user ? (
-            <>
-              <p className="px-2 text-xs uppercase tracking-[0.2em] text-gray-400">
-                Account
-              </p>
-              <Link
-                to="/profile"
-                onClick={() => setMobileOpen(false)}
-                className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
-              >
-                My Profile
-              </Link>
-              <Link
-                to="/trackorder"
-                onClick={() => setMobileOpen(false)}
-                className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
-              >
-                Track Order
+                DRIPDESI
               </Link>
               <button
-                onClick={() => {
-                  logout();
-                  setMobileOpen(false);
-                }}
-                className="w-full text-left px-2 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
+                onClick={() => setMobileOpen(false)}
+                className="p-1.5 rounded-full border border-gray-200 hover:bg-gray-100 active:scale-95 transition"
               >
-                Logout
+                <span className="block text-sm font-semibold">×</span>
               </button>
-            </>
-          ) : (
-            <>
-              <p className="px-2 text-xs uppercase tracking-[0.2em] text-gray-400">
-                Account
-              </p>
-              <Link
-                to="/login"
-                onClick={() => setMobileOpen(false)}
-                className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
-              >
-                Log In
-              </Link>
-              <Link
-                to="/register"
-                onClick={() => setMobileOpen(false)}
-                className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
-              >
-                Sign Up
-              </Link>
-            </>
-          )}
+            </div>
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-4 pb-6">
+              {/* Main nav */}
+              <nav>
+                <ul className="space-y-2">
+                  {navItems.map((item) => (
+                    <li key={item.title}>
+                      <Link
+                        to={item.url || "#"}
+                        onClick={() => setMobileOpen(false)}
+                        className="block px-2 py-2.5 rounded-lg text-sm font-semibold tracking-wide uppercase
+                             hover:bg-black hover:text-white transition-colors"
+                      >
+                        {item.title}
+                      </Link>
+                    </li>
+                  ))}
+
+                  <li className="pt-2">
+                    <Link
+                      to="/wishlist"
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center justify-between px-2 py-2.5 rounded-lg text-sm font-semibold tracking-wide uppercase hover:bg-black hover:text-white transition-colors"
+                    >
+                      Wishlist
+
+                      {wishlist.length > 0 && (
+                        <span className="bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                          {wishlist.length}
+                        </span>
+                      )}
+                    </Link>
+                  </li>
+                </ul>
+              </nav>
+
+              {/* Divider */}
+              <div className="my-5 h-px bg-gray-200" />
+
+              {/* Account section (optional, assumes `user` & `logout` exist in Header) */}
+              <div className="space-y-2">
+                {user ? (
+                  <>
+                    <p className="px-2 text-xs uppercase tracking-[0.2em] text-gray-400">
+                      Account
+                    </p>
+                    <Link
+                      to="/profile"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
+                    >
+                      My Profile
+                    </Link>
+                    <Link
+                      to="/trackorder"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
+                    >
+                      Track Order
+                    </Link>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setMobileOpen(false);
+                      }}
+                      className="w-full text-left px-2 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50"
+                    >
+                      Logout
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <p className="px-2 text-xs uppercase tracking-[0.2em] text-gray-400">
+                      Account
+                    </p>
+                    <Link
+                      to="/login"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
+                    >
+                      Log In
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setMobileOpen(false)}
+                      className="block px-2 py-2.5 rounded-lg text-sm font-medium hover:bg-gray-100"
+                    >
+                      Sign Up
+                    </Link>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
+
 
 
       {/* Search Overlay */}
       {visible && (
         <div
-          className={`fixed inset-0 z-50 flex items-start justify-center p-6 transition-opacity duration-1000 ${
-            searchOpen
+          className={`fixed inset-0 z-50 flex items-start justify-center p-6 transition-opacity duration-1000 ${searchOpen
               ? "bg-black/60 opacity-100"
               : "bg-black/0 opacity-0 pointer-events-none"
-          }`}
+            }`}
         >
           <div
-            className={`relative bg-white w-full max-w-7xl rounded-md p-6 transform transition-all duration-1000 h-[90vh] overflow-y-scroll ${
-              searchOpen
+            className={`relative bg-white w-full max-w-7xl rounded-md p-6 transform transition-all duration-1000 h-[90vh] overflow-y-scroll ${searchOpen
                 ? "scale-100 translate-y-0 opacity-100"
                 : "scale-95 -translate-y-6 opacity-0"
-            }`}
+              }`}
           >
             {/* ✅ Smooth close button */}
             <button

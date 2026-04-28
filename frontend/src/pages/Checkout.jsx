@@ -9,6 +9,7 @@ import api  from "@/utils/config";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import {Loader2 } from "lucide-react";
+import { getDeliveryDate } from "@/utils/public";
 export default function CheckoutPage() {
   const navigate = useNavigate();
   const { items , clearCart } = useCart();
@@ -301,7 +302,7 @@ const handleCODOrder = async () => {
               <span className="font-medium">Free</span>
             </div>
             <p className="text-sm text-gray-600 ml-8">
-              Get your order by <strong>Oct 9</strong>.
+              Get your order by <strong>{getDeliveryDate()}</strong>.
             </p>
           </RadioGroup>
         </div>
@@ -348,7 +349,7 @@ const handleCODOrder = async () => {
                     <span className="font-medium text-gray-900">{title}</span>
                     {!isBundle && item.product.variant && <span className="text-sm text-gray-500">{item.product.variant}</span>}
                     <span className="text-sm text-gray-500">Quantity: {quantity}</span>
-                    <span className="text-xs text-gray-400 mt-1">Delivery by tomorrow</span>
+                    <span className="text-xs text-gray-400 mt-1">Delivery by {getDeliveryDate()}</span>
                   </div>
                   <span className="font-semibold text-gray-900 mt-1">₹{(quantity * price).toFixed(2)}</span>
                 </div>

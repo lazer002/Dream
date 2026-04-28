@@ -18,8 +18,12 @@ import {
   Lock,
   Mail,
   SearchIcon ,
-  RefreshCcw
+  RefreshCcw, 
 } from "lucide-react";
+import { useWishlist } from "@/state/WishlistContext";
+import { useCart } from "@/state/CartContext";
+import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@/components/ui/dialog.jsx";
+import toast from "react-hot-toast";
 
 function TabButton({ tab, active, onClick }) {
   return (
@@ -39,11 +43,13 @@ function TabButton({ tab, active, onClick }) {
 }
 
 export default function Profile() {
-  const { user, logout, updateUser } = useAuth();
+  const { user, logout, updateUser, loading } = useAuth();
+  console.log("Profile component - user:", user);
   const [activeTab, setActiveTab] = useState("orders");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  if (!user) return <Navigate to="/login" replace />;
+if (loading) return null; 
+  if (!user ) return <Navigate to="/login" replace />;
 
   const tabs = [
     { id: "orders", label: "Orders & Returns", icon: <Box size={18} /> },
@@ -58,15 +64,15 @@ export default function Profile() {
         <div className="p-4 flex items-center gap-4">
           <div className="relative">
             <img
-              src={user.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name || "User")}`}
+              src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`}
               alt="avatar"
               className="w-12 h-12 rounded-full object-cover border"
             />
           </div>
           <div>
-            <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">{user.name || "Unnamed"}</div>
+            <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">{user?.name || "Unnamed"}</div>
             <div className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-2">
-              <Mail size={12} /> <span>{user.email}</span>
+              <Mail size={12} /> <span>{user?.email}</span>
             </div>
           </div>
         </div>
@@ -590,49 +596,154 @@ function formatDate(iso) {
 /* ---------------------
    WishlistContent
    --------------------- */
-function WishlistContent({ user }) {
-  const [items, setItems] = useState([
-    // stubbed wishlist items - replace with API
-    { id: "p1", title: "Striped Shirt", price: 799, img: "", size: "M" },
-    { id: "p2", title: "Casual Hoodie", price: 1299, img: "", size: "L" },
-  ]);
 
-  const remove = (id) => {
-    setItems((s) => s.filter((i) => i.id !== id));
-    // TODO: call API to remove from wishlist
-  };
+function WishlistContent() {
+  const { wishlist, removeFromWishlist } = useWishlist();
+  const { add } = useCart();
+const [isModalOpen, setIsModalOpen] = useState(false);
+const [selectedProduct, setSelectedProduct] = useState(null);
+const [selectedSize, setSelectedSize] = useState(null);
+  const [products, setProducts] = useState([]);
 
-  const addToCart = (item) => {
-    // TODO: call API to add to cart
-    alert(`Added ${item.title} to cart (stub)`);
-  };
+  /* 🔥 Fetch full product data from IDs */
+  useEffect(() => {
+    if (!wishlist.length) {
+      setProducts([]);
+      return;
+    }
 
-  return (
+    const fetchProducts = async () => {
+      try {
+        const res = await api.get("/products/by-ids", {
+          params: { ids: wishlist.join(",") },
+        });
+
+        setProducts(res.data.items || []);
+      } catch (err) {
+        console.error("Wishlist fetch error:", err);
+      }
+    };
+
+    fetchProducts();
+  }, [wishlist]);
+
+const addToCart = (product) => {
+  setSelectedProduct(product);
+  setSelectedSize(null);
+  setIsModalOpen(true);
+};
+
+const handleSelectSize = (size) => {
+  if (!selectedProduct) return;
+
+  add(selectedProduct._id, size); // your cart context
+
+    removeFromWishlist(selectedProduct._id);
+  setIsModalOpen(false);
+  setSelectedProduct(null);
+};
+
+return (
     <div>
+
+<Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+  <DialogContent className="max-w-sm w-[90%]">
+    <DialogHeader>
+      <DialogTitle>Select Size</DialogTitle>
+      <DialogClose />
+    </DialogHeader>
+
+    <div className="p-4 flex flex-col gap-4">
+      {selectedProduct && (
+        <>
+       
+
+          <div>
+            <div className="text-sm text-gray-600 mb-2">Choose Size</div>
+            <div className="flex flex-wrap gap-2">
+              {Object.entries(selectedProduct.inventory || {}).map(([size, qty]) => (
+                <button
+                  key={size}
+                  onClick={() => handleSelectSize(size)}
+                  disabled={qty <= 0}
+                  className={`px-4 py-2 rounded-full border text-sm font-medium transition
+                    ${
+                      qty <= 0
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200"
+                        : "hover:bg-black hover:text-white"
+                    }`}
+                  title={qty <= 0 ? "Out of stock" : `Add ${size} to cart`}
+                >
+                  <div className="flex flex-col items-center">
+                    <span>{size}</span>
+                    <small className="text-xs">{qty > 0 ? `${qty} left` : "Out"}</small>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            {Object.values(selectedProduct.inventory || {}).every((q) => q <= 0) && (
+              <div className="mt-3 text-sm text-red-500 font-medium">Out of Stock</div>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
+
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Wishlist</h2>
-        <div className="text-sm text-gray-500 dark:text-slate-300">{items.length} items</div>
+        <h2 className="text-xl font-semibold">Wishlist</h2>
+        <div className="text-sm text-gray-500">
+          {products.length} items
+        </div>
       </div>
 
-      {items.length === 0 ? (
+      {products.length === 0 ? (
         <p className="text-gray-600">Your wishlist is empty.</p>
       ) : (
         <ul className="space-y-3">
-          {items.map((it) => (
-            <li key={it.id} className="flex items-center gap-4 p-3 rounded border dark:border-slate-700">
-              <div className="w-16 h-16 bg-gray-100 dark:bg-slate-700 rounded overflow-hidden flex items-center justify-center">
-                {it.img ? <img src={it.img} alt={it.title} /> : <div className="text-xs text-gray-400">No Image</div>}
+          {products.map((it) => (
+            <li
+              key={it._id}
+              className="flex items-center gap-4 p-3 rounded border"
+            >
+              {/* Image */}
+              <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                {it.images?.[0] ? (
+                  <img
+                    src={it.images[0]}
+                    alt={it.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="text-xs text-gray-400">
+                    No Image
+                  </div>
+                )}
               </div>
+
+              {/* Info */}
               <div className="flex-1">
-                <div className="font-medium text-gray-800 dark:text-slate-100">{it.title}</div>
-                <div className="text-sm text-gray-500">Size: {it.size}</div>
+                <div className="font-medium">{it.title}</div>
+                <div className="text-sm text-gray-500">
+                  ₹{Number(it.price).toLocaleString()}
+                </div>
               </div>
+
+              {/* Actions */}
               <div className="flex items-center gap-3">
-                <div className="text-sm font-semibold">₹{it.price}</div>
-                <button onClick={() => addToCart(it)} className="p-2 rounded bg-blue-600 text-white">
+                <button
+                  onClick={() => addToCart(it)}
+                  className="p-2 rounded bg-black text-white"
+                >
                   <ShoppingCart size={16} />
                 </button>
-                <button onClick={() => remove(it.id)} className="p-2 rounded bg-red-50 text-red-600">
+
+                <button
+                  onClick={() => removeFromWishlist(it._id)}
+                  className="p-2 rounded bg-red-50 text-red-600"
+                >
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -640,119 +751,342 @@ function WishlistContent({ user }) {
           ))}
         </ul>
       )}
+      
     </div>
   );
-}
 
+  
+}
 /* ---------------------
    AddressesContent
    --------------------- */
 function AddressesContent({ user, updateUser }) {
-  const [addresses, setAddresses] = useState(user.addresses || []);
+const [addresses, setAddresses] = useState([]);
+const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editing, setEditing] = useState(null);
 
-  useEffect(() => {
-    setAddresses(user.addresses || []);
-  }, [user.addresses]);
-
-  const save = async (address) => {
-    // replace with API call - here we just update local state and optionally call updateUser
-    let next;
-    if (editing) {
-      next = addresses.map((a) => (a.id === address.id ? address : a));
-    } else {
-      next = [...addresses, { ...address, id: `addr-${Date.now()}` }];
-    }
-    setAddresses(next);
-    setShowModal(false);
-    setEditing(null);
-    // Optionally push to server:
-    if (typeof updateUser === "function") {
-      try {
-        await updateUser({ addresses: next });
-      } catch (e) {
-        // ignore for now
-      }
+useEffect(() => {
+  const fetchAddresses = async () => {
+    try {
+      const { data } = await api.get("/address");
+      setAddresses(data.addresses || []);
+    } catch (err) {
+      console.error("Failed to load addresses", err);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const remove = (id) => {
-    const next = addresses.filter((a) => a.id !== id);
-    setAddresses(next);
-    if (typeof updateUser === "function") updateUser({ addresses: next }).catch(() => {});
-  };
+  fetchAddresses();
+}, []);
 
-  return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Saved Addresses</h2>
-        <button onClick={() => { setEditing(null); setShowModal(true); }} className="inline-flex items-center gap-2 bg-blue-600 text-white px-3 py-1 rounded">
-          <Plus size={14} /> Add Address
+const save = (updatedAddresses) => {
+  setAddresses([...updatedAddresses]); // ✅ correct
+  setShowModal(false);
+  setEditing(null);
+};
+
+const remove = async (id) => {
+  const address = addresses.find((a) => a._id === id);
+
+  // 🚫 block default delete
+  if (address?.isDefault) {
+    toast.error("Default address cannot be deleted" );
+    return;
+  }
+
+  try {
+    await api.delete(`/address/${id}`);
+
+    // update UI
+    setAddresses((prev) =>
+      prev.filter((a) => a._id !== id)
+    );
+
+    toast.success("Address deleted" );
+
+  } catch (err) {
+    console.error("Delete failed:", err);
+    toast.error("Failed to delete address" );
+  }
+};
+const setDefaultAddress = async (id) => {
+  try {
+    const { data } = await api.put(`/address/${id}`, {
+      isDefault: true,
+    });
+
+    // backend returns updated list
+    setAddresses(data.addresses);
+    toast.success("Default address updated" );
+  } catch (err) {
+    console.error("Set default failed:", err);
+    toast.error("Failed to set default address" );
+  }
+};
+
+
+console.log("Rendering AddressesContent with addresses:", addresses);
+return (
+  <div className=" mx-auto">
+    {/* Header */}
+    <div className="flex items-center justify-between mb-6">
+      <h2 className="text-2xl font-semibold text-black">
+        Addresses
+      </h2>
+
+      <button
+        onClick={() => {
+          setEditing(null);
+          setShowModal(true);
+        }}
+        className="border border-black px-4 py-2 text-sm font-medium bg-black text-white transition"
+      >
+        + Add Address
+      </button>
+    </div>
+
+    {/* Empty state */}
+    {addresses.length === 0 ? (
+      <div className="border border-gray-200 p-10 text-center">
+        <p className="text-gray-600 mb-4">
+          You haven’t added any addresses yet.
+        </p>
+        <button
+          onClick={() => setShowModal(true)}
+          className="border border-black px-4 py-2 text-sm hover:bg-black hover:text-white transition"
+        >
+          Add your first address
         </button>
       </div>
+    ) : (
+      <div className="grid gap-4">
+   {addresses.map((a) => (
+  <div
+    key={a._id}
+    className={`border p-5 transition group
+      ${a?.isDefault ? "border-black" : "border-gray-200 hover:border-black"}
+    `}
+  >
+    <div className="flex justify-between items-start">
 
-      {addresses.length === 0 ? (
-        <p className="text-gray-600">No saved addresses yet.</p>
-      ) : (
-        <ul className="space-y-3">
-          {addresses.map((a) => (
-            <li key={a.id} className="p-3 rounded border dark:border-slate-700 flex justify-between items-start">
-              <div>
-                <div className="font-medium text-gray-900 dark:text-slate-100">{a.label || "Home"}</div>
-                <div className="text-sm text-gray-600 dark:text-slate-300">{a.address}</div>
-                {a.phone && <div className="text-xs text-gray-500">Phone: {a.phone}</div>}
-              </div>
-              <div className="flex space-x-2">
-                <button onClick={() => { setEditing(a); setShowModal(true); }} className="p-2 rounded bg-gray-100 dark:bg-slate-700">
-                  <Edit2 size={14} />
-                </button>
-                <button onClick={() => remove(a.id)} className="p-2 rounded bg-red-50 text-red-600">
-                  <Trash2 size={14} />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      {/* Address Info */}
+      <div>
+        <div className="flex items-center gap-2">
+          <h3 className="font-medium text-black">
+            {a?.name || "Address"}
+          </h3>
 
-      {showModal && (
-        <AddressModal
-          initial={editing}
-          onClose={() => { setShowModal(false); setEditing(null); }}
-          onSave={save}
-        />
-      )}
+          {/* ✅ SINGLE CONDITION */}
+          {a?.isDefault ? (
+            <span className="text-xs bg-black rounded-xl px-2 py-1 text-white">
+              Default
+            </span>
+          ) : (
+            <button
+              onClick={() => setDefaultAddress(a._id)}
+              className="text-xs bg-black text-white rounded-xl px-2 py-1"
+            >
+              Set as default
+            </button>
+          )}
+        </div>
+
+        <p className="text-sm text-gray-600 mt-1 leading-relaxed">
+          {a?.address}
+        </p>
+
+        <p className="text-sm text-gray-600">
+          {a?.city}, {a?.state} - {a?.zip}
+        </p>
+
+        {a?.phone && (
+          <p className="text-xs text-gray-500 mt-1">
+            {a.phone}
+          </p>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => {
+            setEditing(a);
+            setShowModal(true);
+          }}
+          className="p-2 border border-gray-200 hover:border-black"
+        >
+          <Edit2 size={14} />
+        </button>
+
+        <button
+          onClick={() => remove(a._id)}
+          className="p-2 border border-gray-200 hover:border-black hover:bg-black hover:text-white transition"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
     </div>
-  );
+  </div>
+))}
+      </div>
+    )}
+
+    {/* Modal */}
+    {showModal && (
+      <AddressModal
+        initial={editing}
+        onClose={() => {
+          setShowModal(false);
+          setEditing(null);
+        }}
+        onSave={save}
+      />
+    )}
+  </div>
+);
 }
 
 function AddressModal({ initial, onClose, onSave }) {
-  const [label, setLabel] = useState(initial?.label || "");
-  const [address, setAddress] = useState(initial?.address || "");
+  const [name, setName] = useState(initial?.name || "");
   const [phone, setPhone] = useState(initial?.phone || "");
+  const [address, setAddress] = useState(initial?.address || "");
+  const [city, setCity] = useState(initial?.city || "");
+  const [state, setState] = useState(initial?.state || "");
+  const [zip, setZip] = useState(initial?.zip || "");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  const submit = async () => {
-    if (!address) return alert("Address required");
+const submit = async () => {
+  if (!name || !address || !city || !state || !zip) {
+    setError("Please fill all required fields");
+    return;
+  }
+
+  try {
+    setError("");
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 400)); // simulate
-    onSave({ id: initial?.id || `addr-${Date.now()}`, label, address, phone });
+
+    const payload = {
+      name,
+      phone,
+      address,
+      city,
+      state,
+      zip,
+      isDefault: initial?.isDefault || false,
+    };
+
+    let res;
+
+    if (initial?._id) {
+      // 🔥 UPDATE
+      res = await api.put(`/address/${initial._id}`, payload);
+    } else {
+      // 🔥 ADD
+      res = await api.post(`/address`, payload);
+    }
+
+    // backend returns full list → use it
+    onSave(res.data.addresses);
+
     setSaving(false);
-  };
+    onClose();
+
+  } catch (err) {
+    console.error(err);
+    setError("Failed to save address");
+    setSaving(false);
+  }
+};
 
   return (
-    <Modal onClose={onClose}>
-      <div className="p-4">
-        <h3 className="text-lg font-semibold mb-2">{initial ? "Edit Address" : "Add Address"}</h3>
-        <div className="space-y-2">
-          <input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="Label (Home, Work)" className="w-full p-2 border rounded" />
-          <textarea value={address} onChange={(e) => setAddress(e.target.value)} placeholder="Full address" className="w-full p-2 border rounded" rows={3} />
-          <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="Phone (optional)" className="w-full p-2 border rounded" />
+    <Modal onClose={onClose} className="p-4 ">
+      <div className="w-full max-w-lg bg-white p-6">
+        
+        {/* Header */}
+        <div className="flex justify-between items-center mb-5">
+          <h3 className="text-xl font-semibold text-black">
+            {initial ? "Edit Address" : "Add Address"}
+          </h3>
+          <button onClick={onClose} className="text-gray-500 hover:text-black">✕</button>
         </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <button onClick={onClose} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-          <button onClick={submit} className="px-4 py-2 rounded bg-blue-600 text-white">{saving ? "Saving..." : "Save"}</button>
+
+        {/* Form */}
+    <div className="grid gap-5 edit-modal">
+
+  <input
+    value={name}
+    onChange={(e) => setName(e.target.value)}
+    placeholder="Full Name *"
+    className="w-full border-b border-gray-300 px-0 py-2 text-sm bg-transparent 
+               focus:outline-none focus:border-black placeholder-gray-400"
+  />
+
+  <input
+    value={phone}
+    onChange={(e) => setPhone(e.target.value)}
+    placeholder="Phone Number"
+    className="w-full border-b border-gray-300 px-0 py-2 text-sm bg-transparent 
+               focus:outline-none focus:border-black placeholder-gray-400"
+  />
+
+  <textarea
+    value={address}
+    onChange={(e) => setAddress(e.target.value)}
+    placeholder="Street Address *"
+    rows={3}
+    className="w-full border-b border-gray-300 px-0 py-2 text-sm bg-transparent 
+               focus:outline-none focus:border-black placeholder-gray-400 resize-none"
+  />
+
+  <div className="grid grid-cols-2 gap-4">
+    <input
+      value={city}
+      onChange={(e) => setCity(e.target.value)}
+      placeholder="City *"
+      className="w-full border-b border-gray-300 px-0 py-2 text-sm bg-transparent 
+                 focus:outline-none focus:border-black placeholder-gray-400"
+    />
+
+    <input
+      value={state}
+      onChange={(e) => setState(e.target.value)}
+      placeholder="State *"
+      className="w-full border-b border-gray-300 px-0 py-2 text-sm bg-transparent 
+                 focus:outline-none focus:border-black placeholder-gray-400"
+    />
+  </div>
+
+  <input
+    value={zip}
+    onChange={(e) => setZip(e.target.value)}
+    placeholder="PIN Code *"
+    className="w-full border-b border-gray-300 px-0 py-2 text-sm bg-transparent 
+               focus:outline-none focus:border-black placeholder-gray-400"
+  />
+
+  {error && (
+    <p className="text-sm text-red-500">{error}</p>
+  )}
+</div>
+
+        {/* Actions */}
+        <div className="mt-6 flex justify-end gap-3">
+          <button
+            onClick={onClose}
+            className="px-4 py-2 border border-gray-300 text-sm hover:border-black"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={submit}
+            className="px-5 py-2 bg-black text-white text-sm hover:opacity-90"
+          >
+            {saving ? "Saving..." : "Save Address"}
+          </button>
         </div>
       </div>
     </Modal>
@@ -764,96 +1098,178 @@ function AddressModal({ initial, onClose, onSave }) {
    --------------------- */
 function AccountContent({ user, updateUser }) {
   const [editing, setEditing] = useState(false);
-  const [name, setName] = useState(user.name || "");
-  const [avatarPreview, setAvatarPreview] = useState(user.avatar || "");
+  const [name, setName] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState("");
   const [avatarFile, setAvatarFile] = useState(null);
   const [saving, setSaving] = useState(false);
 
+  /* ---------- INIT ---------- */
   useEffect(() => {
+    if (!user) return;
     setName(user.name || "");
     setAvatarPreview(user.avatar || "");
-  }, [user.name, user.avatar]);
+  }, [user]);
 
+  /* ---------- FILE PICK ---------- */
   const pickFile = (file) => {
     if (!file) return;
+
     setAvatarFile(file);
     const url = URL.createObjectURL(file);
     setAvatarPreview(url);
   };
 
+  /* ---------- SAVE ---------- */
   const save = async () => {
+    if (!name.trim()) return;
+
     setSaving(true);
+
     try {
-      // If avatarFile present, upload to server first (stubbed)
-      let avatarUrl = user.avatar;
+      let avatarUrl = user?.avatar;
+
+      // 🔥 Upload avatar (replace with real API)
       if (avatarFile) {
-        // TODO: upload file and get url. Here we simulate
-        await new Promise((r) => setTimeout(r, 600));
-        avatarUrl = avatarPreview; // replace with returned url
+        const formData = new FormData();
+        formData.append("file", avatarFile);
+
+        const { data } = await api.post("/upload/avatar", formData, {
+          headers: { "Content-Type": "multipart/form-data" },
+        });
+
+        avatarUrl = data.url;
       }
 
-      const updated = { ...user, name, avatar: avatarUrl };
-      if (typeof updateUser === "function") {
-        await updateUser(updated);
-      }
+      const { data } = await api.put("/user/update", {
+        name,
+        avatar: avatarUrl,
+      });
+
+      // update global user
+      updateUser?.(data.user);
+
       setEditing(false);
-    } catch (e) {
-      console.error(e);
+      setAvatarFile(null);
+
+    } catch (err) {
+      console.error("Update failed:", err);
     } finally {
       setSaving(false);
     }
   };
 
+  if (!user) return null;
+
   return (
-    <div>
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">Account Details</h2>
-        <div className="flex items-center gap-2">
-          <button onClick={() => setEditing((s) => !s)} className="inline-flex items-center gap-2 bg-gray-100 dark:bg-slate-700 px-3 py-1 rounded">
-            <Edit2 size={14} /> {editing ? "Cancel" : "Edit"}
+    <div className="max-w-4xl mx-auto">
+
+      {/* HEADER */}
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl font-semibold text-black">
+          Account
+        </h2>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setEditing((s) => !s)}
+            className="border border-black px-4 py-2 text-sm hover:bg-black hover:text-white transition"
+          >
+            <Edit2 size={14} className="inline mr-1" />
+            {editing ? "Cancel" : "Edit"}
           </button>
-          <button className="inline-flex items-center gap-2 bg-amber-600 text-white px-3 py-1 rounded">
-            <Lock size={14} /> Set Password
+
+          <button className="border border-black px-4 py-2 text-sm hover:bg-black hover:text-white transition">
+            <Lock size={14} className="inline mr-1" />
+            Password
           </button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div className="col-span-1 flex flex-col items-center gap-3">
-          <div className="w-28 h-28 rounded-full overflow-hidden bg-gray-100 dark:bg-slate-700 flex items-center justify-center">
-            <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+      {/* CONTENT */}
+      <div className="grid md:grid-cols-3 gap-8">
+
+        {/* AVATAR */}
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-28 h-28 rounded-full overflow-hidden border border-gray-200">
+            <img
+              src={
+                avatarPreview ||
+                `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`
+              }
+              alt="avatar"
+              className="w-full h-full object-cover"
+            />
           </div>
+
           {editing && (
-            <label className="inline-flex items-center gap-2 px-3 py-1 bg-gray-100 rounded cursor-pointer">
-              <Camera size={14} /> <input type="file" accept="image/*" className="hidden" onChange={(e) => pickFile(e.target.files?.[0])} />
+            <label className="cursor-pointer text-sm border border-black px-3 py-1 hover:bg-black hover:text-white transition">
+              <Camera size={14} className="inline mr-1" />
+              Change
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={(e) => pickFile(e.target.files?.[0])}
+              />
             </label>
           )}
         </div>
 
-        <div className="col-span-2">
-          <div className="space-y-3">
-            <div>
-              <label className="block text-sm text-gray-600">Full name</label>
-              <input disabled={!editing} value={name} onChange={(e) => setName(e.target.value)} className={`w-full p-2 border rounded ${editing ? "" : "bg-gray-50"}`} />
-            </div>
+        {/* FORM */}
+        <div className="md:col-span-2 space-y-5">
 
-            <div>
-              <label className="block text-sm text-gray-600">Email</label>
-              <input disabled value={user.email} className="w-full p-2 border rounded bg-gray-50" />
-            </div>
-
-            <div>
-              <label className="block text-sm text-gray-600">Role</label>
-              <input disabled value={user.role} className="w-full p-2 border rounded bg-gray-50" />
-            </div>
-
-            {editing && (
-              <div className="flex justify-end gap-2 mt-4">
-                <button onClick={() => setEditing(false)} className="px-4 py-2 rounded bg-gray-100">Cancel</button>
-                <button onClick={save} className="px-4 py-2 rounded bg-blue-600 text-white">{saving ? "Saving..." : "Save changes"}</button>
-              </div>
-            )}
+          {/* NAME */}
+          <div>
+            <label className="text-sm text-gray-500">Full name</label>
+            <input
+              disabled={!editing}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={`w-full border-b py-2 focus:outline-none ${
+                editing ? "border-black" : "border-gray-300 bg-transparent"
+              }`}
+            />
           </div>
+
+          {/* EMAIL */}
+          <div>
+            <label className="text-sm text-gray-500">Email</label>
+            <input
+              disabled
+              value={user?.email || ""}
+              className="w-full border-b border-gray-300 py-2 bg-transparent"
+            />
+          </div>
+
+          {/* ROLE */}
+          <div>
+            <label className="text-sm text-gray-500">Role</label>
+            <input
+              disabled
+              value={user?.role || ""}
+              className="w-full border-b border-gray-300 py-2 bg-transparent"
+            />
+          </div>
+
+          {/* ACTIONS */}
+          {editing && (
+            <div className="flex justify-end gap-3 pt-4">
+              <button
+                onClick={() => setEditing(false)}
+                className="border border-gray-300 px-4 py-2 text-sm"
+              >
+                Cancel
+              </button>
+
+              <button
+                onClick={save}
+                disabled={saving}
+                className="bg-black text-white px-5 py-2 text-sm disabled:opacity-50"
+              >
+                {saving ? "Saving..." : "Save"}
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>

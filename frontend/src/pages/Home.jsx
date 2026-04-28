@@ -40,7 +40,7 @@ export default function Home() {
     setIsModalOpen(true);
   };
   const handleSelectSize = (sizeKey) => {
-    console.log("Selected size:", sizeKey);
+   
     if (!selectedProduct) return;
     const qty = Number(selectedProduct.inventory?.[sizeKey] ?? 0);
     if (qty <= 0) return; // disabled anyway
@@ -485,12 +485,9 @@ export default function Home() {
 
                         {/* Buttons */}
                         <div className="mt-3 flex gap-2">
-                          <Link
-                            to={`/product/${p._id}`}
-                            className="bg-black text-white px-3 py-2 rounded text-sm font-semibold"
-                          >
+                     <span className="bg-black text-white px-3 py-2 rounded text-sm font-semibold">
                             View Product
-                          </Link>
+                            </span>
                           <button
                             onClick={(e) => {
                               e.preventDefault();

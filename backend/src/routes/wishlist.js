@@ -13,6 +13,7 @@ function idsToStrings(arr) {
 /* ================= HELPER ================= */
 
 async function getWishlistOwner(req) {
+
   const userId = req.user?.id;
   const guestId = req.headers["x-guest-id"];
 

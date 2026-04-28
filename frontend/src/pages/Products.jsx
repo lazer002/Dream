@@ -13,7 +13,7 @@ import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@
 export default function Products() {
   const { add } = useCart()
   const [products, setProducts] = useState([]);
-  const { wishlist ,toggleWishlist} = useWishlist();
+  const { wishlist ,addToWishlist,removeFromWishlist} = useWishlist();
   const [sort, setSort] = useState("newest");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [selectedFilters, setSelectedFilters] = useState({ categories: [], priceRange: "", brand: [] });
@@ -120,9 +120,6 @@ const handleSelectSize = (sizeKey) => {
   }, [location.search, sort, selectedFilters]);
 
 
-  useEffect(() => {
-    console.log("Location changed:", location.search);
-  }, [location.search]);
 
 
 
@@ -174,7 +171,6 @@ const handleSelectSize = (sizeKey) => {
       </div>
     );
   }
-  console.log("wishlist ", wishlist);
   return (
     <div className="bg-white min-h-screen text-black relative">
       {/* Top Controls */}
@@ -237,13 +233,15 @@ const handleSelectSize = (sizeKey) => {
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      toggleWishlist(id);
+                      wishlist.includes(id)
+                        ? removeFromWishlist(id)
+                        : addToWishlist(id);
                     }}
                       aria-label={wishlist.includes(id) ? "Remove from wishlist" : "Add to wishlist"}
                       className="absolute bottom-2 right-2 p-1 flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
                     >
                       {wishlist.includes(id)? (
-                        <Heart className="h-10 w-10 text-red-500 fill-red-500" />
+                        <Heart className="h-10 w-10 text-black fill-black" />
                       ) : (
                         <HeartOutline className="h-10 w-10 text-black" />
                       )}

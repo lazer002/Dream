@@ -1,18 +1,27 @@
 import axios from "axios";
 
-// Get the base API URL from environment variables
-export function getApiBaseUrl() {
-  // Use Vite env variable, fallback to localhost if not set
-  return import.meta.env.VITE_API_URL || "http://localhost:4000/api";
-}
-
-// Create a pre-configured axios instance
-export const api = axios.create({
-  baseURL: getApiBaseUrl(),
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000/api",
   timeout: 10000,
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
-export default api
+api.interceptors.request.use((config) => {
+
+  let guestId = localStorage.getItem("ds_guest");
+  if (!guestId) {
+    guestId = crypto.randomUUID();
+    localStorage.setItem("ds_guest", guestId);
+  }
+
+  config.headers = config.headers || {};
+  config.headers["x-guest-id"] = guestId;
+
+  const token = localStorage.getItem("ds_access");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+export default api;

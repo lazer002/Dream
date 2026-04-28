@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import toast from "react-hot-toast";
 import { Upload, ArrowRight, Check, Trash2 } from "lucide-react";
 import { useAuth } from "../state/AuthContext.jsx";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 // Simple return/exchange page — per-item photos only + validation
 const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL"];
@@ -688,7 +688,7 @@ const navigate = useNavigate();
                 <p className="text-sm text-gray-600">Status: <strong>{rma.status}</strong></p>
                 <div className="mt-3 flex gap-2">
                   <Button onClick={() => { navigator.clipboard.writeText(rma.rmaNumber || rma.id || rma._id || ""); toast.success("RMA copied"); }}>Copy RMA</Button>
-                  <a href={`/returns/${rma.rmaNumber || rma.id || rma._id}`} className="ml-2 text-sm text-black underline">View status</a>
+                  <Link href={`/returns/${rma.rmaNumber || rma.id || rma._id}`} className="ml-2 text-sm text-black underline">View status</Link>
                 </div>
               </div>
             )}

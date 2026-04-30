@@ -43,13 +43,23 @@ function TabButton({ tab, active, onClick }) {
 }
 
 export default function Profile() {
-  const { user, logout, updateUser, loading } = useAuth();
+  const { user, logout, updateUser, loading,authStatus  } = useAuth();
   console.log("Profile component - user:", user);
   const [activeTab, setActiveTab] = useState("orders");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-if (loading) return null; 
-  if (!user ) return <Navigate to="/login" replace />;
+if (authStatus === "loading") {
+  return (
+    <div className="flex items-center justify-center h-screen">
+      Loading...
+    </div>
+  );
+}
+
+if (authStatus === "unauthenticated") {
+  return <Navigate to="/login" replace />;
+}
+
 
   const tabs = [
     { id: "orders", label: "Orders & Returns", icon: <Box size={18} /> },
@@ -1093,188 +1103,244 @@ const submit = async () => {
   );
 }
 
-/* ---------------------
-   AccountContent
-   --------------------- */
-function AccountContent({ user, updateUser }) {
-  const [editing, setEditing] = useState(false);
-  const [name, setName] = useState("");
-  const [avatarPreview, setAvatarPreview] = useState("");
-  const [avatarFile, setAvatarFile] = useState(null);
-  const [saving, setSaving] = useState(false);
 
-  /* ---------- INIT ---------- */
-  useEffect(() => {
-    if (!user) return;
-    setName(user.name || "");
-    setAvatarPreview(user.avatar || "");
-  }, [user]);
 
-  /* ---------- FILE PICK ---------- */
-  const pickFile = (file) => {
-    if (!file) return;
 
-    setAvatarFile(file);
-    const url = URL.createObjectURL(file);
-    setAvatarPreview(url);
-  };
+ function AccountContent({ user, updateUser,loading }) {
 
-  /* ---------- SAVE ---------- */
-  const save = async () => {
-    if (!name.trim()) return;
+const [editing, setEditing] = useState(false);
+const [name, setName] = useState("");
+const [phone, setPhone] = useState("");
+const [avatarPreview, setAvatarPreview] = useState("");
+const [avatarFile, setAvatarFile] = useState(null);
+const [saving, setSaving] = useState(false);
 
-    setSaving(true);
+// address
+const [addresses, setAddresses] = useState([]);
 
-    try {
-      let avatarUrl = user?.avatar;
 
-      // 🔥 Upload avatar (replace with real API)
-      if (avatarFile) {
-        const formData = new FormData();
-        formData.append("file", avatarFile);
+/* ================= INIT ================= */
+useEffect(() => {
+  if (!user) return;
 
-        const { data } = await api.post("/upload/avatar", formData, {
-          headers: { "Content-Type": "multipart/form-data" },
-        });
+  setName(user.name || "");
+  setPhone(user.phone || "");
+  setAvatarPreview(user.avatar || null);
+}, [user]);
 
-        avatarUrl = data.url;
-      }
+useEffect(() => {
+fetchAddresses();
+}, []);
 
-      const { data } = await api.put("/user/update", {
-        name,
-        avatar: avatarUrl,
-      });
-
-      // update global user
-      updateUser?.(data.user);
-
-      setEditing(false);
-      setAvatarFile(null);
-
-    } catch (err) {
-      console.error("Update failed:", err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  if (!user) return null;
-
-  return (
-    <div className="max-w-4xl mx-auto">
-
-      {/* HEADER */}
-      <div className="flex items-center justify-between mb-6">
-        <h2 className="text-2xl font-semibold text-black">
-          Account
-        </h2>
-
-        <div className="flex gap-2">
-          <button
-            onClick={() => setEditing((s) => !s)}
-            className="border border-black px-4 py-2 text-sm hover:bg-black hover:text-white transition"
-          >
-            <Edit2 size={14} className="inline mr-1" />
-            {editing ? "Cancel" : "Edit"}
-          </button>
-
-          <button className="border border-black px-4 py-2 text-sm hover:bg-black hover:text-white transition">
-            <Lock size={14} className="inline mr-1" />
-            Password
-          </button>
-        </div>
-      </div>
-
-      {/* CONTENT */}
-      <div className="grid md:grid-cols-3 gap-8">
-
-        {/* AVATAR */}
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-28 h-28 rounded-full overflow-hidden border border-gray-200">
-            <img
-              src={
-                avatarPreview ||
-                `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`
-              }
-              alt="avatar"
-              className="w-full h-full object-cover"
-            />
-          </div>
-
-          {editing && (
-            <label className="cursor-pointer text-sm border border-black px-3 py-1 hover:bg-black hover:text-white transition">
-              <Camera size={14} className="inline mr-1" />
-              Change
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={(e) => pickFile(e.target.files?.[0])}
-              />
-            </label>
-          )}
-        </div>
-
-        {/* FORM */}
-        <div className="md:col-span-2 space-y-5">
-
-          {/* NAME */}
-          <div>
-            <label className="text-sm text-gray-500">Full name</label>
-            <input
-              disabled={!editing}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className={`w-full border-b py-2 focus:outline-none ${
-                editing ? "border-black" : "border-gray-300 bg-transparent"
-              }`}
-            />
-          </div>
-
-          {/* EMAIL */}
-          <div>
-            <label className="text-sm text-gray-500">Email</label>
-            <input
-              disabled
-              value={user?.email || ""}
-              className="w-full border-b border-gray-300 py-2 bg-transparent"
-            />
-          </div>
-
-          {/* ROLE */}
-          <div>
-            <label className="text-sm text-gray-500">Role</label>
-            <input
-              disabled
-              value={user?.role || ""}
-              className="w-full border-b border-gray-300 py-2 bg-transparent"
-            />
-          </div>
-
-          {/* ACTIONS */}
-          {editing && (
-            <div className="flex justify-end gap-3 pt-4">
-              <button
-                onClick={() => setEditing(false)}
-                className="border border-gray-300 px-4 py-2 text-sm"
-              >
-                Cancel
-              </button>
-
-              <button
-                onClick={save}
-                disabled={saving}
-                className="bg-black text-white px-5 py-2 text-sm disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Save"}
-              </button>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
+const fetchAddresses = async () => {
+try {
+const { data } = await api.get("/address");
+setAddresses(data.addresses || []);
+} catch (err) {
+console.error("Fetch address failed", err);
 }
+};
+
+/* ================= ACCOUNT ================= */
+const pickFile = (file) => {
+if (!file) return;
+setAvatarFile(file);
+setAvatarPreview(URL.createObjectURL(file));
+};
+
+const save = async () => {
+try {
+if (!name.trim()) {
+toast.error("Name is required");
+return;
+}
+
+
+setSaving(true);
+
+let avatarUrl = user.avatar;
+
+/* ================= UPLOAD IMAGE ================= */
+if (avatarFile) {
+  const formData = new FormData();
+  formData.append("file", avatarFile);
+
+  const uploadRes = await api.post("/upload/image", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+
+  avatarUrl = uploadRes.data.url;
+}
+
+/* ================= ONLY CHANGED FIELDS ================= */
+const payload = {};
+
+if (name !== user.name) payload.name = name;
+if (phone !== user.phone) payload.phone = phone;
+if (avatarUrl !== user.avatar) payload.avatar = avatarUrl;
+
+if (Object.keys(payload).length === 0) {
+  toast.info("No changes made");
+  return;
+}
+
+/* ================= UPDATE USER ================= */
+const res = await api.put("/user/update", payload);
+
+updateUser?.(res.data.user);
+
+setEditing(false);
+setAvatarFile(null);
+toast.success("Profile updated successfully" );
+
+} catch (err) {
+console.error("Update error:", err);
+toast.error(err.response?.data?.message || "Failed to update profile" );
+} finally {
+setSaving(false);
+}
+};
+
+
+
+const defaultAddress = addresses.find((a) => a.isDefault);
+
+
+
+if (!user) return null;
+
+return ( <div className="max-w-5xl mx-auto px-4 py-10 space-y-12">
+
+  {/* ================= ACCOUNT ================= */}
+  <div className="grid md:grid-cols-3 gap-10">
+    {/* Avatar */}
+    <div className="flex flex-col items-center gap-4">
+      <div className="w-32 h-32 rounded-full overflow-hidden border">
+<img
+  src={
+    avatarPreview
+      ? avatarPreview
+      : user?.avatar
+      ? user.avatar
+      : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`
+  }
+  onError={(e) => {
+    e.currentTarget.src =
+      `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`;
+  }}
+  className="w-full h-full object-cover"
+/>
+      </div>
+
+      {editing && (
+        <input
+          type="file"
+          onChange={(e) => pickFile(e.target.files?.[0])}
+        />
+      )}
+    </div>
+
+    {/* Form */}
+    <div className="md:col-span-2 space-y-6">
+<div className="w-full  border-b py-2">
+      <input
+        disabled={!editing}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        className="w-full border border-b py-2"
+        placeholder="Full Name"
+      />
+</div>
+<div className="w-full  border-b py-2">
+      <input
+        disabled={!editing}
+        value={phone}
+        onChange={(e) => setPhone(e.target.value)}
+        className="w-full border-b py-2"
+        placeholder="Phone"
+      />
+      </div>
+<div className="w-full  border-b py-2">
+      <input
+        disabled
+        value={user.email}
+        className="w-full border-b py-2"
+      />
+      </div>
+
+      <div className="flex justify-end gap-3">
+        {editing ? (
+          <>
+            <button
+              onClick={() => setEditing(false)}
+              className="border px-4 py-2 text-sm"
+            >
+              Cancel
+            </button>
+
+            <button
+              onClick={save}
+              disabled={saving}
+              className="bg-black text-white px-5 py-2 text-sm"
+            >
+              {saving ? "Saving..." : "Save"}
+            </button>
+          </>
+        ) : (
+          <button
+            onClick={() => setEditing(true)}
+            className="border px-4 py-2 text-sm hover:bg-black hover:text-white"
+          >
+            Edit
+          </button>
+        )}
+      </div>
+
+    </div>
+  </div>
+
+  {/* ================= DEFAULT ADDRESS ================= */}
+  <div>
+    <h3 className="text-lg font-semibold mb-4">
+      Default Address
+    </h3>
+
+    {defaultAddress ? (
+      <div className="border p-5 rounded-md">
+        <h4 className="font-medium">{defaultAddress.name}</h4>
+
+        <p className="text-sm text-gray-600 mt-1">
+          {defaultAddress.address}
+        </p>
+
+        <p className="text-sm text-gray-600">
+          {defaultAddress.city}, {defaultAddress.state} - {defaultAddress.zip}
+        </p>
+
+        {defaultAddress.phone && (
+          <p className="text-sm text-gray-500 mt-1">
+            {defaultAddress.phone}
+          </p>
+        )}
+
+   
+      </div>
+    ) : (
+      <p className="text-sm text-gray-500">
+        No default address found.
+      </p>
+    )}
+  </div>
+
+</div>
+
+
+);
+}
+
+
 
 /* ---------------------
    Small UI Helpers: Modal

@@ -544,7 +544,8 @@ ${menOpen ? "opacity-100 visible translate-y-0 pointer-events-auto" : "opacity-0
                     {results.map((p) => (
                       <Link
                         key={p._id}
-                        to={`/products/${p._id}`}
+                        to={`/product/${p._id}`}
+                          onClick={() => setSearchOpen(false)} 
                         className="group border border-gray-200 rounded-md overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300"
                       >
                         {/* Product Image */}

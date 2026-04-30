@@ -47,11 +47,7 @@ const BundlesPage = () => {
 
   useEffect(() => {
     fetchBundles();
-    return () => {
-      try {
-        bundleAbortRef.current?.abort();
-      } catch {}
-    };
+
   }, []);
 
   const openBundleModal = (bundle) => {

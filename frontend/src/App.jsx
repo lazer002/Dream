@@ -53,7 +53,8 @@ export default function App() {
     location.pathname === "/login" || location.pathname === "/register";
 
   // hide header/footer on admin + auth pages
-  const hideChrome = isAdminRoute || isAuthRoute;
+  // const hideChrome = isAdminRoute || isAuthRoute;
+  const hideChrome = isAdminRoute 
 
   return (
     <CartProvider>

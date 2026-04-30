@@ -7,7 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Star } from "lucide-react";
+import { Heart,  Heart as HeartFill } from "lucide-react";
 
 // NEW ARRIVALS PAGE
 // - Designed for a black/white Shopify-like theme using shadcn/ui + Tailwind
@@ -120,13 +120,9 @@ function ProductCard({ product, onQuickView, onAddToCart, onToggleWishlist, wish
             aria-label={`Wishlist ${product.title}`}
           >
             {wishlist.includes(product._id) ? (
-              <svg className="w-5 h-5 text-red-500 fill-current" viewBox="0 0 24 24">
-                <path d="M12 21s-6.716-4.605-9.5-7.077C-0.132 10.79 1.51 6.5 5.5 6.5c2.28 0 3.5 1.5 3.5 1.5s1.22-1.5 3.5-1.5c4 0 5.632 4.29 2.999 7.423C18.716 16.395 12 21 12 21z" />
-              </svg>
+            <Heart className="h-5 w-5 text-black fill-black" />
             ) : (
-              <svg className="w-5 h-5 text-black" viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                <path d="M12 21s-6.716-4.605-9.5-7.077C-0.132 10.79 1.51 6.5 5.5 6.5c2.28 0 3.5 1.5 3.5 1.5s1.22-1.5 3.5-1.5c4 0 5.632 4.29 2.999 7.423C18.716 16.395 12 21 12 21z" />
-              </svg>
+              <HeartFill className="w-5 h-5 text-black" />
             )}
           </button>
         </div>

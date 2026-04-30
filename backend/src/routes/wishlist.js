@@ -17,7 +17,6 @@ async function getWishlistOwner(req) {
   const userId = req.user?.id;
   const guestId = req.headers["x-guest-id"];
 
-  console.log("Determining wishlist owner:", { userId, guestId });
 
   if (!userId && !guestId) {
     throw new Error("No user or guest"); // 🔥 debug catch
@@ -50,7 +49,6 @@ router.get("/",optionalAuth, async (req, res) => {
     const owner = await getWishlistOwner(req);
     if (!owner) return res.status(401).json({ error: "Unauthorized" });
 
-    console.log("Wishlist owner found:", { type: owner.type, id: owner.doc._id });
     return res.json({
       items: idsToStrings(owner.doc.wishlist || []),
     });

@@ -7,8 +7,9 @@ import api  from "@/utils/config";
 import { useCart } from "@/state/CartContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog.jsx";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-
+import { Swiper, SwiperSlide } from "swiper/react";
 import { X } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 /* ---------- small debounce hook ---------- */
 function useDebounce(value, delay = 350) {
   const [debounced, setDebounced] = useState(value);
@@ -34,7 +35,7 @@ export default function Home() {
   const debouncedQ = useDebounce(q, 350);
   const productAbortRef = useRef(null);
   const bundleAbortRef = useRef(null);
-
+const navigate = useNavigate();
   const openModal = (product) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
@@ -183,7 +184,11 @@ export default function Home() {
   );
 
   const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
-
+useEffect(() => {
+  document.body.style.overflow = isOpen ? "hidden" : "auto";
+  return () => (document.body.style.overflow = "auto");
+}, [isOpen]);
+  
   return (
 
     <div className="bg-white text-black">
@@ -249,34 +254,44 @@ export default function Home() {
           {/* Right scrollable section */}
           <div className="relative flex-1 overflow-x-auto pl-6 scrollbar-thin">
             <div className="flex gap-8 pr-12">
-              {categories.map((category) => (
-                <Link
-                  key={category._id}
-                  to={`/products?category=${category.slug}`}
-                  className="flex-shrink-0 w-96 flex flex-col items-center group"
-                >
-                  <img
-                    src={
-                      category.photo ||
-                      `https://via.placeholder.com/250x300?text=${encodeURIComponent(
-                        category.name
-                      )}`
-                    }
-                    alt={category.name}
-                    className="w-full h-[400px] md:h-[500px] object-cover mb-4 rounded-lg group-hover:opacity-90 transition"
-                  />
-                  <p className="text-sm font-medium uppercase tracking-wide text-center">
-                    {category.name}
-                  </p>
-                </Link>
-              ))}
+     <Swiper
+  spaceBetween={30}
+  slidesPerView="auto"
+  grabCursor={true}
+>
+  {categories.map((category) => (
+    <SwiperSlide key={category._id} style={{ width: "380px" }}>
+      
+      <Link
+        to={`/products?category=${category.slug}`}
+        className="flex flex-col items-center group"
+      >
+        <img
+          src={
+            category.photo ||
+            `https://via.placeholder.com/250x300?text=${encodeURIComponent(
+              category.name
+            )}`
+          }
+          alt={category.name}
+          className="w-full h-[400px] md:h-[500px] object-cover mb-4 rounded-lg transition group-hover:opacity-90"
+        />
+
+        <p className="text-sm font-medium uppercase tracking-wide text-center">
+          {category.name}
+        </p>
+      </Link>
+
+    </SwiperSlide>
+  ))}
+</Swiper>
             </div>
           </div>
 
           {/* Left fade */}
           <div className="pointer-events-none absolute top-0 bottom-0 left-[24rem] w-12 bg-gradient-to-r from-white to-transparent z-30" />
           {/* Right fade */}
-          <div className="pointer-events-none absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-white to-transparent z-30" />
+          <div className="pointer-events-none absolute top-0 bottom-0 right-[3rem] w-12 bg-gradient-to-l from-white to-transparent z-30" />
         </div>
       </section>
 
@@ -320,51 +335,62 @@ export default function Home() {
           LOOKBOOK
         </h2>
 
-        <div className="flex overflow-x-auto gap-8 px-6 md:px-20 w-full scrollbar-thin">
-          {categories.map((category) => {
-            const categoryProducts = products
-              .filter((p) => p.category?._id === category._id)
-              .slice(0, 3);
+        <div className="flex overflow-x-auto gap-8 px-5 w-full scrollbar-thin">
+     <Swiper
+  spaceBetween={30}
+  slidesPerView="auto"
+  grabCursor={true}
+>
+  {categories.map((category) => {
+    const categoryProducts = products
+      .filter((p) => p.category?._id === category._id)
+      .slice(0, 3);
 
-            if (!categoryProducts.length) return null;
+    if (!categoryProducts.length) return null;
 
-            return (
-              <div
-                key={category._id}
-                className="flex-shrink-0 w-72 md:w-96 group cursor-pointer relative"
-              >
-                <div className="relative h-[400px] md:h-[450px]">
-                  {categoryProducts.map((product, index) => {
-                    const rotations = ["rotate-0", "-rotate-2", "rotate-2"];
-                    const topOffsets = ["top-0", "-top-4", "-top-8"];
-                    const leftOffsets = ["left-0", "-left-4", "-left-8"];
-                    const zIndex = [10, 20, 30];
+    return (
+      <SwiperSlide key={category._id} style={{ width: "380px" }}>
+        
+        <div className="group cursor-pointer relative">
+          
+          <div className="relative h-[400px] md:h-[450px]">
+            {categoryProducts.map((product, index) => {
+              const rotations = ["rotate-0", "-rotate-2", "rotate-2"];
+              const topOffsets = ["top-0", "-top-4", "-top-8"];
+              const leftOffsets = ["left-0", "-left-4", "-left-8"];
+              const zIndex = [10, 20, 30];
 
-                    return (
-                      <img
-                        key={product._id}
-                        src={product.images?.[0] || category.photo}
-                        alt={product.title}
-                        className={`absolute w-full h-full object-cover rounded-lg shadow-2xl transition-transform
-                    ${rotations[index] || "rotate-0"}
-                    ${topOffsets[index] || "top-0"}
-                    ${leftOffsets[index] || "left-0"}
-                    z-[${zIndex[index] || 10}]
+              return (
+                <img
+                  key={product._id}
+                  src={product.images?.[0] || category.photo}
+                  alt={product.title}
+                  className={`absolute w-full h-full object-cover rounded-lg shadow-2xl transition-transform
+                    ${rotations[index]}
+                    ${topOffsets[index]}
+                    ${leftOffsets[index]}
                     group-hover:scale-105`}
-                      />
-                    );
-                  })}
-                </div>
-                <Link to={`/products?category=${category.slug}`}>
-                  <button className="absolute bottom-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-70 px-4 py-2 text-sm font-medium uppercase rounded-md hover:bg-opacity-90 transition">
-                    SHOP THE LOOK
-                  </button>
-                </Link>
-              </div>
-            );
-          })}
+                  style={{ zIndex: zIndex[index] }}
+                />
+              );
+            })}
+          </div>
+
+          <Link to={`/products?category=${category.slug}`}>
+            <button className="z-50 absolute bottom-4 left-1/2 -translate-x-1/2 text-white bg-black/70 px-4 py-2 text-sm uppercase rounded-md hover:bg-black transition">
+              SHOP THE LOOK
+            </button>
+          </Link>
+
+        </div>
+
+      </SwiperSlide>
+    );
+  })}
+</Swiper>
 
           <div className="pointer-events-none absolute top-0 bottom-0 right-0 w-12 bg-gradient-to-l from-white to-transparent z-10" />
+          <div className="pointer-events-none absolute top-0 bottom-0 left-0 w-12 bg-gradient-to-r from-white to-transparent z-10" />
         </div>
       </section>
 
@@ -807,6 +833,7 @@ export default function Home() {
           </form>
         </div>
       </section>
+      {/* product size modal */}
       <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent className="max-w-sm w-[90%]">
           <DialogHeader>
@@ -851,8 +878,11 @@ export default function Home() {
           </div>
         </DialogContent>
       </Dialog>
+
+
+      {/* bundle model */}
       <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); }}>
-        <DialogContent className="max-w-3xl w-full bg-white  p-6 relative ">
+       <DialogContent className="max-w-3xl w-full bg-white p-6 relative max-h-[90vh] overflow-y-auto">
           {/* Close X */}
           <button
             onClick={() => {
@@ -889,7 +919,7 @@ export default function Home() {
           </div>
 
           {/* Main row: product cards side-by-side with + in the middle */}
-          <div className="w-full bg-white border-t border-b py-6 px-2 mb-6 relative  overflow-y-auto h-[300px]">
+          <div className="w-full bg-white border-t border-b py-6 px-2 mb-6 relative  ">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-start justify-between relative">
               {(selectedBundle?.products || []).map((p, idx) => (
                 <div

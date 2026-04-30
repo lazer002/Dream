@@ -1,4 +1,9 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import api from "../utils/config";
 
 const AuthContext = createContext(null);
@@ -6,116 +11,49 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [guestId, setGuestId] = useState(null);
-  const [accessToken, setAccessToken] = useState(null);
-  const [refreshToken, setRefreshToken] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [authStatus, setAuthStatus] = useState("loading");
   const [isMerged, setIsMerged] = useState(false);
 
   /* ================= INIT ================= */
 
   useEffect(() => {
-    try {
-      const rawUser = localStorage.getItem("ds_user");
-      const at = localStorage.getItem("ds_access");
-      const rt = localStorage.getItem("ds_refresh");
-      let gid = localStorage.getItem("ds_guest");
+    const initAuth = async () => {
+      try {
+        let gid = localStorage.getItem("ds_guest");
+        if (!gid) {
+          gid = crypto.randomUUID();
+          localStorage.setItem("ds_guest", gid);
+        }
+        setGuestId(gid);
 
-      // guest
-      if (!gid) {
-        gid = crypto.randomUUID();
-        localStorage.setItem("ds_guest", gid);
-      }
-      setGuestId(gid);
+        const token = localStorage.getItem("ds_access");
 
-      // restore user
-      if (at && rawUser) {
-        setUser(JSON.parse(rawUser));
-        setAccessToken(at);
-        setRefreshToken(rt);
-      }
-
-    } catch (err) {
-      console.error("Init error:", err);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  /* ================= AXIOS ================= */
-
-  useEffect(() => {
-    const reqId = api.interceptors.request.use((config) => {
-      const token = localStorage.getItem("ds_access");
-      const gid = localStorage.getItem("ds_guest");
-
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-
-      if (gid) {
-        config.headers["x-guest-id"] = gid;
-      }
-
-      return config;
-    });
-
-    const resId = api.interceptors.response.use(
-      (res) => res,
-      async (error) => {
-        const originalReq = error.config;
-
-        if (
-          error.response?.status === 401 &&
-          refreshToken &&
-          !originalReq._retry
-        ) {
-          try {
-            originalReq._retry = true;
-
-            const { data } = await api.post("/auth/refresh", {
-              refreshToken,
-            });
-
-            setAccessToken(data.accessToken);
-            localStorage.setItem("ds_access", data.accessToken);
-
-            originalReq.headers.Authorization = `Bearer ${data.accessToken}`;
-            return api(originalReq);
-
-          } catch (err) {
-            logout();
-          }
+        // no token → logged out
+        if (!token) {
+          setUser(null);
+          setAuthStatus("unauthenticated");
+          return;
         }
 
-        return Promise.reject(error);
+        // 🔥 IMPORTANT: let interceptor handle refresh automatically
+        const { data } = await api.get("/auth/me");
+
+        setUser(data.user);
+        setAuthStatus("authenticated");
+
+      } catch (err) {
+        console.log("Auth init failed → user not authenticated");
+
+        setUser(null);
+        setAuthStatus("unauthenticated");
+      } finally {
+        setLoading(false);
       }
-    );
-
-    return () => {
-      api.interceptors.request.eject(reqId);
-      api.interceptors.response.eject(resId);
     };
-  }, [refreshToken]);
 
-  /* ================= PERSIST ================= */
-
-  useEffect(() => {
-    user
-      ? localStorage.setItem("ds_user", JSON.stringify(user))
-      : localStorage.removeItem("ds_user");
-  }, [user]);
-
-  useEffect(() => {
-    accessToken
-      ? localStorage.setItem("ds_access", accessToken)
-      : localStorage.removeItem("ds_access");
-  }, [accessToken]);
-
-  useEffect(() => {
-    refreshToken
-      ? localStorage.setItem("ds_refresh", refreshToken)
-      : localStorage.removeItem("ds_refresh");
-  }, [refreshToken]);
+    initAuth();
+  }, []);
 
   /* ================= GOOGLE CALLBACK ================= */
 
@@ -123,15 +61,19 @@ export function AuthProvider({ children }) {
     const params = new URLSearchParams(window.location.search);
 
     const at = params.get("accessToken");
-    const rt = params.get("refreshToken");
-
     if (!at) return;
 
     localStorage.setItem("ds_access", at);
-    if (rt) localStorage.setItem("ds_refresh", rt);
 
-    setAccessToken(at);
-    setRefreshToken(rt || null);
+    api.get("/auth/me")
+      .then((res) => {
+        setUser(res.data.user);
+        setAuthStatus("authenticated");
+      })
+      .catch(() => {
+        setUser(null);
+        setAuthStatus("unauthenticated");
+      });
 
     window.history.replaceState({}, document.title, "/");
   }, []);
@@ -139,15 +81,13 @@ export function AuthProvider({ children }) {
   /* ================= MERGE ================= */
 
   const mergeGuestData = async (gid) => {
-    if (!accessToken || !gid || isMerged) return;
+    if (!gid || isMerged) return;
 
     try {
       await api.post("/wishlist/sync");
-
       localStorage.removeItem("ds_guest");
       setGuestId(null);
       setIsMerged(true);
-
     } catch (err) {
       console.error("Merge error:", err);
     }
@@ -162,49 +102,56 @@ export function AuthProvider({ children }) {
   /* ================= AUTH ================= */
 
   const login = async (email, password) => {
+    setAuthStatus("loading");
+
     const { data } = await api.post("/auth/login", { email, password });
 
-    setUser(data.user);
-    setAccessToken(data.accessToken);
-    setRefreshToken(data.refreshToken);
+    localStorage.setItem("ds_access", data.accessToken);
 
-    return data;
+    const res = await api.get("/auth/me");
+
+    setUser(res.data.user);
+    setAuthStatus("authenticated");
   };
 
   const register = async (name, email, password) => {
+    setAuthStatus("loading");
+
     const { data } = await api.post("/auth/register", {
       name,
       email,
       password,
     });
 
-    setUser(data.user);
-    setAccessToken(data.accessToken);
-    setRefreshToken(data.refreshToken);
+    localStorage.setItem("ds_access", data.accessToken);
 
-    return data;
+    const res = await api.get("/auth/me");
+
+    setUser(res.data.user);
+    setAuthStatus("authenticated");
   };
 
   const loginWithGoogle = async (token) => {
+    setAuthStatus("loading");
+
     const { data } = await api.post("/auth/google", { token });
 
-    setUser(data.user);
-    setAccessToken(data.accessToken);
-    setRefreshToken(data.refreshToken);
+    localStorage.setItem("ds_access", data.accessToken);
 
-    return data;
+    const res = await api.get("/auth/me");
+
+    setUser(res.data.user);
+    setAuthStatus("authenticated");
   };
 
   /* ================= LOGOUT ================= */
 
   const logout = () => {
     setUser(null);
-    setAccessToken(null);
-    setRefreshToken(null);
+    setAuthStatus("unauthenticated");
 
     localStorage.removeItem("ds_user");
     localStorage.removeItem("ds_access");
-    localStorage.removeItem("ds_refresh");
 
     const gid = crypto.randomUUID();
     localStorage.setItem("ds_guest", gid);
@@ -223,6 +170,7 @@ export function AuthProvider({ children }) {
         user,
         guestId,
         loading,
+        authStatus,
         login,
         register,
         loginWithGoogle,

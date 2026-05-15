@@ -1,8 +1,10 @@
 import { useEffect } from "react";
 import Lenis from "@studio-freight/lenis";
 
-export default function SmoothScroll({ children }) {
+export default function SmoothScroll({ children, disabled }) {
   useEffect(() => {
+  if (disabled) return;
+
     const lenis = new Lenis({
       duration: 1.2,
       lerp: 0.08,       // 👈 smoothness (lower = smoother)

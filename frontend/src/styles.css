@@ -291,3 +291,29 @@ button:focus, input:focus, textarea:focus, select:focus {
 
 /* Optional: smaller calendar icon fallback for Firefox (if needed) */
 .input-no-arrow::-moz-focus-inner { border: 0; }
+
+@keyframes promoFloat {
+  0% {
+    transform: translateY(0px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  }
+
+  50% {
+    transform: translateY(-4px);
+    box-shadow: 0 10px 35px rgba(0,0,0,0.08);
+  }
+
+  100% {
+    transform: translateY(0px);
+    box-shadow: 0 4px 20px rgba(0,0,0,0.04);
+  }
+}
+@keyframes heroZoom {
+  0% {
+    transform: scale(1.03);
+  }
+
+  100% {
+    transform: scale(1.08);
+  }
+}

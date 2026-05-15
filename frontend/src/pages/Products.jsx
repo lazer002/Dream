@@ -8,7 +8,7 @@ import { useWishlist } from "../state/WishlistContext.jsx"
 import api  from "@/utils/config";
 import { useLocation } from "react-router-dom";
 import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@/components/ui/dialog.jsx";
-
+import FilterDrawer from "@/components/filterDrawer";
 
 export default function Products() {
   const { add } = useCart()
@@ -16,7 +16,17 @@ export default function Products() {
   const { wishlist ,addToWishlist,removeFromWishlist} = useWishlist();
   const [sort, setSort] = useState("newest");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState({ categories: [], priceRange: "", brand: [] });
+const [selectedFilters, setSelectedFilters] = useState({
+  categories: [],
+  priceRange: "",
+  color: [],
+  size: [],
+  fabric: [],
+  fit: [],
+  inStock: false,
+  isNew: false,
+  onSale: false,
+});
   const [categories, setCategories] = useState([]);
 
   const [showTopBtn, setShowTopBtn] = useState(false);
@@ -34,7 +44,6 @@ const openModal = (product) => {
 };
 
 const handleSelectSize = (sizeKey) => {
-  console.log("Selected size:", sizeKey);
   if (!selectedProduct) return;
   const qty = Number(selectedProduct.inventory?.[sizeKey] ?? 0);
   if (qty <= 0) return; // disabled anyway
@@ -47,13 +56,14 @@ const handleSelectSize = (sizeKey) => {
   const fetchProducts = async (reset = false, categoryFromQueryParam = null) => {
     if (!reset && (loading || !hasMore)) return; // only block when NOT resetting
 
+     const currentPage = reset ? 1 : page; 
 
     try {
       setLoading(true);
 
       const params = new URLSearchParams();
       params.append("limit", 10);
-      params.append("page", page);
+      params.append("page", currentPage);
       params.append("sort", sort);
 
       const apiCategory = categoryFromQueryParam
@@ -65,8 +75,33 @@ const handleSelectSize = (sizeKey) => {
 
       if (selectedFilters.priceRange)
         params.append("priceRange", selectedFilters.priceRange);
-      if (selectedFilters.brand.length)
-        params.append("brand", selectedFilters.brand.join(","));
+ // 🔥 TAG FILTERS
+let tags = [];
+
+if (selectedFilters.color.length)
+  tags.push(...selectedFilters.color);
+
+if (selectedFilters.size.length)
+  tags.push(...selectedFilters.size);
+
+if (selectedFilters.fabric.length)
+  tags.push(...selectedFilters.fabric);
+
+if (selectedFilters.fit.length)
+  tags.push(...selectedFilters.fit);
+
+if (tags.length)
+  params.append("tags", tags.join(","));
+
+// 🔥 BOOLEAN FILTERS
+if (selectedFilters.inStock)
+  params.append("inStock", "true");
+
+if (selectedFilters.isNew)
+  params.append("isNew", "true");
+
+if (selectedFilters.onSale)
+  params.append("onSale", "true");
 
       const res = await api.get("/products", {
         params: Object.fromEntries(params.entries()),
@@ -146,16 +181,16 @@ const handleSelectSize = (sizeKey) => {
 
 
 
-  const handleFilterChange = (type, value) => {
-    setSelectedFilters(prev => {
-      if (type === "categories" || type === "brand") {
-        const arr = prev[type];
-        if (arr.includes(value)) return { ...prev, [type]: arr.filter(v => v !== value) };
-        else return { ...prev, [type]: [...arr, value] };
-      } else if (type === "priceRange") return { ...prev, priceRange: value };
-      return prev;
-    });
-  };
+const handleFilterChange = (type, value) => {
+  setSelectedFilters(prev => {
+    if (Array.isArray(prev[type])) {
+      return prev[type].includes(value)
+        ? { ...prev, [type]: prev[type].filter(v => v !== value) }
+        : { ...prev, [type]: [...prev[type], value] };
+    }
+    return { ...prev, [type]: value };
+  });
+};
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
@@ -251,7 +286,16 @@ const handleSelectSize = (sizeKey) => {
                 </div>
 
               <div className="p-4 flex flex-col gap-1">
+                    <div
+                    className={`text-red-600 text-lg font-bold h-6 ${Object.values(p.inventory || {}).every(qty => qty === 0)
+                        ? "visible"
+                        : "invisible"
+                      }`}
+                  >
+                    Out of Stock
+                  </div>
   <div className="flex items-center justify-between">
+    
     <h3 className="text-sm font-bold text-black uppercase truncate">{p.title}</h3>
     <button
       onClick={(e) => {
@@ -287,6 +331,7 @@ const handleSelectSize = (sizeKey) => {
       </>
     )}
   </div>
+              
 </div>
 
               </div>
@@ -310,73 +355,7 @@ const handleSelectSize = (sizeKey) => {
       )}
 
       {/* Filter Offcanvas */}
-<div
-  className={`fixed top-0 left-0 h-full w-64 bg-white shadow-lg border-r border-gray-200 transform transition-transform duration-300 ease-in-out z-50
-    ${isFilterOpen ? "translate-x-0" : "-translate-x-full"}`}
->
-  <div className="flex justify-between items-center px-6 py-4 border-b border-gray-200">
-    <h2 className="text-lg font-bold uppercase">Filters</h2>
-    <button
-      onClick={() => setIsFilterOpen(false)}
-      className="text-black hover:text-[#042354] text-2xl"
-    >
-      ×
-    </button>
-  </div>
 
-  <div className="p-6 space-y-6 overflow-y-auto h-full">
-    {/* Categories */}
-    <div>
-      <h3 className="font-bold mb-2 uppercase text-black">Categories</h3>
-
-      {categories && categories.length > 0 ? (
-        categories.map((cat) => (
-          <label
-            key={cat._id}
-            className="flex items-center gap-2 mb-1 cursor-pointer text-black"
-          >
-            <input
-              type="checkbox"
-              checked={selectedFilters.categories.includes(cat.name)}
-              onChange={() => handleFilterChange("categories", cat.name)}
-              className="w-4 h-4 border border-black accent-black focus:ring-0"
-            />
-            {cat.name}
-          </label>
-        ))
-      ) : (
-        <p className="text-sm text-gray-500">Loading categories...</p>
-      )}
-    </div>
-
-    {/* Price Range */}
-    <div>
-      <h3 className="font-bold mb-2 uppercase text-black">Price Range</h3>
-      {["0-500", "500-1000", "1000-2000", "2000+"].map((range) => (
-        <label
-          key={range}
-          className="flex items-center gap-2 mb-1 cursor-pointer text-black"
-        >
-          <input
-            type="radio"
-            name="priceRange"
-            checked={selectedFilters.priceRange === range}
-            onChange={() => handleFilterChange("priceRange", range)}
-            className="w-4 h-4 border border-black accent-black focus:ring-0"
-          />
-          {range}
-        </label>
-      ))}
-    </div>
-
-    <button
-      onClick={() => setIsFilterOpen(false)}
-      className="w-full mt-4 bg-black text-white font-bold uppercase hover:bg-black transition py-2"
-    >
-      Apply Filters
-    </button>
-  </div>
-</div>
 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
   <DialogContent className="max-w-sm w-[90%]">
     <DialogHeader>
@@ -441,6 +420,20 @@ const handleSelectSize = (sizeKey) => {
           ↑
         </button>
       )}
+
+
+      <FilterDrawer
+  isOpen={isFilterOpen}
+  onClose={() => setIsFilterOpen(false)}
+  selectedFilters={selectedFilters}
+  onChange={handleFilterChange}
+ onApply={() => {
+  setPage(1);        // 🔥 reset pagination
+  setHasMore(true);  // 🔥 allow new fetch
+  setIsFilterOpen(false);
+}}
+   categories={categories}
+/>
 
     </div>
 

@@ -37,6 +37,7 @@ import ReturnExchange from "./pages/ReturnExchange.jsx";
 import ReturnStatusPage from "./pages/ReturnStatusPage.jsx";
 import AdminReturns from "./pages/admin/ReturnList.jsx";
 import AdminReturnDetail from "./pages/admin/ReturnDetail.jsx";
+import ThankYouPage from "./pages/Thankyou.jsx";
 
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
@@ -51,6 +52,8 @@ export default function App() {
   const isAdminRoute = location.pathname.startsWith("/admin");
   const isAuthRoute =
     location.pathname === "/login" || location.pathname === "/register";
+
+
 
   // hide header/footer on admin + auth pages
   // const hideChrome = isAdminRoute || isAuthRoute;
@@ -80,6 +83,7 @@ export default function App() {
             <Route path="/newarrivals" element={<NewArrivals />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/return" element={<ReturnExchange />} />
+            <Route path="/thankyou/:id" element={<ThankYouPage />} />
             <Route
               path="/return/:orderNumber"
               element={<ReturnStatusPage />}
@@ -107,10 +111,7 @@ export default function App() {
               <Route path="orders" element={<Orders />} />
               <Route path="orders/:id" element={<OrderDetail />} />
               <Route path="returnslist" element={<AdminReturns />} />
-              <Route
-                path="returnslist/:rmaNumber"
-                element={<AdminReturnDetail />}
-              />
+              <Route path="returnslist/:rmaNumber" element={<AdminReturnDetail />} />
             </Route>
           </Routes>
         </main>

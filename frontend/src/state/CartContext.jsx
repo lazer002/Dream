@@ -18,22 +18,37 @@ export function CartProvider({ children }) {
   const { user } = useAuth();
    const [loading, setLoading] = useState(true);
   const [items, setItems] = useState([]);
-  const guestId = ensureGuestId();
+  const [guestId] = useState(() => ensureGuestId());
 
   // Function to call cart endpoints with guest header
-  const client = (token) => {
-    return {
-      get: (url) => api.get(`/cart${url}`, { headers: { 'x-guest-id': guestId, ...(token ? { Authorization: `Bearer ${token}` } : {}) } }),
-      post: (url, data) => api.post(`/cart${url}`, data, { headers: { 'x-guest-id': guestId, ...(token ? { Authorization: `Bearer ${token}` } : {}) } })
-    };
+const client = () => {
+  const token = localStorage.getItem("ds_access");
+
+  return {
+    get: (url) =>
+      api.get(`/cart${url}`, {
+        headers: {
+          "x-guest-id": guestId,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }),
+
+    post: (url, data) =>
+      api.post(`/cart${url}`, data, {
+        headers: {
+          "x-guest-id": guestId,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      }),
   };
+};
 
   const refresh = async () => {
      setLoading(true); // start loading
     try {
       const { data } = await client().get('/');
       // console.log("Cart refreshed:", data);
-      setItems(data.items);
+      setItems(data.items || []);
     } catch (err) {
       console.error(err);
       toast.error("Failed to refresh cart");
@@ -45,13 +60,16 @@ export function CartProvider({ children }) {
   // Fetch cart on load
   useEffect(() => { refresh() }, []);
 
+
+
   // Merge guest cart after login
   const mergeGuestCart = async () => {
     const token = localStorage.getItem('ds_access');
     if (!user || !token) return;
 
     try {
-      await client(token).post('/merge', { guestId });
+      await client().post('/merge', { guestId });
+      
       await refresh();
       toast.success("Guest cart merged successfully");
     } catch (err) {
@@ -60,10 +78,16 @@ export function CartProvider({ children }) {
     }
   };
 
-  useEffect(() => {
-    if (user) mergeGuestCart();
-  }, [user]);
+useEffect(() => {
+  if (!user) return;
 
+  if (!sessionStorage.getItem("cart_merged")) {
+    mergeGuestCart();
+    sessionStorage.setItem("cart_merged", "true");
+  } else {
+    refresh(); // 🔥 THIS WAS MISSING
+  }
+}, [user]);
   
 const add = async (productId, size, quantity = 1) => {
   if (!size) {
@@ -271,7 +295,7 @@ const addBundleToCart = async (bundle, selectedSizes) => {
   }
 };
 
-
+console.log("CartContext items:", items);
   const value = { items, add, update, remove, refresh, mergeGuestCart, addBundleToCart, clearCart, loading };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

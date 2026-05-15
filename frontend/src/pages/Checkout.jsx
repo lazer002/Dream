@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState ,useEffect } from "react";
 import { Input } from "@/components/ui/input";
 
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
@@ -8,9 +8,13 @@ import { useCart } from "@/state/CartContext";
 import api  from "@/utils/config";
 import toast from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
-import {Loader2 } from "lucide-react";
+import {Loader2, User } from "lucide-react";
 import { getDeliveryDate } from "@/utils/public";
+import { useAuth } from "@/state/AuthContext.jsx";
+import { loadRazorpay } from "@/utils/loader.js";
+
 export default function CheckoutPage() {
+    const { user } = useAuth();
   const navigate = useNavigate();
   const { items , clearCart } = useCart();
   const [shippingMethod, setShippingMethod] = useState("free");
@@ -34,7 +38,37 @@ const [discountValue, setDiscountValue] = useState(0);
 const [discountError, setDiscountError] = useState("");
 const [discountSuccess, setDiscountSuccess] = useState("");
 const [loadingDiscount, setLoadingDiscount] = useState(false);
+const [selectedAddress, setSelectedAddress] = useState(null);
+const [processingPayment, setProcessingPayment] = useState(false);
+const addresses = user?.addresses || [];
+const [addressMode, setAddressMode] = useState(addresses.length > 0 ? "saved" : "new"); 
+const defaultAddress =
+addresses.find((a) => a.isDefault) || addresses[0];
 
+
+
+useEffect(() => {
+  if (addresses.length) {
+    setSelectedAddress(defaultAddress);
+  }
+}, [user]);
+
+useEffect(() => {
+  if (addressMode === "saved" && selectedAddress) {
+    const fullName = selectedAddress.name || "";
+    const [first, ...rest] = fullName.split(" ");
+
+    setFirstName(first || "");
+    setLastName(rest.join(" ") || "");
+
+    setPhone(selectedAddress.phone || "");
+    setAddress(selectedAddress.address || "");
+    setCity(selectedAddress.city || "");
+    setState(selectedAddress.state || "");
+    setZip(selectedAddress.zip || "");
+    setCountry("India");
+  }
+}, [selectedAddress, addressMode]);
 
 const applyDiscount = async () => {
   if (!discountCode.trim()) return;
@@ -48,7 +82,6 @@ const applyDiscount = async () => {
       setDiscountValue(res.data.amount);
       setDiscountSuccess(`Code "${discountCode}" applied!`);
       // optionally adjust your subtotal or total
-      setSubtotal((prev) => prev - res.data.amount);
     } else {
       setDiscountError("Invalid or expired discount code.");
       setDiscountValue(0);
@@ -65,66 +98,150 @@ const applyDiscount = async () => {
     return sum + (i.bundle?.price || i.product?.price || 0) * i.quantity;
   }, 0);
 
-  const handlePayment = async () => {
-    try {
-      const orderData = {
-        items: items.map((i) => ({
-          productId: i.product?._id,
-          quantity: i.quantity,
-          price: i.product?.price,
-          title: i.product?.title
+  const shippingFee = 100;
+const finalTotal = Math.max(0, subtotal - discountValue + shippingFee);
 
-        })),
-        subtotal,
-        shipping: 100,
-        total: subtotal + 100,
-        shippingMethod,
-        billingSame,
-        contactEmail,
-        source: "web",
-        shippingAddress: {
-          firstName,
-          lastName,
-          address,
-          apartment,
-          city,
-          state,
-          zip,
-          country,
-          phone
-        },
-      };
 
-      const response = await api.post("/create", orderData);
-      const data = response.data;
 
-      const options = {
-        key: import.meta.env.VITE_PUBLIC_RAZORPAY_KEY,
-        amount: data.amount,
-        currency: data.currency,
-        order_id: data.razorpayOrderId,
-        handler: async (res) => {
-          await api.post("/api/payment-success", {
+
+// razewrpay integration
+
+
+
+
+
+
+const handlePayment = async () => {
+  try {
+    if (loading) return;
+    setLoading(true);
+
+    const orderData = {
+items: items.map((i) => {
+  // 🛍️ Product item
+  if (i.product) {
+    return {
+      productId: i.product._id,
+      quantity: i.quantity,
+      variant: i.size || ""
+    };
+  }
+
+  // 📦 Bundle item
+if (i.bundle) {
+  return {
+    bundleId: i.bundle._id,
+    quantity: i.quantity,
+    mainImage: i.mainImage || "default.jpg",
+
+    bundleProducts: (i.bundleProducts || []).map((bp) => ({
+      productId: bp.product._id,
+      quantity: bp.quantity || 1,
+      variant: bp.size || ""   // ✅ THIS IS IMPORTANT
+    }))
+  };
+}
+
+  return null;
+}).filter(Boolean),
+      paymentMethod: "razorpay",
+      shippingMethod,
+      billingSame,
+      contactEmail,
+      subscribeNews,
+      source: "web",
+      shippingAddress: {
+        firstName,
+        lastName,
+        address,
+        apartment,
+        city,
+        state,
+        zip,
+        country,
+        phone,
+      },
+    };
+
+
+    const isLoaded = await loadRazorpay();
+
+    if (!isLoaded) {
+      toast.error("Payment failed to load. Check your connection.");
+      setLoading(false);
+      return;
+    }
+
+    const response = await api.post("/orders/create", orderData);
+    const data = response.data;
+
+    if (!data?.razorpayOrderId) {
+      toast.error("Order creation failed");
+      return;
+    }
+
+    const options = {
+      key: import.meta.env.VITE_PUBLIC_RAZORPAY_KEY,
+      amount: data.amount,
+      currency: data.currency,
+      order_id: data.razorpayOrderId,
+
+      handler: async (res) => {
+        try {
+          setProcessingPayment(true);
+
+          const verifyRes = await api.post("/orders/payment-success", {
+            orderId: data.orderId,
             razorpay_payment_id: res.razorpay_payment_id,
             razorpay_order_id: res.razorpay_order_id,
-            razorpay_signature: res.razorpay_signature
+            razorpay_signature: res.razorpay_signature,
           });
-          alert("Payment Successful!");
-        },
-        prefill: {
-          name: `${firstName} ${lastName}`,
-          email: contactEmail,
-          contact: phone
-        },
-        theme: { color: "#000000" }
-      };
 
-      new window.Razorpay(options).open();
-    } catch (err) {
-      console.error("Payment error:", err);
-      alert("Payment failed. Check console for details.");
-    }
-  };
+          if (verifyRes.data.success) {
+            toast.success("Payment Successful!");
+
+            if (typeof clearCart === "function") {
+              await clearCart();
+            }
+
+            navigate("/thankyou/" + data.orderId);
+          } else {
+            toast.error("Verification failed");
+          }
+        } catch (err) {
+          toast.error("Verification error");
+        }
+      },
+
+      modal: {
+        ondismiss: function () {
+          toast.error("Payment cancelled");
+        },
+      },
+
+      prefill: {
+        name: `${firstName} ${lastName}`,
+        email: contactEmail,
+        contact: phone,
+      },
+
+      theme: { color: "#000000" },
+    };
+
+    const rzp = new window.Razorpay(options);
+
+    rzp.on("payment.failed", function () {
+      toast.error("Payment failed. Try again.");
+    });
+
+    rzp.open();
+  } catch (err) {
+    console.error(err);
+    toast.error("Something went wrong");
+  } finally {
+    setLoading(false);
+  }
+};
 
 const handleCODOrder = async () => {
   try {
@@ -133,56 +250,46 @@ const handleCODOrder = async () => {
     setLoading(true);
 
     // 1) Basic validation
-    if (!contactEmail || !firstName || !lastName || !address || !phone) {
-      toast.error("Please fill all required fields before placing the order.");
-      setLoading(false);
-      return;
-    }
+if (
+  addressMode === "new" &&
+  (!contactEmail || !firstName || !lastName || !address || !phone || !city || !state || !zip)
+) {
+  toast.error("Please fill all required fields before placing the order.");
+  setLoading(false);
+  return;
+}
+const orderItems = items.map((i) => {
+  if (i.bundle) {
+  return {
+    bundleId: i.bundle._id,
+    quantity: i.quantity,
+    mainImage: i.mainImage ,
 
-    // 2) Prepare items array (handle bundles if present)
-    const orderItems = items.map((i) => {
-      if (i.bundle) {
-        return {
-          bundleId: i.bundle._id,
-          title: i.bundle.title,
-          variant: "", // keep consistent
-          quantity: Number(i.quantity) || 1,
-          price: Number(i.bundle.price) || 0,
-          total: (Number(i.bundle.price) || 0) * (Number(i.quantity) || 1),
-          mainImage: i.mainImage || i.bundle.images?.[0] || "",
-          bundleProducts: (i.bundleProducts || []).map((bp) => ({
-            productId: bp.product._id,
-            title: bp.product.title,
-            variant: bp.size || "",
-            quantity: Number(bp.quantity) || 1,
-            price: Number(bp.product.price) || 0,
-            mainImage: bp.product.images?.[0] || "",
-          })),
-        };
-      } else {
-        return {
-          productId: i.product._id,
-          title: i.product.title,
-          variant: i.size || "",
-          quantity: Number(i.quantity) || 1,
-          price: Number(i.product.price) || 0,
-          total: (Number(i.product.price) || 0) * (Number(i.quantity) || 1),
-          mainImage: i.product.images?.[0] || "",
-        };
-      }
-    });
+    // 🔥 ADD THIS
+    bundleProducts: (i.bundleProducts || []).map((bp) => ({
+      productId: bp.product._id,
+      variant: bp.size || "",
+      quantity: bp.quantity || 1
+    }))
+  };
+}
 
-    const shippingFee = 100;
+  // 🛍️ Product
+  return {
+    productId: i.product._id,
+    quantity: Number(i.quantity) || 1,
+    variant: i.size || ""
+  };
+});
     const orderData = {
       items: orderItems,
       contactEmail,
+      subscribeNews,
       source: "web",
-      subtotal,
-      shipping: shippingFee,         // your backend expects "shipping"
-      total: (subtotal || 0) + shippingFee,
+
       shippingMethod,
       paymentMethod: "cod",
-      discountCode: discountCode || "",
+discountCode: discountCode,
       billingSame,
       shippingAddress: {
         firstName,
@@ -219,14 +326,8 @@ const handleCODOrder = async () => {
     } catch (e) {
      toast.error("Failed to clear cart after order.");
     }
-      await new Promise((r) => setTimeout(r, 1200));
 
-    if (orderNumber) {
-      navigate(`/trackorder?email=${encodeURIComponent(contactEmail)}&orderNumber=${encodeURIComponent(orderNumber)}`);
-    } else {
-      navigate("/thank-you");
-    }
-
+    navigate("/thankyou/" + data.orderId);
 
   } catch (err) {
     console.error("COD Order Error:", err);
@@ -258,7 +359,7 @@ const handleCODOrder = async () => {
     <div className="max-w-7xl mx-auto p-6 grid lg:grid-cols-3 gap-10 text-gray-900">
 
       {/* Left Section */}
-      <div className="lg:col-span-2 flex flex-col gap-8 max-h-[calc(100vh-4rem)] overflow-y-auto">
+      <div className="lg:col-span-2 flex flex-col gap-8  overflow-y-auto my-14">
 
         {/* Contact */}
         <h2 className="text-xl font-semibold border-b pb-2">Contact</h2>
@@ -270,8 +371,49 @@ const handleCODOrder = async () => {
           </div>
         </div>
 
+<RadioGroup value={addressMode} onValueChange={setAddressMode}>
+  <div className="flex items-center gap-2">
+    <RadioGroupItem value="saved" id="saved" />
+    <Label htmlFor="saved">Use saved address</Label>
+  </div>
+
+  <div className="flex items-center gap-2">
+    <RadioGroupItem value="new" id="new" />
+    <Label htmlFor="new">Enter new address</Label>
+  </div>
+</RadioGroup>
+{addressMode === "saved" && addresses.length > 0 && (
+  <div className="space-y-2 mt-3">
+    {addresses.map((addr) => (
+      <div
+        key={addr._id}
+        onClick={() => setSelectedAddress(addr)}
+        className={`p-3 border rounded-lg cursor-pointer ${
+          selectedAddress?._id === addr._id
+            ? "border-black"
+            : "border-gray-300"
+        }`}
+      >
+        <p className="font-medium">{addr.name}</p>
+        <p className="text-sm text-gray-600">
+          {addr.address}, {addr.city}, {addr.state} - {addr.zip}
+        </p>
+        <p className="text-sm text-gray-500">{addr.phone}</p>
+
+        {addr.isDefault && (
+          <span className="text-xs text-green-600 font-medium">
+            Default
+          </span>
+        )}
+      </div>
+    ))}
+  </div>
+)}
+
         {/* Delivery */}
+        
         <h2 className="text-xl font-semibold border-b pb-2">Delivery</h2>
+        {addressMode === "new" && (<>
         <div className="grid md:grid-cols-2 gap-4">
           {renderInput(firstName, setFirstName, "First name")}
           {renderInput(lastName, setLastName, "Last name")}
@@ -289,7 +431,7 @@ const handleCODOrder = async () => {
           <Checkbox id="save" checked={saveInfo} onChange={() => setSaveInfo(!saveInfo)} />
           <Label htmlFor="save">Save this information for next time</Label>
         </div>
-
+</>)}
         {/* Shipping Method */}
         <div className="bg-white shadow rounded-xl p-6 space-y-4 border border-gray-200">
           <h2 className="text-xl font-semibold border-b pb-2">Shipping Method</h2>
@@ -404,7 +546,7 @@ const handleCODOrder = async () => {
 
 {discountSuccess && (
   <p className="text-green-600 text-xs mt-2">
-    🎉 Discount applied: {discountValue}% off!
+    🎉 Discount applied: {discountValue} off!
   </p>
 )}
 
@@ -413,7 +555,7 @@ const handleCODOrder = async () => {
         <div className="mt-4 border-t border-gray-200 pt-4 flex flex-col gap-2">
           <div className="flex justify-between text-gray-800"><span>Subtotal</span><span>₹{subtotal.toFixed(2)}</span></div>
           <div className="flex justify-between text-gray-800"><span>Shipping</span><span>₹100.00</span></div>
-          <div className="flex justify-between font-bold text-lg mt-2"><span>Total (INR)</span><span>₹{(subtotal + 100).toFixed(2)}</span></div>
+          <div className="flex justify-between font-bold text-lg mt-2"><span>Total (INR)</span><span>₹{finalTotal.toFixed(2)}</span></div>
         </div>
 
         {/* Action Button */}
@@ -435,6 +577,15 @@ const handleCODOrder = async () => {
           )}
         </button>
       </div>
+{processingPayment && (
+  <div className="fixed inset-0 bg-white/80 backdrop-blur-sm z-50 flex items-center justify-center">
+    <div className="flex flex-col items-center gap-4">
+      <Loader2 className="w-8 h-8 animate-spin" />
+      <p className="text-lg font-medium">Processing payment...</p>
     </div>
+  </div>
+)}
+    </div>
+    
   );
 }

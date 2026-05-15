@@ -35,6 +35,51 @@ export default function Home() {
   const debouncedQ = useDebounce(q, 350);
   const productAbortRef = useRef(null);
   const bundleAbortRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+const [form, setForm] = useState({
+  name: "",
+  email: "",
+  phone: "",
+  message: "",
+});
+
+
+
+
+
+const handleChange = (e) => {
+  setForm({ ...form, [e.target.name]: e.target.value });
+};
+
+const handleSubmit = async (e) => {
+
+  if (!form.name || !form.email || !form.message) {
+    toast.error("Please fill all required fields");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    await api.post("/contact", form);
+
+    toast.success("Message sent 🚀");
+
+    setForm({
+      name: "",
+      email: "",
+      phone: "",
+      message: "",
+    });
+
+  } catch (err) {
+    toast.error("Failed to send message");
+  } finally {
+    setLoading(false);
+  }
+};
+
+
 const navigate = useNavigate();
   const openModal = (product) => {
     setSelectedProduct(product);
@@ -193,62 +238,338 @@ useEffect(() => {
 
     <div className="bg-white text-black">
 
-      <section className="relative min-h-[60vh] md:min-h-[72vh] lg:min-h-[80vh] flex items-center justify-start px-6 md:px-16 bg-black/10">
-        {/* Background Image - lazy loaded, uses aria-hidden since decorative */}
-        <img
-          src="/images/banner_web.webp"
-          alt=""
-          aria-hidden="true"
-          loading="lazy"
-          className="absolute inset-0 w-full h-full object-cover z-0"
-        />
+ <section
+  className="
+    relative
 
-        {/* Overlay for contrast */}
-        <div className="absolute inset-0 bg-black/30 z-10" />
+    min-h-screen
 
-        {/* Text content */}
-        <div className="relative z-20 max-w-xl text-white py-16">
-          <h1 className="text-4xl md:text-6xl lg:text-7xl font-extrabold mb-4 leading-tight tracking-tight drop-shadow-lg">
-            REDEFINE YOUR STYLE
-          </h1>
-          <p className="text-gray-200 mb-8 text-base md:text-lg max-w-md">
-            Discover our latest collection of sweatshirts and hoodies.
-          </p>
+    flex items-end
 
-          <Button
-            asChild
-            className="bg-white text-black px-6 md:px-8 py-2 md:py-3 text-sm md:text-base font-semibold tracking-wide hover:bg-gray-200 transition"
-          >
-            <Link to="/collections/hoodies">SHOP NOW</Link>
-          </Button>
-        </div>
-      </section>
+    overflow-hidden
+    bg-black
+  "
+>
+
+  {/* BG IMAGE */}
+  <img
+    src="/images/banner_web.webp"
+    alt=""
+    aria-hidden="true"
+    loading="lazy"
+    className="
+      absolute inset-0
+      w-full h-full
+      object-cover
+
+      scale-[1.03]
+
+      animate-[heroZoom_12s_ease-in-out_infinite_alternate]
+    "
+  />
+
+  {/* CINEMATIC OVERLAY */}
+  <div
+    className="
+      absolute inset-0
+
+      bg-gradient-to-t
+      from-black/80
+      via-black/30
+      to-black/10
+    "
+  />
+
+  {/* NOISE TEXTURE */}
+  <div
+    className="
+      absolute inset-0
+      opacity-[0.03]
+      mix-blend-overlay
+      pointer-events-none
+    "
+    style={{
+      backgroundImage:
+        'url(\"https://grainy-gradients.vercel.app/noise.svg\")',
+    }}
+  />
+
+  {/* CONTENT */}
+  <div
+    className="
+      relative z-20
+
+      w-full
+
+      px-6
+      md:px-12
+      lg:px-20
+
+      pb-16
+      md:pb-24
+      lg:pb-32
+    "
+  >
+
+    {/* MINI LABEL */}
+    <p
+      className="
+        text-[11px]
+        md:text-xs
+
+        uppercase
+        tracking-[0.45em]
+
+        text-white/70
+
+        mb-6
+      "
+    >
+      New Season — 2026 Drop
+    </p>
+
+    {/* HUGE TITLE */}
+    <h1
+      className="
+        max-w-5xl
+
+        text-[3.5rem]
+        sm:text-[5rem]
+        md:text-[7rem]
+        lg:text-[9rem]
+
+        font-black
+        uppercase
+
+        leading-[0.9]
+        tracking-[-0.06em]
+
+        text-white
+      "
+    >
+      REDEFINE
+      <br />
+      STREETWEAR
+    </h1>
+
+    {/* BOTTOM ROW */}
+    <div
+      className="
+        mt-10
+
+        flex
+        flex-col
+        md:flex-row
+
+        md:items-end
+        md:justify-between
+
+        gap-8
+      "
+    >
+
+      {/* DESCRIPTION */}
+      <p
+        className="
+          max-w-md
+
+          text-sm
+          md:text-base
+
+          leading-relaxed
+
+          text-white/70
+        "
+      >
+        Elevated essentials crafted for
+        modern street culture. Explore
+        oversized hoodies, heavyweight
+        sweats, and premium everyday fits.
+      </p>
+
+      {/* BUTTON */}
+      <Link
+        to="/collections/hoodies"
+        className="
+          group
+
+          inline-flex items-center
+          gap-4
+
+          w-fit
+
+          bg-white
+          text-black
+
+          rounded-full
+
+          px-8 py-4
+
+          text-sm
+          font-black
+          uppercase
+          tracking-[0.25em]
+
+          transition-all duration-500
+
+          hover:bg-black
+          hover:text-white
+
+          border border-white
+        "
+      >
+
+        <span>Shop Collection</span>
+
+        <span
+          className="
+            transition-transform duration-300
+            group-hover:translate-x-1
+          "
+        >
+          →
+        </span>
+
+      </Link>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+
 
 
       <section className="py-20 bg-white relative overflow-hidden">
-        <h2 className="text-2xl md:text-3xl font-bold tracking-tight text-center uppercase">
-          FEATURED COLLECTIONS
-        </h2>
-        <p className="text-gray-500 text-sm text-center mb-12 mt-2">
-          Scroll right to explore →
-        </p>
+   <div className="text-center mb-14">
+
+  {/* MINI LABEL */}
+  <p
+    className="
+      text-[11px]
+      uppercase
+      tracking-[0.35em]
+      text-gray-400
+      mb-3
+    "
+  >
+    Curated Fashion Edit
+  </p>
+
+  {/* TITLE */}
+  <h2
+    className="
+      text-4xl
+      md:text-6xl
+
+      font-black
+      uppercase
+
+      tracking-tight
+      leading-none
+    "
+  >
+    FEATURED
+    <br />
+    COLLECTIONS
+  </h2>
+
+  {/* SUBTEXT */}
+  <div
+    className="
+      flex items-center justify-center
+      gap-3
+
+      mt-6
+    "
+  >
+    <div className="w-10 h-px bg-gray-300" />
+
+    <p
+      className="
+        text-sm
+        text-gray-500
+        tracking-wide
+      "
+    >
+      Scroll to explore the latest drops
+    </p>
+
+    <div className="w-10 h-px bg-gray-300" />
+  </div>
+
+</div>
 
         <div className="flex max-w-full relative">
           {/* Left fixed column */}
           <div className="flex-shrink-0 sticky top-20 w-96 h-auto bg-white z-20">
-            <Link
-              to="/products"
-              className="flex flex-col items-center group"
-            >
-              <img
-                src="https://bzmvvcdngqoxwpbulakr.supabase.co/storage/v1/object/public/product-images/products/1760803192692-zasrnaykki8.webp"
-                alt="MEN'S COLLECTION"
-                className="w-full h-[400px] md:h-[500px] object-cover mb-4 rounded-lg group-hover:opacity-90 transition"
-              />
-              <p className="text-sm font-medium uppercase tracking-wide text-center">
-                MEN'S COLLECTION
-              </p>
-            </Link>
+   <Link
+  to="/products"
+  className="block group"
+>
+  <div className="relative overflow-hidden rounded-[28px]">
+
+    {/* IMAGE */}
+    <img
+      src="https://bzmvvcdngqoxwpbulakr.supabase.co/storage/v1/object/public/product-images/products/1760803192692-zasrnaykki8.webp"
+      alt="MEN'S COLLECTION"
+      className="
+        w-full
+        h-[400px] md:h-[500px]
+        object-cover
+
+        transition duration-700
+        group-hover:scale-[1.03]
+      "
+    />
+
+    {/* OVERLAY */}
+    <div
+      className="
+        absolute inset-0
+        bg-gradient-to-t
+        from-black/45
+        via-black/5
+        to-transparent
+      "
+    />
+
+    {/* LABEL */}
+    <div
+      className="
+        absolute
+        bottom-5
+        left-1/2
+        -translate-x-1/2
+      "
+    >
+      <div
+        className="
+          bg-red-500
+          text-white
+
+          px-8 py-3
+          rounded-full
+
+          text-sm
+          font-black
+          uppercase
+          tracking-wide
+
+          shadow-lg
+
+          transition-all duration-300
+          group-hover:scale-105
+        "
+      >
+        MEN'S COLLECTION
+      </div>
+    </div>
+
+  </div>
+</Link>
           </div>
 
           {/* Right scrollable section */}
@@ -262,25 +583,78 @@ useEffect(() => {
   {categories.map((category) => (
     <SwiperSlide key={category._id} style={{ width: "380px" }}>
       
-      <Link
-        to={`/products?category=${category.slug}`}
-        className="flex flex-col items-center group"
-      >
-        <img
-          src={
-            category.photo ||
-            `https://via.placeholder.com/250x300?text=${encodeURIComponent(
-              category.name
-            )}`
-          }
-          alt={category.name}
-          className="w-full h-[400px] md:h-[500px] object-cover mb-4 rounded-lg transition group-hover:opacity-90"
-        />
+<Link
+  to={`/products?category=${category.slug}`}
+  className="block group"
+>
 
-        <p className="text-sm font-medium uppercase tracking-wide text-center">
-          {category.name}
-        </p>
-      </Link>
+  <div className="relative overflow-hidden rounded-[18px]">
+
+    {/* IMAGE */}
+    <img
+      src={
+        category.photo ||
+        `https://via.placeholder.com/250x300?text=${encodeURIComponent(
+          category.name
+        )}`
+      }
+      alt={category.name}
+      className="
+        w-full
+        h-[400px] md:h-[500px]
+        object-cover
+
+        transition duration-700
+        group-hover:scale-[1.03]
+      "
+    />
+
+    {/* DARK OVERLAY */}
+    <div
+      className="
+        absolute inset-0
+        bg-gradient-to-t
+        from-black/40
+        via-black/5
+        to-transparent
+      "
+    />
+
+    {/* CATEGORY BUTTON */}
+    <div
+      className="
+        absolute
+        bottom-5
+        left-1/2
+        -translate-x-1/2
+      "
+    >
+      <div
+        className="
+          bg-red-500
+          text-white
+
+          px-8 py-3
+          rounded-full
+
+          text-sm
+          font-black
+          uppercase
+          tracking-wide
+
+          shadow-lg
+
+          transition-all duration-300
+          group-hover:scale-105
+        "
+      >
+        {category.name}
+      </div>
+    </div>
+
+  </div>
+
+</Link>
 
     </SwiperSlide>
   ))}
@@ -317,7 +691,7 @@ useEffect(() => {
             asChild
             className="bg-white text-black px-10 py-4 text-sm md:text-base font-semibold tracking-wide rounded-full shadow-lg hover:scale-105 hover:shadow-xl transition-transform duration-300"
           >
-            <Link to="/collections/sale">GRAB THE DEAL</Link>
+            <Link to="/newarrivals">GRAB THE DEAL</Link>
           </Button>
         </div>
 
@@ -327,13 +701,366 @@ useEffect(() => {
 
 
 
+<section
+  className="
+    bg-[#f3f3f1]
+    px-4
+    md:px-10
+    lg:px-16
+    py-12
+    md:py-20
+  "
+>
+  <div
+    className="
+      max-w-7xl
+      mx-auto
+
+      border border-[#dddddd]
+
+      grid
+      lg:grid-cols-2
+
+      bg-[#f5f5f3]
+    "
+  >
+
+    {/* LEFT IMAGE SIDE */}
+    <div
+      className="
+        relative
+
+        flex items-center justify-center
+
+        p-8
+        md:p-14
+
+        border-b
+        lg:border-b-0
+        lg:border-r
+
+        border-[#dddddd]
+      "
+    >
+
+      {/* TAG */}
+      <div
+        className="
+          absolute
+          top-6
+          left-6
+
+          bg-[#b84332]
+          text-white
+
+          text-[10px]
+          md:text-xs
+
+          uppercase
+          tracking-[0.35em]
+
+          px-4 py-2
+        "
+      >
+        Collection 001
+      </div>
+
+      {/* PRODUCT IMAGE */}
+      <img
+        src="/images/banner_web.webp"
+        alt="Collection"
+        className="
+          w-full
+          max-w-[420px]
+
+          object-contain
+
+          drop-shadow-[0_30px_60px_rgba(0,0,0,0.18)]
+
+          transition-transform duration-700
+          hover:scale-[1.03]
+        "
+      />
+
+    </div>
+
+    {/* RIGHT CONTENT */}
+    <div
+      className="
+        flex flex-col justify-center
+
+        px-6
+        md:px-12
+        lg:px-14
+
+        py-10
+        md:py-16
+      "
+    >
+
+      {/* MINI LABEL */}
+      <div
+        className="
+          flex items-center gap-4
+          mb-6
+        "
+      >
+        <p
+          className="
+            text-[11px]
+            uppercase
+            tracking-[0.4em]
+            text-[#b84332]
+            font-semibold
+          "
+        >
+          Now Live
+        </p>
+
+        <div className="w-10 h-px bg-[#b84332]" />
+      </div>
+
+      {/* TITLE */}
+      <h2
+        className="
+          text-[3rem]
+          md:text-[4.5rem]
+
+          leading-[0.9]
+
+          font-black
+          tracking-[-0.05em]
+
+          uppercase
+        "
+      >
+        THE FIRST
+        <br />
+
+        <span
+          className="
+            italic
+            font-medium
+            text-[#b84332]
+            lowercase
+          "
+        >
+          Stories.
+        </span>
+      </h2>
+
+      {/* DESCRIPTION */}
+      <p
+        className="
+          mt-8
+
+          text-[#6b6b6b]
+
+          text-base
+          md:text-lg
+
+          leading-relaxed
+
+          max-w-xl
+        "
+      >
+        Stories older than civilisation.
+        The gods your ancestors prayed
+        to — printed on heavyweight
+        oversized silhouettes designed
+        for modern street culture.
+      </p>
+
+      {/* DIVIDER */}
+      <div
+        className="
+          mt-10
+          border-t border-[#d7d7d7]
+          pt-6
+        "
+      >
+
+        {/* FEATURES */}
+        <div
+          className="
+            flex flex-wrap
+            gap-6
+            md:gap-10
+
+            text-[11px]
+            md:text-xs
+
+            uppercase
+            tracking-[0.3em]
+
+            text-black
+            font-semibold
+          "
+        >
+
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-[#b84332]" />
+            240 GSM Cotton
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-[#b84332]" />
+            Made in Bharat
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="w-1.5 h-1.5 bg-[#b84332]" />
+            Limited Edition
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* CTA */}
+      <div
+        className="
+          mt-10
+
+          flex flex-col
+          sm:flex-row
+
+          sm:items-center
+
+          gap-5
+        "
+      >
+
+        <Link
+          to="/collections"
+          className="
+            group
+
+            inline-flex
+            items-center
+            justify-center
+
+            gap-4
+
+            bg-black
+            text-white
+
+            px-8
+            md:px-10
+
+            py-5
+
+            uppercase
+            text-xs
+
+            tracking-[0.28em]
+            font-bold
+
+            transition-all duration-500
+
+            hover:bg-[#b84332]
+          "
+        >
+
+          <span>
+            Explore Collection
+          </span>
+
+          <span
+            className="
+              transition-transform duration-300
+              group-hover:translate-x-1
+            "
+          >
+            →
+          </span>
+
+        </Link>
+
+        <p
+          className="
+            text-sm
+            uppercase
+            tracking-[0.3em]
+            text-gray-500
+          "
+        >
+          5 Pieces
+        </p>
+
+      </div>
+
+    </div>
+
+  </div>
+</section>
+
+
       {/* ======================================================
           LOOKBOOK SECTION
       ====================================================== */}
       <section className="py-24 bg-white relative overflow-hidden w-full">
-        <h2 className="text-2xl md:text-3xl font-bold mb-12 tracking-tight text-center uppercase">
-          LOOKBOOK
-        </h2>
+  <div className="text-center mb-16">
+
+  {/* TOP LABEL */}
+  <p
+    className="
+      text-[11px]
+      uppercase
+      tracking-[0.45em]
+      text-gray-400
+      mb-4
+    "
+  >
+    Editorial Selection
+  </p>
+
+  {/* MAIN TITLE */}
+  <h2
+    className="
+      relative inline-block
+
+      text-5xl
+      md:text-7xl
+
+      font-black
+      uppercase
+
+      tracking-[-0.04em]
+      leading-none
+    "
+  >
+    LOOKBOOK
+
+    {/* SUBTLE ACCENT */}
+    <span
+      className="
+        absolute
+        -bottom-3
+        left-1/2
+        -translate-x-1/2
+
+        w-20 h-[3px]
+
+        rounded-full
+        bg-black
+      "
+    />
+  </h2>
+
+  {/* SUBTEXT */}
+  <p
+    className="
+      mt-8
+      text-sm
+      text-gray-500
+      tracking-wide
+    "
+  >
+    Curated looks from the latest drop
+  </p>
+
+</div>
 
         <div className="flex overflow-x-auto gap-8 px-5 w-full scrollbar-thin">
      <Swiper
@@ -436,7 +1163,7 @@ useEffect(() => {
 
             <div className="flex items-center gap-3">
               <Link
-                to="/collections/bestseller"
+                to="/products"
                 className="hidden md:inline-flex items-center gap-2 text-sm font-semibold uppercase text-black hover:text-gray-700 transition"
               >
                 DISCOVER MORE
@@ -599,12 +1326,59 @@ useEffect(() => {
       {/* 🧩 Bundle Section */}
 
       <section className=" mx-auto px-4 sm:px-6 lg:px-8 py-20">
-        <div className="flex items-center justify-between mb-10">
-          <h2 className="text-3xl md:text-4xl font-bold text-black">Featured Bundle</h2>
-          <button className="text-sm text-gray-600 hover:text-black font-medium">
-            View All
-          </button>
-        </div>
+        <div className="flex items-end justify-between mb-14">
+
+  <div>
+
+    {/* MINI LABEL */}
+    <p
+      className="
+        text-[11px]
+        uppercase
+        tracking-[0.4em]
+        text-gray-400
+        mb-3
+      "
+    >
+      Curated Essentials
+    </p>
+
+    {/* TITLE */}
+    <h2
+      className="
+        text-4xl
+        md:text-6xl
+
+        font-black
+        uppercase
+
+        tracking-[-0.04em]
+        leading-none
+      "
+    >
+      Featured
+      <br />
+      Bundle
+    </h2>
+
+  </div>
+
+  {/* OPTIONAL SIDE TEXT */}
+  <p
+    className="
+      hidden md:block
+
+      text-sm
+      text-gray-500
+      tracking-wide
+      max-w-[220px]
+      text-right
+    "
+  >
+    Handpicked pieces styled together for the perfect fit.
+  </p>
+
+</div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
           {bundles.slice(0, 4).map((bundle) => {
@@ -727,17 +1501,17 @@ useEffect(() => {
           </div>
 
           {/* Form */}
-          <form
-            method="post"
-            action="/contact#ContactForm"
+          <div
+    
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
             {/* Name */}
             <div className="relative">
               <input
                 type="text"
-                name="contact[Name]"
-                id="ContactForm-name"
+                name="name"
+                onChange={handleChange}
+                value={form.name}
                 placeholder=" "
                 className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-black focus:border-black focus:outline-none uppercase"
                 required
@@ -758,8 +1532,9 @@ useEffect(() => {
             <div className="relative">
               <input
                 type="email"
-                name="contact[email]"
-                id="ContactForm-email"
+                name="email"
+                onChange={handleChange}
+                value={form.email}
                 placeholder=" "
                 className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-black focus:border-black focus:outline-none uppercase"
                 required
@@ -780,10 +1555,11 @@ useEffect(() => {
             <div className="relative md:col-span-2">
               <input
                 type="tel"
-                name="contact[Phone number]"
-                id="ContactForm-phone"
+                name="phone"
                 pattern="[0-9\-]*"
+                onChange={handleChange}
                 placeholder=" "
+                value={form.phone}
                 required
                 className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-black focus:border-black focus:outline-none uppercase"
               />
@@ -802,12 +1578,13 @@ useEffect(() => {
             {/* Comment */}
             <div className="relative md:col-span-2">
               <textarea
-                name="contact[Comment]"
-                id="ContactForm-body"
+                name="message"
                 rows={5}
                 placeholder=" "
                 required
                 className="peer w-full px-4 pt-5 pb-2 bg-transparent border border-black focus:border-black focus:outline-none resize-none uppercase"
+                onChange={handleChange}
+                value={form.message}
               />
               <label
                 htmlFor="ContactForm-body"
@@ -825,12 +1602,13 @@ useEffect(() => {
             <div className="md:col-span-2 text-center mt-4">
               <button
                 type="submit"
+                onClick={handleSubmit}
                 className="px-12 py-3 bg-black text-white font-bold uppercase tracking-wide transition-colors duration-300 ease-in-out hover:bg-gray-900"
               >
                 Send
               </button>
             </div>
-          </form>
+          </div>
         </div>
       </section>
       {/* product size modal */}

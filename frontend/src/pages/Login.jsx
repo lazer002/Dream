@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link,useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 import toast from "react-hot-toast";
+import { loadGoogleScript } from "../utils/loader.js";
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
@@ -11,15 +12,19 @@ export default function Login() {
   const [error, setError] = useState("");
   const googleBtnRef = useRef(null);
   const innerBtnRef = useRef(null);
-
+  const location = useLocation();
+  const from = location.state?.from || "/";
+console.log("Login page, redirect from:", location);
   const handleChange = (e) =>
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+
+
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await login(form.email, form.password);
-      navigate("/");
+      navigate(from, { replace: true });
     } catch {
       setError("Invalid credentials");
     }
@@ -28,20 +33,32 @@ export default function Login() {
   const handleGoogleLogin = async (res) => {
     if (!res?.credential) return;
     try {
+      console.log("Redirect before login:", from);
       await loginWithGoogle(res.credential);
-      navigate("/");
+      console.log("Redirect after login:", from);
+      navigate(from, { replace: true });
       toast.success("Logged in with Google");
     } catch {
       setError("Google login failed");
     }
   };
 
-  useEffect(() => {
-    if (!window.google || !googleBtnRef.current) return;
+useEffect(() => {
+  const initGoogle = async () => {
+    const loaded = await loadGoogleScript(); 
+
+    if (!loaded) {
+      console.error("Google script failed to load");
+      return;
+    }
+
+    if (!googleBtnRef.current) return;
+
     window.google.accounts.id.initialize({
       client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID,
       callback: handleGoogleLogin,
     });
+
     window.google.accounts.id.renderButton(googleBtnRef.current, {
       theme: "outline",
       size: "large",
@@ -54,7 +71,10 @@ export default function Login() {
       inner.style.background = "transparent";
       inner.style.width = "100%";
     }
-  }, []);
+  };
+
+  initGoogle();
+}, []);
 
   const handleOuterClick = () => {
     if (innerBtnRef.current) innerBtnRef.current.click();

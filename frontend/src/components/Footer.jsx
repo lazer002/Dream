@@ -1,98 +1,46 @@
 import { Facebook, Instagram, MessageCircle } from "lucide-react";
 import { useState } from "react";
+import api from "@/utils/config";
+import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
 export default function Footer() {
     const [email, setEmail] = useState("");
+    const [loading, setLoading] = useState(false);
 
-    function handleSubmit(e) {
-        e.preventDefault();
-        // handle submit (API call or state update)
-        console.log("subscribe:", email);
-    }
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+
+  if (!email || !email.includes("@")) {
+    toast.error("Enter a valid email");
+    return;
+  }
+
+  try {
+    setLoading(true);
+
+    await api.post("/newsletter", { email });
+
+    toast.success("Subscribed successfully 🎉");
+
+    setEmail(""); // reset input
+
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to subscribe");
+  } finally {
+    setLoading(false);
+  }
+};
     return (
-        <footer className="bg-black text-white text-[11px] tracking-wide">
+        <footer className="bg-black text-white  tracking-wide">
             <div className=" mx-auto px-4 sm:px-6 lg:px-8 py-10">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8 py-8 border-b border-white/10 font-medium text-[12px] leading-loose">
                     {/* Newsletter */}
+                        {/* KNOW */}
                     <div>
-                        <img
-                            src="/logo.png"
-                            alt="DripDesi"
-                            className="h-10 mb-4"
-                        />
-                        <p className="uppercase font-medium tracking-wider mb-3">
-                            GET EXCLUSIVE OFFERS IN YOUR INBOX!
-                        </p>
-
-
-
-                        <form
-                            id="footer-newsletter"
-                            onSubmit={(e) => e.preventDefault()}
-                            className="flex justify-start"
-                        >
-                            <div
-                                className="relative w-[280px] h-[46px] bg-[#1B1A1A] rounded-md overflow-hidden 
-               border border-0 focus-within:border-0 "
-                            >
-                                {/* Input */}
-                                <input
-                                    id="footer-email"
-                                    type="email"
-                                    placeholder="YOUR EMAIL ADDRESS"
-                                    className="peer w-full h-full pl-4 pr-24 bg-transparent text-white text-[11px] placeholder-transparent 
-                 focus:outline-none focus:ring-0"
-                                    autoComplete="off"
-                                    required
-                                    onBlur={(e) => e.target.value = ''}
-                                />
-
-                                {/* Floating Label */}
-                                <label
-                                    htmlFor="footer-email"
-                                    className="absolute left-4 top-1/2 -translate-y-2/3 text-[11px] text-gray-400 transition-all duration-150
-                 peer-placeholder-shown:top-1/2 peer-placeholder-shown:-translate-y-1/2 peer-placeholder-shown:opacity-100
-                 peer-focus:top-2 peer-focus:text-white peer-focus:opacity-0
-                 peer-valid:top-2 peer-valid:text-white peer-valid:opacity-0"
-                                >
-                                    YOUR EMAIL ADDRESS
-                                </label>
-
-                                {/* Button inside input */}
-                                <button
-                                    type="submit"
-                                    className="absolute right-2 top-1/2 -translate-y-1/2 h-8 px-4 bg-white text-black text-[11px] font-medium rounded-md focus:outline-none focus:ring-0"
-                                >
-                                    SIGN UP
-                                </button>
-                            </div>
-                        </form>
-
-
-
-                    </div>
-
-                    {/* SHOP */}
-                    <div>
-                        <h3 className="font-bold mb-3 uppercase">SHOP</h3>
-                        <ul className="space-y-2">
-                            <li>
-                                <Link to="/collections/men" className="hover:text-white">
-                                    SHOP MEN&apos;S
-                                </Link>
-                            </li>
-                            <li>
-                                <Link to="/collections/women" className="hover:text-white">
-                                    SHOP WOMEN&apos;S
-                                </Link>
-                            </li>
-                        </ul>
-                    </div>
-
-                    {/* KNOW */}
-                    <div>
-                        <h3 className="font-bold mb-3 uppercase">#KNOW BOWCHIKA</h3>
-                        <ul className="space-y-2">
+                        <h3 className="font-bold mb-3 uppercase text-[16px]">KNOW MONKIESS</h3>
+                        <ul className="space-y-1 text-[13px]">
                             <li>
                                 <Link to="/pages/contact" className="hover:text-white">
                                     CONTACT US
@@ -116,10 +64,13 @@ export default function Footer() {
                         </ul>
                     </div>
 
+
+               
+
                     {/* USEFUL LINKS */}
                     <div>
-                        <h3 className="font-bold mb-3 uppercase">USEFUL LINKS</h3>
-                        <ul className="space-y-2">
+                        <h3 className="font-bold mb-3 uppercase text-[16px]">USEFUL LINKS</h3>
+                        <ul className="space-y-1 text-[13px]">
                             <li>
                                 <Link to="/pages/faq" className="hover:text-white">
                                     FAQ&apos;S
@@ -148,6 +99,107 @@ export default function Footer() {
                                 </Link>
                             </li>
                         </ul>
+                    </div>
+                    
+                    {/* SHOP */}
+                    <div>
+                        <h1 className="font-bold mb-3 text-[16px] uppercase">SHOP</h1>
+                        <ul className="space-y-1 text-[13px]">
+                            <li>
+                                <Link to="/collections/men" className="hover:text-white">
+                                    SHOP MEN&apos;S
+                                </Link>
+                            </li>
+                            <li>
+                                <Link to="/collections/women" className="hover:text-white">
+                                    SHOP WOMEN&apos;S
+                                </Link>
+                            </li>
+                        </ul>
+                    </div>
+                     <div>
+                        <img
+                            src="/logo.png"
+                            alt="Monkiess"
+                            className="h-10 mb-4"
+                        />
+                    <p className="uppercase font-bold text-[16px] scale-x-125 origin-left inline-block">
+  GET EXCLUSIVE OFFERS IN YOUR INBOX!
+</p>
+
+
+
+                       <div className="flex justify-start">
+  <div
+    className="relative w-[340px] h-[58px] bg-[#1B1A1A] rounded-lg border border-[#2a2a2a] 
+    focus-within:border-white transition-all duration-300"
+  >
+    {/* Input */}
+    <input
+      id="footer-email"
+      type="email"
+      required
+      autoComplete="off"
+      placeholder=" "
+      onChange={(e) => setEmail(e.target.value)}
+      className="peer w-full h-full bg-transparent text-white text-[13px]
+      px-5 pr-16 rounded-full outline-none border-none
+      placeholder-transparent"
+    />
+
+    {/* Floating Label */}
+    <label
+      htmlFor="footer-email"
+      className="
+        absolute left-5 top-1/2 -translate-y-1/2
+        text-[12px] text-gray-400 pointer-events-none
+        transition-all duration-200 ease-in-out
+
+        peer-focus:top-2.5
+        peer-focus:text-[10px]
+        peer-focus:text-white
+        peer-valid:top-2.5
+        peer-valid:text-[10px]
+        peer-valid:text-white
+      "
+    >
+      Enter your email
+    </label>
+
+    {/* Circle Arrow Button */}
+    <button
+      type="submit"
+      onClick={handleSubmit}
+      disabled={loading}
+      className="
+        absolute right-2 top-1/2 -translate-y-1/2
+        w-10 h-10 rounded-full
+        bg-white text-black
+        flex items-center justify-center
+        transition-all duration-300
+        hover:scale-105 active:scale-95
+      "
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        fill="none"
+        viewBox="0 0 24 24"
+        strokeWidth={2}
+        stroke="currentColor"
+        className="w-4 h-4"
+      >
+        <path
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M5 12h14m-6-6 6 6-6 6"
+        />
+      </svg>
+    </button>
+  </div>
+</div>
+
+
+
                     </div>
                 </div>
 

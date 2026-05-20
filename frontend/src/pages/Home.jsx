@@ -260,7 +260,11 @@ useEffect(() => {
     className="
       absolute inset-0
       w-full h-full
-      object-cover
+   object-cover
+
+object-[72%_center]
+
+md:object-[72%_center
 
       scale-[1.03]
 
@@ -404,7 +408,7 @@ useEffect(() => {
           rounded-full
 
           px-8 py-4
-
+z-0
           text-sm
           font-black
           uppercase
@@ -442,232 +446,404 @@ useEffect(() => {
 
 
 
-      <section className="py-20 bg-white relative overflow-hidden">
-   <div className="text-center mb-14">
+  <section className="py-20 bg-white relative overflow-hidden">
 
-  {/* MINI LABEL */}
-  <p
-    className="
-      text-[11px]
-      uppercase
-      tracking-[0.35em]
-      text-gray-400
-      mb-3
-    "
-  >
-    Curated Fashion Edit
-  </p>
+  <div className="text-center mb-14">
 
-  {/* TITLE */}
-  <h2
-    className="
-      text-4xl
-      md:text-6xl
-
-      font-black
-      uppercase
-
-      tracking-tight
-      leading-none
-    "
-  >
-    FEATURED
-    <br />
-    COLLECTIONS
-  </h2>
-
-  {/* SUBTEXT */}
-  <div
-    className="
-      flex items-center justify-center
-      gap-3
-
-      mt-6
-    "
-  >
-    <div className="w-10 h-px bg-gray-300" />
-
+    {/* MINI LABEL */}
     <p
       className="
-        text-sm
-        text-gray-500
-        tracking-wide
+        text-[11px]
+        uppercase
+        tracking-[0.35em]
+        text-gray-400
+        mb-3
       "
     >
-      Scroll to explore the latest drops
+      Curated Fashion Edit
     </p>
 
-    <div className="w-10 h-px bg-gray-300" />
-  </div>
-
-</div>
-
-        <div className="flex max-w-full relative">
-          {/* Left fixed column */}
-          <div className="flex-shrink-0 sticky top-20 w-96 h-auto bg-white z-20">
-   <Link
-  to="/products"
-  className="block group"
->
-  <div className="relative overflow-hidden rounded-[28px]">
-
-    {/* IMAGE */}
-    <img
-      src="https://bzmvvcdngqoxwpbulakr.supabase.co/storage/v1/object/public/product-images/products/1760803192692-zasrnaykki8.webp"
-      alt="MEN'S COLLECTION"
+    {/* TITLE */}
+    <h2
       className="
-        w-full
-        h-[400px] md:h-[500px]
-        object-cover
+        text-4xl
+        md:text-6xl
 
-        transition duration-700
-        group-hover:scale-[1.03]
-      "
-    />
+        font-black
+        uppercase
 
-    {/* OVERLAY */}
-    <div
-      className="
-        absolute inset-0
-        bg-gradient-to-t
-        from-black/45
-        via-black/5
-        to-transparent
-      "
-    />
-
-    {/* LABEL */}
-    <div
-      className="
-        absolute
-        bottom-5
-        left-1/2
-        -translate-x-1/2
+        tracking-tight
+        leading-none
       "
     >
-      <div
-        className="
-          bg-red-500
-          text-white
+      FEATURED
+      <br />
+      COLLECTIONS
+    </h2>
 
-          px-8 py-3
-          rounded-full
-
-          text-sm
-          font-black
-          uppercase
-          tracking-wide
-
-          shadow-lg
-
-          transition-all duration-300
-          group-hover:scale-105
-        "
-      >
-        MEN'S COLLECTION
-      </div>
-    </div>
-
-  </div>
-</Link>
-          </div>
-
-          {/* Right scrollable section */}
-          <div className="relative flex-1 overflow-x-auto pl-6 scrollbar-thin">
-            <div className="flex gap-8 pr-12">
-     <Swiper
-  spaceBetween={30}
-  slidesPerView="auto"
-  grabCursor={true}
->
-  {categories.map((category) => (
-    <SwiperSlide key={category._id} style={{ width: "380px" }}>
-      
-<Link
-  to={`/products?category=${category.slug}`}
-  className="block group"
->
-
-  <div className="relative overflow-hidden rounded-[18px]">
-
-    {/* IMAGE */}
-    <img
-      src={
-        category.photo ||
-        `https://via.placeholder.com/250x300?text=${encodeURIComponent(
-          category.name
-        )}`
-      }
-      alt={category.name}
-      className="
-        w-full
-        h-[400px] md:h-[500px]
-        object-cover
-
-        transition duration-700
-        group-hover:scale-[1.03]
-      "
-    />
-
-    {/* DARK OVERLAY */}
+    {/* SUBTEXT */}
     <div
       className="
-        absolute inset-0
-        bg-gradient-to-t
-        from-black/40
-        via-black/5
-        to-transparent
-      "
-    />
+        flex items-center justify-center
+        gap-3
 
-    {/* CATEGORY BUTTON */}
-    <div
-      className="
-        absolute
-        bottom-5
-        left-1/2
-        -translate-x-1/2
+        mt-6
       "
     >
-      <div
+      <div className="w-10 h-px bg-gray-300" />
+
+      <p
         className="
-          bg-red-500
-          text-white
-
-          px-8 py-3
-          rounded-full
-
           text-sm
-          font-black
-          uppercase
+          text-gray-500
           tracking-wide
-
-          shadow-lg
-
-          transition-all duration-300
-          group-hover:scale-105
         "
       >
-        {category.name}
-      </div>
+        Scroll to explore the latest drops
+      </p>
+
+      <div className="w-10 h-px bg-gray-300" />
     </div>
 
   </div>
 
-</Link>
+  <div
+    className="
+      flex
+      flex-col
 
-    </SwiperSlide>
-  ))}
-</Swiper>
+      md:flex-row
+
+      max-w-full
+
+      relative
+    "
+  >
+
+    {/* LEFT FIXED COLUMN */}
+    <div
+      className="
+        w-full
+
+        md:w-96
+        md:flex-shrink-0
+
+        md:sticky
+        md:top-20
+
+        h-auto
+
+        bg-white
+
+        z-20
+
+        mb-6
+        md:mb-0
+      "
+    >
+
+      <Link
+        to="/products"
+        className="block group"
+      >
+
+        <div className="relative overflow-hidden rounded-[28px]">
+
+          {/* IMAGE */}
+          <img
+            src="https://bzmvvcdngqoxwpbulakr.supabase.co/storage/v1/object/public/product-images/products/1760803192692-zasrnaykki8.webp"
+
+            alt="MEN'S COLLECTION"
+
+            className="
+              w-full
+
+              h-[400px]
+              md:h-[500px]
+
+              object-cover
+
+              transition duration-700
+
+              group-hover:scale-[1.03]
+            "
+          />
+
+          {/* OVERLAY */}
+          <div
+            className="
+              absolute inset-0
+
+              bg-gradient-to-t
+              from-black/45
+              via-black/5
+              to-transparent
+            "
+          />
+
+          {/* LABEL */}
+          <div
+            className="
+              absolute
+
+              bottom-5
+              left-1/2
+
+              -translate-x-1/2
+            "
+          >
+
+            <div
+              className="
+                bg-red-500
+                text-white
+
+                px-8 py-3
+
+                rounded-full
+
+                text-sm
+                font-black
+                uppercase
+                tracking-wide
+
+                shadow-lg
+
+                transition-all duration-300
+
+                group-hover:scale-105
+              "
+            >
+              MEN'S COLLECTION
             </div>
+
           </div>
 
-          {/* Left fade */}
-          <div className="pointer-events-none absolute top-0 bottom-0 left-[24rem] w-12 bg-gradient-to-r from-white to-transparent z-30" />
-          {/* Right fade */}
-          <div className="pointer-events-none absolute top-0 bottom-0 right-[3rem] w-12 bg-gradient-to-l from-white to-transparent z-30" />
         </div>
-      </section>
+
+      </Link>
+
+    </div>
+
+    {/* RIGHT SCROLLABLE SECTION */}
+    <div
+      className="
+        relative
+
+        flex-1
+
+        overflow-x-auto
+
+        md:pl-6
+
+        scrollbar-thin
+      "
+    >
+
+      <div className="flex gap-8 md:pr-12">
+
+        <Swiper
+          spaceBetween={30}
+          slidesPerView="auto"
+          grabCursor={true}
+        >
+
+          {categories.map((category) => (
+
+            <SwiperSlide
+              key={category._id}
+              style={{ width: "380px" }}
+            >
+
+              <Link
+                to={`/products?category=${category.slug}`}
+                className="block group"
+              >
+
+                <div className="relative overflow-hidden rounded-[18px]">
+
+                  {/* IMAGE */}
+                  <img
+                    src={
+                      category.photo ||
+                      `https://via.placeholder.com/250x300?text=${encodeURIComponent(
+                        category.name
+                      )}`
+                    }
+
+                    alt={category.name}
+
+                    className="
+                      w-full
+
+                      h-[400px]
+                      md:h-[500px]
+
+                      object-cover
+
+                      transition duration-700
+
+                      group-hover:scale-[1.03]
+                    "
+                  />
+
+                  {/* DARK OVERLAY */}
+                  <div
+                    className="
+                      absolute inset-0
+
+                      bg-gradient-to-t
+                      from-black/40
+                      via-black/5
+                      to-transparent
+                    "
+                  />
+
+                  {/* CATEGORY BUTTON */}
+                  <div
+                    className="
+                      absolute
+
+                      bottom-5
+                      left-1/2
+
+                      -translate-x-1/2
+                    "
+                  >
+
+                    <div
+                      className="
+                        bg-red-500
+                        text-white
+
+                        px-8 py-3
+
+                        rounded-full
+
+                        text-sm
+                        font-black
+                        uppercase
+                        tracking-wide
+
+                        shadow-lg
+
+                        transition-all duration-300
+
+                        group-hover:scale-105
+                      "
+                    >
+                      {category.name}
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </Link>
+
+            </SwiperSlide>
+
+          ))}
+
+        </Swiper>
+
+      </div>
+
+      {/* MOBILE LEFT FADE */}
+      <div
+        className="
+          md:hidden
+
+          pointer-events-none
+
+          absolute
+          top-0
+          bottom-0
+          left-0
+
+          w-10
+
+          bg-gradient-to-r
+          from-white
+          to-transparent
+
+          z-20
+        "
+      />
+
+      {/* MOBILE RIGHT FADE */}
+      <div
+        className="
+          md:hidden
+
+          pointer-events-none
+
+          absolute
+          top-0
+          bottom-0
+          right-0
+
+          w-10
+
+          bg-gradient-to-l
+          from-white
+          to-transparent
+
+          z-20
+        "
+      />
+
+      {/* DESKTOP LEFT FADE */}
+      <div
+        className="
+          hidden md:block
+
+          pointer-events-none
+
+          absolute
+          top-0
+          bottom-0
+
+          left-6
+
+          w-12
+
+          bg-gradient-to-r
+          from-white
+          to-transparent
+
+          z-20
+        "
+      />
+
+      {/* DESKTOP RIGHT FADE */}
+      <div
+        className="
+          hidden md:block
+
+          pointer-events-none
+
+          absolute
+          top-0
+          bottom-0
+
+          right-[3rem]
+
+          w-12
+
+          bg-gradient-to-l
+          from-white
+          to-transparent
+
+          z-20
+        "
+      />
+
+    </div>
+
+  </div>
+
+</section>
 
       {/* ======================================================
           END OF SEASON SALE

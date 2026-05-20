@@ -235,7 +235,7 @@ const handleFilterChange = (type, value) => {
       </div>
 
       {/* Products Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-4 pb-10">
         {products.map((p) => {
           // console.log("[ProductCard] render", { _id: p._id, isWished: wishlist.includes(String(p._id)), wishlistSample: wishlist.slice(0, 6) });
             const id = String(p._id);
@@ -285,15 +285,24 @@ const handleFilterChange = (type, value) => {
 
                 </div>
 
-              <div className="p-4 flex flex-col gap-1">
-                    <div
-                    className={`text-red-600 text-lg font-bold h-6 ${Object.values(p.inventory || {}).every(qty => qty === 0)
-                        ? "visible"
-                        : "invisible"
-                      }`}
-                  >
-                    Out of Stock
-                  </div>
+              <div className="p-3 flex flex-col gap-1">
+              <div
+  className={`
+    text-red-600
+    text-lg
+    font-bold
+
+    ${
+      Object.values(
+        p.inventory || {}
+      ).every(qty => qty === 0)
+        ? "block"
+        : "hidden"
+    }
+  `}
+>
+  Out of Stock
+</div>
   <div className="flex items-center justify-between">
     
     <h3 className="text-sm font-bold text-black uppercase truncate">{p.title}</h3>
@@ -311,26 +320,29 @@ const handleFilterChange = (type, value) => {
 
   {/* 💰 Price Section */}
   <div className="mt-1 flex items-center gap-2 flex-wrap">
-    {/* Actual Price */}
-    <span className="text-sm font-bold text-[#042354]">
-      ₹{Number(p.price).toLocaleString()}
-    </span>
-
+  
     {/* If on sale — show a mock original price and discount */}
     {p.onSale && (
       <>
         {/* Fake original price (e.g. 30% higher) */}
         <span className="text-xs text-gray-500 line-through">
-          ₹{Math.round(Number(p.price) / 0.7).toLocaleString()}
+          ₹ {Math.round(Number(p.price) / 0.7).toLocaleString()}.00
         </span>
 
-        {/* Discount label */}
+   
+      </>
+    )}
+
+      {/* Actual Price */}
+    <span className="text-md font-bold text-red-600">
+      ₹ {Number(p.price).toLocaleString()}.00
+    </span>
+     {/* Discount label */}
         <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
           30% OFF
         </span>
-      </>
-    )}
   </div>
+  
               
 </div>
 

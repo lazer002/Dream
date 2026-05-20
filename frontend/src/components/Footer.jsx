@@ -123,7 +123,7 @@ const handleSubmit = async (e) => {
                             alt="Monkiess"
                             className="h-10 mb-4"
                         />
-                    <p className="uppercase font-bold text-[16px] scale-x-125 origin-left inline-block">
+                    <p className="uppercase font-bold text-[16px]  origin-left inline-block">
   GET EXCLUSIVE OFFERS IN YOUR INBOX!
 </p>
 

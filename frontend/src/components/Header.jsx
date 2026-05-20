@@ -8,7 +8,6 @@ import {
   User,
   X,
 } from "lucide-react";
-
 import {
   Link,
   useLocation,
@@ -49,7 +48,6 @@ const navItems = [
 
 export default function Header() {
   const location = useLocation();
-
   const { user, logout } = useAuth();
   const { items } = useCart();
   const { wishlist } = useWishlist();
@@ -142,37 +140,59 @@ useEffect(() => {
   // SEARCH
   // =========================
 
-  useEffect(() => {
-    const fetchResults = async () => {
-      if (!query.trim()) {
-        setResults([]);
-        return;
-      }
+useEffect(() => {
+
+  const trimmedQuery = query.trim();
+
+  if (trimmedQuery.length < 2) {
+    setResults([]);
+    setLoading(false);
+    return;
+  }
+
+  const controller = new AbortController();
+
+  const debounce = setTimeout(async () => {
+
+    try {
 
       setLoading(true);
 
-      try {
-        const res = await api.get(
-          `/search/products?q=${encodeURIComponent(
-            query
-          )}`
-        );
+      const res = await api.get(
+        `/search/products?q=${encodeURIComponent(trimmedQuery)}`,
+        {
+          signal: controller.signal,
+        }
+      );
 
-        setResults(res.data);
-      } catch (error) {
+      setResults(res.data || []);
+
+    } catch (error) {
+
+      if (
+        error.name !== "CanceledError" &&
+        error.name !== "AbortError"
+      ) {
         console.error(error);
-      } finally {
-        setLoading(false);
       }
-    };
 
-    const debounce = setTimeout(
-      fetchResults,
-      400
-    );
+    } finally {
 
-    return () => clearTimeout(debounce);
-  }, [query]);
+      setLoading(false);
+
+    }
+
+  }, 500);
+
+  return () => {
+
+    controller.abort();
+
+    clearTimeout(debounce);
+
+  };
+
+}, [query]);
 
   return (
     <header
@@ -280,7 +300,7 @@ useEffect(() => {
         {/* MOBILE LOGO */}
         <div
           className="
-            absolute left-1/2 min-[380px]:left-[37%]
+            absolute left-1/2 max-[380px]:left-[37%]
           
             -translate-x-1/2
             xl:hidden
@@ -747,7 +767,7 @@ ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
         className="text-lg font-semibold tracking-[0.25em] uppercase"
         onClick={() => setMobileOpen(false)}
       >
-        DRIPDESI
+        GARRIB
       </Link>
       <button
         onClick={() => setMobileOpen(false)}
@@ -858,119 +878,421 @@ ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
 
 
 {/* Search Overlay */}
+{/* Search Overlay */}
 {searchOpen && (
-        <div
-          className={`fixed inset-0 z-50 flex items-start justify-center p-6 transition-opacity duration-1000 ${searchOpen
-              ? "bg-black/60 opacity-100"
-              : "bg-black/0 opacity-0 pointer-events-none"
-            }`}
-        >
-          <div
-            className={`relative bg-white w-full max-w-7xl rounded-md p-6 transform transition-all duration-1000 h-[90vh] overflow-y-scroll ${searchOpen
-                ? "scale-100 translate-y-0 opacity-100"
-                : "scale-95 -translate-y-6 opacity-0"
-              }`}
-          >
-            {/* ✅ Smooth close button */}
-            <button
-              className="absolute top-4 right-4 z-50 p-2 rounded-full bg-gray-200 hover:bg-gray-400 transition"
-              onClick={() => setSearchOpen(false)}
-            >
-              <X className="w-6 h-6 text-black" />
-            </button>
+  <div
+    onClick={() => setSearchOpen(false)}
 
-            {/* Search Input */}
+    className={`
+      fixed inset-0 z-[9999]
+
+      flex justify-end
+
+      bg-black/40
+      backdrop-blur-[2px]
+
+      transition-all duration-500
+
+      ${
+        searchOpen
+          ? "opacity-100"
+          : "opacity-0 pointer-events-none"
+      }
+    `}
+  >
+
+    {/* DRAWER */}
+    <div
+      data-lenis-prevent
+
+      onClick={(e) =>
+        e.stopPropagation()
+      }
+
+      className={`
+        ml-auto
+
+        h-screen
+max-[400px]:w-[300px]
+max-[700px]:w-[400px]
+        w-full
+        sm:w-[480px]
+        lg:w-[620px]
+
+        bg-white
+
+        shadow-[-10px_0_40px_rgba(0,0,0,0.12)]
+
+        overflow-y-auto
+        overscroll-contain
+
+        transition-transform duration-500
+
+        ${
+          searchOpen
+            ? "translate-x-0"
+            : "translate-x-full"
+        }
+      `}
+    >
+
+      {/* TOP */}
+      <div
+        className="
+          sticky top-0 z-40
+
+          bg-white
+
+          border-b border-gray-200
+        "
+      >
+
+        {/* HEADER */}
+        <div
+          className="
+            flex items-center justify-between
+
+            px-5
+            pt-5
+            pb-4
+          "
+        >
+
+          <h2
+            className="
+              text-2xl
+              font-semibold
+              tracking-tight
+            "
+          >
+            Search our site
+          </h2>
+
+          <button
+            onClick={() =>
+              setSearchOpen(false)
+            }
+
+            className="
+              w-11 h-11
+
+              flex items-center justify-center
+
+              rounded-full
+
+              hover:bg-gray-100
+
+              transition
+            "
+          >
+            <X className="w-6 h-6" />
+          </button>
+
+        </div>
+
+        {/* INPUT */}
+        <div className="px-5 pb-5">
+
+          <div
+            className="
+              flex items-center gap-3
+
+              border border-gray-200
+
+              rounded-xl
+
+              px-4
+
+              h-14
+            "
+          >
+
+            <Search className="w-5 h-5 text-gray-400" />
+
             <input
               type="text"
+
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search products, collections..."
-              className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:border-black"
+
+              onChange={(e) =>
+                setQuery(e.target.value)
+              }
+
+              placeholder="Search products..."
+
               autoFocus
+
+              className="
+                flex-1
+
+                h-full
+
+                bg-transparent
+
+                outline-none
+
+                text-base
+              "
             />
 
-            {/* Trending */}
-            <div className="mt-4">
-              <h4 className="font-bold mb-2">Trending</h4>
-              <div className="flex flex-wrap gap-2">
-                <Link
-                  to="/collections/drift-collection"
-                  className="px-3 py-1 bg-gray-100 rounded-full hover:bg-black hover:text-white transition"
-                >
-                  Drift Collection
-                </Link>
-                <Link
-                  to="/products/drift-hoodie"
-                  className="px-3 py-1 bg-gray-100 rounded-full hover:bg-black hover:text-white transition"
-                >
-                  Drift Hoodie
-                </Link>
-                <Link
-                  to="/collections/linen"
-                  className="px-3 py-1 bg-gray-100 rounded-full hover:bg-black hover:text-white transition"
-                >
-                  Linen Collection
-                </Link>
-              </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      {/* CONTENT */}
+      <div className="px-5 py-6">
+
+        {/* EMPTY */}
+        {query.length === 0 && (
+
+          <div
+            className="
+              flex flex-col
+              items-center
+              justify-center
+
+              h-[60vh]
+
+              text-center
+            "
+          >
+
+            <p
+              className="
+                text-[11px]
+                uppercase
+                tracking-[0.35em]
+
+                text-gray-400
+
+                mb-3
+              "
+            >
+              Discover Fashion
+            </p>
+
+            <h2
+              className="
+                text-5xl
+
+                font-black
+
+                tracking-tight
+
+                leading-none
+
+                mb-4
+              "
+            >
+              SEARCH
+              <br />
+              PRODUCTS
+            </h2>
+
+            <p className="text-gray-500">
+              Hoodies, cargos, jackets, essentials...
+            </p>
+
+          </div>
+        )}
+
+        {/* RESULTS */}
+        {results.length > 0 && (
+
+          <div>
+
+            {/* HEADER */}
+            <div
+              className="
+                flex items-center
+                justify-between
+
+                mb-6
+              "
+            >
+
+              <h3
+                className="
+                  text-3xl
+                  font-bold
+                  tracking-tight
+                "
+              >
+                Products
+              </h3>
+
+              <Link
+                to={`/search?q=${encodeURIComponent(query)}`}
+
+                onClick={() =>
+                  setSearchOpen(false)
+                }
+
+                className="
+                  text-sm
+                  font-medium
+
+                  flex items-center gap-1
+
+                  hover:underline
+                "
+              >
+                View all →
+              </Link>
+
             </div>
 
-            {/* Dynamic Search Results */}
-            {results.length > 0 && (
-              <div className="mt-6">
-                <h4 className="font-bold mb-4 text-lg">Search Results</h4>
-                <div className="max-h-[400px] sm:max-h-max overflow-y-auto pr-2">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 ">
-                    {results.map((p) => (
-                      <Link
-                        key={p._id}
-                        to={`/product/${p._id}`}
-                          onClick={() => setSearchOpen(false)} 
-                        className="group border border-gray-200 rounded-md overflow-hidden shadow-sm hover:shadow-lg transition-shadow duration-300"
-                      >
-                        {/* Product Image */}
-                        <div className="w-full h-48 bg-gray-100 overflow-hidden">
-                          <img
-                            src={
-                              p.images && p.images[0]
-                                ? p.images[0]
-                                : "/placeholder.png"
-                            }
-                            alt={p.title}
-                            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                          />
-                        </div>
+            {/* PRODUCTS */}
+            <div className="flex flex-col">
 
-                        {/* Product Info */}
-                        <div className="p-4">
-                          <h5 className="font-semibold text-gray-800 group-hover:text-black truncate">
-                            {p.title}
-                          </h5>
-                          <p className="text-gray-500 mt-1">
-                            ${p.price.toFixed(2)}
-                          </p>
-                          {p.isNewProduct && (
-                            <span className="inline-block mt-2 px-2 py-1 text-xs font-bold text-white bg-green-500 rounded">
-                              NEW
-                            </span>
-                          )}
-                          {p.onSale && (
-                            <span className="inline-block mt-2 px-2 py-1 text-xs font-bold text-white bg-red-500 rounded ml-2">
-                              SALE
-                            </span>
-                          )}
-                        </div>
-                      </Link>
-                    ))}
+              {results.map((p) => (
+
+                <Link
+                  key={p._id}
+
+                  to={`/product/${p._id}`}
+
+                  onClick={() =>
+                    setSearchOpen(false)
+                  }
+
+                  className="
+                    flex gap-4
+
+                    py-5
+
+                    border-b border-gray-100
+
+                    group
+                  "
+                >
+
+                  {/* IMAGE */}
+                  <div
+                    className="
+                      w-24 h-28
+
+                      bg-gray-100
+
+                      rounded-xl
+
+                      overflow-hidden
+
+                      flex-shrink-0
+                    "
+                  >
+
+                    <img
+                      src={
+                        p.images?.[0]
+                        || "/placeholder.png"
+                      }
+
+                      alt={p.title}
+
+                      className="
+                        w-full
+                        h-full
+
+                        object-cover
+
+                        transition-transform
+                        duration-500
+
+                        group-hover:scale-105
+                      "
+                    />
+
                   </div>
-                </div>
-              </div>
-            )}
+
+                  {/* INFO */}
+                  <div className="flex-1 pt-1">
+
+                    <h4
+                      className="
+                        text-lg
+                        font-semibold
+
+                        tracking-tight
+
+                        mb-2
+
+                        line-clamp-2
+                      "
+                    >
+                      {p.title}
+                    </h4>
+
+                    {/* PRICE */}
+                    <div className="flex items-center gap-2">
+
+                      <span
+                        className="
+                          text-lg
+                          font-bold
+
+                          text-red-600
+                        "
+                      >
+                        ₹{Number(p.price).toLocaleString()}
+                      </span>
+
+                      {p.onSale && (
+                        <span
+                          className="
+                            text-sm
+                            text-gray-400
+                            line-through
+                          "
+                        >
+                          ₹
+                          {Math.round(
+                            Number(p.price) / 0.7
+                          ).toLocaleString()}
+                        </span>
+                      )}
+
+                    </div>
+
+                    {/* STOCK */}
+                    {Object.values(
+                      p.inventory || {}
+                    ).every(qty => qty === 0) && (
+
+                      <p
+                        className="
+                          mt-2
+
+                          text-sm
+                          font-medium
+
+                          text-red-500
+                        "
+                      >
+                        Out of Stock
+                      </p>
+
+                    )}
+
+                  </div>
+
+                </Link>
+
+              ))}
+
+            </div>
+
           </div>
-        </div>
-      )}
+        )}
 
+      </div>
 
+    </div>
 
+  </div>
+)}
     </header>
   );
 }

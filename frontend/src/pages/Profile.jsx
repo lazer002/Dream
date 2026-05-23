@@ -8,14 +8,7 @@ import {
   MapPin,
   User,
   LogOut,
-  Edit2,
-  Trash2,
-  Plus,
-  ShoppingCart,
-  CheckCircle,
-  Loader2,
-  Camera,
-  Lock,
+
   Mail,
   SearchIcon ,
   RefreshCcw, 
@@ -43,8 +36,7 @@ function TabButton({ tab, active, onClick }) {
 }
 
 export default function Profile() {
-  const { user, logout, updateUser, loading,authStatus  } = useAuth();
-  console.log("Profile component - user:", user);
+  const { user, logout, updateUser,setUser, loading,authStatus  } = useAuth();
   const [activeTab, setActiveTab] = useState("orders");
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
@@ -112,8 +104,8 @@ if (authStatus === "unauthenticated") {
       <div className="md:w-2/3 bg-white dark:bg-slate-800 rounded-lg shadow p-6 min-h-[480px] border border-gray-200 dark:border-slate-700">
         {activeTab === "orders" && <OrdersContent />}
         {activeTab === "wishlist" && <WishlistContent user={user} />}
-        {activeTab === "addresses" && <AddressesContent user={user} updateUser={updateUser} />}
-        {activeTab === "account" && <AccountContent user={user} updateUser={updateUser} />}
+        {activeTab === "addresses" && <AddressesContent user={user} />}
+        {activeTab === "account" && <AccountContent user={user}  />}
       </div>
 
       {showLogoutConfirm && (
@@ -168,7 +160,7 @@ function formatDate(iso) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortDir, setSortDir] = useState("desc");
   const [refreshing, setRefreshing] = useState(false);
-
+const [searchTerm, setSearchTerm] = useState("");
   const [modalOrder, setModalOrder] = useState(null);
   const [cancelModal, setCancelModal] = useState({
   open: false,
@@ -200,31 +192,55 @@ function formatDate(iso) {
     fetchOrders();
   }, []);
 
-  const filtered = useMemo(() => {
-    let list = orders.slice();
+const filtered = useMemo(() => {
+  let list = [...orders];
 
-    if (query?.trim()) {
-      const q = query.trim().toLowerCase();
-      list = list.filter((o) => {
-        const num = (o.orderNumber || o._id || o.id || "").toString().toLowerCase();
-        const email = (o.email || "").toLowerCase();
-        const items = (o.items || []).some((it) => (it.title || it.productName || "").toLowerCase().includes(q));
-        return num.includes(q) || email.includes(q) || items;
-      });
-    }
+  if (searchTerm.trim()) {
+    const q = searchTerm.trim().toLowerCase();
 
-    if (statusFilter !== "all") {
-      list = list.filter((o) => (o.orderStatus || o.status || "").toLowerCase() === statusFilter.toLowerCase());
-    }
+    list = list.filter((o) => {
+      const num = (o.orderNumber || o._id || o.id || "")
+        .toString()
+        .toLowerCase();
 
-    list.sort((a, b) => {
-      const ta = new Date(a.createdAt).getTime() || 0;
-      const tb = new Date(b.createdAt).getTime() || 0;
-      return sortDir === "desc" ? tb - ta : ta - tb;
+      const email = (o.email || "").toLowerCase();
+
+      const items = (o.items || []).some((it) =>
+        (it.title || it.productName || "")
+          .toLowerCase()
+          .includes(q)
+      );
+
+      return num.includes(q) || email.includes(q) || items;
     });
+  }
 
-    return list;
-  }, [orders, query, statusFilter, sortDir]);
+  if (statusFilter !== "all") {
+    list = list.filter(
+      (o) =>
+        (o.orderStatus || o.status || "").toLowerCase() ===
+        statusFilter.toLowerCase()
+    );
+  }
+
+  list.sort((a, b) => {
+    const ta = new Date(a.createdAt).getTime() || 0;
+    const tb = new Date(b.createdAt).getTime() || 0;
+    return sortDir === "desc" ? tb - ta : ta - tb;
+  });
+
+  return list;
+}, [orders, searchTerm, statusFilter, sortDir]);
+
+
+
+useEffect(() => {
+  const timer = setTimeout(() => {
+    setSearchTerm(query);
+  }, 300);
+
+  return () => clearTimeout(timer);
+}, [query]);
 
   async function handleRefresh() {
     setRefreshing(true);
@@ -486,7 +502,7 @@ async function handleReorder(order) {
     <div
       id="print-section"
       ref={printRef}
-      className="w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-3xl border border-gray-200 bg-white shadow-2xl"
+      className="w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-3xl border border-gray-200 bg-white shadow-2xl print-area"
     >
       {/* Header */}
       <div className="border-b border-gray-200 px-8 py-6">
@@ -897,9 +913,7 @@ async function handleReorder(order) {
                 order: null,
               });
 
-              toast.success(
-                "Order cancelled successfully"
-              );
+          
             } catch (err) {
               toast.error("Cancel failed");
             }
@@ -1016,64 +1030,82 @@ return (
   </DialogContent>
 </Dialog>
 
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Wishlist</h2>
-        <div className="text-sm text-gray-500">
-          {products.length} items
-        </div>
-      </div>
+    <div className="mb-6 flex items-center justify-between border-b border-gray-200 pb-4">
+  <div>
+    <h2 className="text-2xl font-bold tracking-tight">
+      Wishlist
+    </h2>
+
+    <p className="mt-1 text-sm text-gray-500">
+      Products you've saved for later
+    </p>
+  </div>
+
+  <div className="rounded-full border border-gray-200 px-4 py-2 text-sm font-medium">
+    {products.length} items
+  </div>
+</div>
 
       {products.length === 0 ? (
         <p className="text-gray-600">Your wishlist is empty.</p>
       ) : (
-        <ul className="space-y-3">
+        <ul className="space-y-5">
           {products.map((it) => (
-            <li
-              key={it._id}
-              className="flex items-center gap-4 p-3 rounded border"
-            >
-              {/* Image */}
-              <div className="w-16 h-16 bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                {it.images?.[0] ? (
-                  <img
-                    src={it.images[0]}
-                    alt={it.title}
-                    className="w-full h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-xs text-gray-400">
-                    No Image
-                  </div>
-                )}
-              </div>
+   <li
+  key={it._id}
+  className="group flex items-center gap-5 rounded-3xl border border-gray-200 bg-white p-5 transition-all duration-300 hover:shadow-lg"
+>
+  {/* IMAGE */}
+  <Link
+    to={`/product/${it._id}`}
+    className="h-28 w-28 flex-shrink-0 overflow-hidden rounded-2xl bg-gray-100"
+  >
+    {it.images?.[0] ? (
+      <img
+        src={it.images[0]}
+        alt={it.title}
+        className="h-full w-full object-cover transition duration-500 group-hover:scale-105"
+      />
+    ) : (
+      <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+        No Image
+      </div>
+    )}
+  </Link>
 
-              {/* Info */}
-              <div className="flex-1">
-                <Link to={`/product/${it._id}`}>
-                  <div className="font-medium">{it.title}</div>
-                </Link>
-                <div className="text-sm text-gray-500">
-                  ₹{Number(it.price).toLocaleString()}
-                </div>
-              </div>
+  {/* PRODUCT INFO */}
+  <div className="min-w-0 flex-1">
+    <Link to={`/product/${it._id}`}>
+      <h3 className="text-lg font-semibold text-black hover:underline">
+        {it.title}
+      </h3>
+    </Link>
 
-              {/* Actions */}
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => addToCart(it)}
-                  className="p-2 rounded bg-black text-white"
-                >
-                  <ShoppingCart size={16} />
-                </button>
+    <p className="mt-1 text-sm text-gray-500">
+      Saved for later
+    </p>
 
-                <button
-                  onClick={() => removeFromWishlist(it._id)}
-                  className="p-2 rounded bg-red-50 text-red-600"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </li>
+    <div className="mt-3 text-2xl font-bold text-black">
+      ₹{Number(it.price).toLocaleString()}
+    </div>
+
+    <div className="mt-4 flex flex-wrap gap-3">
+      <button
+        onClick={() => addToCart(it)}
+        className="rounded-xl bg-black px-5 py-2.5 text-sm font-medium text-white transition hover:bg-gray-800"
+      >
+        Add To Cart
+      </button>
+
+      <button
+        onClick={() => removeFromWishlist(it._id)}
+        className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium text-black transition hover:bg-gray-50"
+      >
+        Remove
+      </button>
+    </div>
+  </div>
+</li>
           ))}
         </ul>
       )}
@@ -1153,25 +1185,30 @@ const setDefaultAddress = async (id) => {
 };
 
 
-console.log("Rendering AddressesContent with addresses:", addresses);
 return (
   <div className=" mx-auto">
     {/* Header */}
-    <div className="flex items-center justify-between mb-6">
-      <h2 className="text-2xl font-semibold text-black">
-        Addresses
-      </h2>
+<div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+  <div>
+    <h2 className="text-3xl font-bold tracking-tight text-black">
+      Addresses
+    </h2>
 
-      <button
-        onClick={() => {
-          setEditing(null);
-          setShowModal(true);
-        }}
-        className="border border-black px-4 py-2 text-sm font-medium bg-black text-white transition"
-      >
-        + Add Address
-      </button>
-    </div>
+    <p className="mt-1 text-sm text-gray-500">
+      Manage your saved delivery addresses
+    </p>
+  </div>
+
+  <button
+    onClick={() => {
+      setEditing(null);
+      setShowModal(true);
+    }}
+    className="rounded-xl bg-black px-5 py-3 text-sm font-medium text-white transition hover:bg-gray-800"
+  >
+    Add Address
+  </button>
+</div>
 
     {/* Empty state */}
     {addresses.length === 0 ? (
@@ -1188,70 +1225,76 @@ return (
       </div>
     ) : (
       <div className="grid gap-4">
-   {addresses.map((a) => (
+{addresses.map((a) => (
   <div
     key={a._id}
-    className={`border p-5 transition group
-      ${a?.isDefault ? "border-black" : "border-gray-200 hover:border-black"}
+    className={`group rounded-3xl border bg-white p-6 transition-all duration-300
+      ${
+        a?.isDefault
+          ? "border-black shadow-sm"
+          : "border-gray-200 hover:border-gray-400 hover:shadow-sm"
+      }
     `}
   >
-    <div className="flex justify-between items-start">
+    <div className="flex flex-col gap-5 md:flex-row md:items-start md:justify-between">
 
-      {/* Address Info */}
-      <div>
-        <div className="flex items-center gap-2">
-          <h3 className="font-medium text-black">
+      {/* LEFT */}
+      <div className="flex-1">
+        <div className="flex flex-wrap items-center gap-3">
+
+          <h3 className="text-lg font-semibold text-black">
             {a?.name || "Address"}
           </h3>
 
-          {/* ✅ SINGLE CONDITION */}
           {a?.isDefault ? (
-            <span className="text-xs bg-black rounded-xl px-2 py-1 text-white">
-              Default
+            <span className="rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
+              Default Address
             </span>
           ) : (
             <button
               onClick={() => setDefaultAddress(a._id)}
-              className="text-xs bg-black text-white rounded-xl px-2 py-1"
+              className="rounded-full border border-gray-300 px-3 py-1 text-xs font-medium transition hover:border-black"
             >
-              Set as default
+              Set as Default
             </button>
           )}
         </div>
 
-        <p className="text-sm text-gray-600 mt-1 leading-relaxed">
-          {a?.address}
-        </p>
+        <div className="mt-4 space-y-1 text-sm leading-6 text-gray-600">
+          <p>{a?.address}</p>
 
-        <p className="text-sm text-gray-600">
-          {a?.city}, {a?.state} - {a?.zip}
-        </p>
-
-        {a?.phone && (
-          <p className="text-xs text-gray-500 mt-1">
-            {a.phone}
+          <p>
+            {a?.city}, {a?.state} - {a?.zip}
           </p>
-        )}
+
+          {a?.phone && (
+            <p className="text-gray-500">
+              {a.phone}
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Actions */}
+      {/* ACTIONS */}
       <div className="flex gap-2">
         <button
           onClick={() => {
             setEditing(a);
             setShowModal(true);
           }}
-          className="p-2 border border-gray-200 hover:border-black"
+          className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium transition hover:border-black hover:bg-gray-50"
         >
-          <Edit2 size={14} />
+          Edit
         </button>
 
-        <button
-          onClick={() => remove(a._id)}
-          className="p-2 border border-gray-200 hover:border-black hover:bg-black hover:text-white transition"
-        >
-          <Trash2 size={14} />
-        </button>
+        {!a?.isDefault && (
+          <button
+            onClick={() => remove(a._id)}
+            className="rounded-xl border border-red-200 px-4 py-2 text-sm font-medium text-red-600 transition hover:bg-red-50"
+          >
+            Delete
+          </button>
+        )}
       </div>
     </div>
   </div>
@@ -1340,7 +1383,7 @@ const submit = async () => {
         </div>
 
         {/* Form */}
-    <div className="grid gap-5 edit-modal">
+    <div className="grid gap-4 edit-modal">
 
   <input
     value={name}
@@ -1422,8 +1465,8 @@ const submit = async () => {
 
 
 
- function AccountContent({ user, updateUser,loading }) {
-
+ function AccountContent({ user ,loading }) {
+  const { setUser } = useAuth();
 const [editing, setEditing] = useState(false);
 const [name, setName] = useState("");
 const [phone, setPhone] = useState("");
@@ -1487,9 +1530,20 @@ if (avatarFile) {
     },
   });
 
-  avatarUrl = uploadRes.data.url;
+avatarUrl =
+  uploadRes.data.url +
+  "?v=" +
+  Date.now();
 }
 
+
+useEffect(() => {
+  return () => {
+    if (avatarPreview?.startsWith("blob:")) {
+      URL.revokeObjectURL(avatarPreview);
+    }
+  };
+}, [avatarPreview]);
 /* ================= ONLY CHANGED FIELDS ================= */
 const payload = {};
 
@@ -1499,13 +1553,22 @@ if (avatarUrl !== user.avatar) payload.avatar = avatarUrl;
 
 if (Object.keys(payload).length === 0) {
   toast.info("No changes made");
+  setSaving(false);
   return;
 }
 
 /* ================= UPDATE USER ================= */
 const res = await api.put("/user/update", payload);
 
-updateUser?.(res.data.user);
+setUser(res.data.user);
+
+
+setAvatarPreview(
+  res.data.user.avatar
+    ? `${res.data.user.avatar}?t=${Date.now()}`
+    : null
+);
+
 
 setEditing(false);
 setAvatarFile(null);
@@ -1530,68 +1593,108 @@ if (!user) return null;
 return ( <div className="max-w-5xl mx-auto px-4 py-10 space-y-12">
 
   {/* ================= ACCOUNT ================= */}
-  <div className="grid md:grid-cols-3 gap-10">
+<div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+  <div className="grid gap-10 lg:grid-cols-[280px_1fr]">
+
     {/* Avatar */}
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-32 h-32 rounded-full overflow-hidden border">
-<img
-  src={
-    avatarPreview
-      ? avatarPreview
-      : user?.avatar
-      ? user.avatar
-      : `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`
-  }
-  onError={(e) => {
-    e.currentTarget.src =
-      `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`;
-  }}
-  className="w-full h-full object-cover"
-/>
+    <div className="flex flex-col items-center">
+      <div className="relative h-40 w-40 overflow-hidden rounded-full border-4 border-white shadow-lg">
+        <img
+          src={
+            avatarPreview
+              ? avatarPreview
+              : user?.avatar
+              ? user.avatar
+              : `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                  user?.name || "User"
+                )}`
+          }
+          onError={(e) => {
+            e.currentTarget.src =
+              `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                user?.name || "User"
+              )}`;
+          }}
+          className="h-full w-full object-cover"
+        />
+      </div>
+
+      <div className="mt-5 text-center">
+        <h2 className="text-xl font-semibold">
+          {user.name}
+        </h2>
+
+        <p className="text-sm text-gray-500">
+          {user.email}
+        </p>
       </div>
 
       {editing && (
         <input
           type="file"
           onChange={(e) => pickFile(e.target.files?.[0])}
+          className="mt-5 w-full text-sm"
         />
       )}
     </div>
 
     {/* Form */}
-    <div className="md:col-span-2 space-y-6">
-<div className="w-full  border-b py-2">
-      <input
-        disabled={!editing}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="w-full border border-b py-2"
-        placeholder="Full Name"
-      />
-</div>
-<div className="w-full  border-b py-2">
-      <input
-        disabled={!editing}
-        value={phone}
-        onChange={(e) => setPhone(e.target.value)}
-        className="w-full border-b py-2"
-        placeholder="Phone"
-      />
-      </div>
-<div className="w-full  border-b py-2">
-      <input
-        disabled
-        value={user.email}
-        className="w-full border-b py-2"
-      />
+    <div className="space-y-6">
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-gray-600">
+          Full Name
+        </label>
+
+        <input
+          disabled={!editing}
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Full Name"
+          className={`w-full rounded-xl px-4 py-3 outline-none transition ${
+            editing
+              ? "border border-gray-300 focus:border-black"
+              : "border border-gray-200 bg-gray-50"
+          }`}
+        />
       </div>
 
-      <div className="flex justify-end gap-3">
+      <div>
+        <label className="mb-2 block text-sm font-medium text-gray-600">
+          Phone Number
+        </label>
+
+        <input
+          disabled={!editing}
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Phone"
+          className={`w-full rounded-xl px-4 py-3 outline-none transition ${
+            editing
+              ? "border border-gray-300 focus:border-black"
+              : "border border-gray-200 bg-gray-50"
+          }`}
+        />
+      </div>
+
+      <div>
+        <label className="mb-2 block text-sm font-medium text-gray-600">
+          Email Address
+        </label>
+
+        <input
+          disabled
+          value={user.email}
+          className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-gray-500"
+        />
+      </div>
+
+      <div className="flex justify-end gap-3 pt-4">
         {editing ? (
           <>
             <button
               onClick={() => setEditing(false)}
-              className="border px-4 py-2 text-sm"
+              className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium hover:bg-gray-50"
             >
               Cancel
             </button>
@@ -1599,56 +1702,70 @@ return ( <div className="max-w-5xl mx-auto px-4 py-10 space-y-12">
             <button
               onClick={save}
               disabled={saving}
-              className="bg-black text-white px-5 py-2 text-sm"
+              className="rounded-xl bg-black px-5 py-2.5 text-sm font-medium text-white hover:bg-gray-800"
             >
-              {saving ? "Saving..." : "Save"}
+              {saving ? "Saving..." : "Save Changes"}
             </button>
           </>
         ) : (
           <button
             onClick={() => setEditing(true)}
-            className="border px-4 py-2 text-sm hover:bg-black hover:text-white"
+            className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium hover:bg-gray-50"
           >
-            Edit
+            Edit Profile
           </button>
         )}
       </div>
 
     </div>
   </div>
+</div>
 
   {/* ================= DEFAULT ADDRESS ================= */}
-  <div>
-    <h3 className="text-lg font-semibold mb-4">
-      Default Address
-    </h3>
+<div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+  <div className="mb-6 flex items-center justify-between">
+    <div>
+      <h3 className="text-xl font-semibold">
+        Default Address
+      </h3>
 
-    {defaultAddress ? (
-      <div className="border p-5 rounded-md">
-        <h4 className="font-medium">{defaultAddress.name}</h4>
+      <p className="mt-1 text-sm text-gray-500">
+        Your primary shipping address
+      </p>
+    </div>
 
-        <p className="text-sm text-gray-600 mt-1">
-          {defaultAddress.address}
-        </p>
+    {defaultAddress && (
+      <span className="rounded-full bg-black px-3 py-1 text-xs font-medium text-white">
+        Default
+      </span>
+    )}
+  </div>
 
-        <p className="text-sm text-gray-600">
-          {defaultAddress.city}, {defaultAddress.state} - {defaultAddress.zip}
+  {defaultAddress ? (
+    <div className="rounded-2xl border border-gray-200 p-5">
+      <h4 className="text-lg font-semibold">
+        {defaultAddress.name}
+      </h4>
+
+      <div className="mt-3 space-y-1 text-sm leading-6 text-gray-600">
+        <p>{defaultAddress.address}</p>
+
+        <p>
+          {defaultAddress.city}, {defaultAddress.state} -{" "}
+          {defaultAddress.zip}
         </p>
 
         {defaultAddress.phone && (
-          <p className="text-sm text-gray-500 mt-1">
-            {defaultAddress.phone}
-          </p>
+          <p>{defaultAddress.phone}</p>
         )}
-
-   
       </div>
-    ) : (
-      <p className="text-sm text-gray-500">
-        No default address found.
-      </p>
-    )}
-  </div>
+    </div>
+  ) : (
+    <p className="text-sm text-gray-500">
+      No default address found.
+    </p>
+  )}
+</div>
 
 </div>
 

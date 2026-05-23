@@ -295,7 +295,6 @@ const addBundleToCart = async (bundle, selectedSizes) => {
   }
 };
 
-console.log("CartContext items:", items);
   const value = { items, add, update, remove, refresh, mergeGuestCart, addBundleToCart, clearCart, loading };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

@@ -109,7 +109,6 @@ export const WishlistProvider = ({ children }) => {
 
     merge();
   }, [user]);
-console.log("WishlistContext rendered with wishlist:", wishlist);
   /* ---------- CHECK ---------- */
 
   const isInWishlist = (id) => wishlist.includes(id);

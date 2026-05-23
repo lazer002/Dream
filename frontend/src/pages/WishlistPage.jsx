@@ -5,71 +5,130 @@ import api from "../utils/config.js";
 import { Link } from "react-router-dom";
 import { Heart, ShoppingBag, X, Heart as HeartOutline } from "lucide-react"; // or your icon set
 
-function ProductCard({ product, onRemove, onToggle, isWishlisted }) {
+function ProductCard({
+  product,
+  onRemove,
+  onToggle,
+  onAddToCart,
+  isWishlisted,
+}) {
+
   return (
-    <div className="bg-white/95 dark:bg-black rounded-2xl shadow-sm border border-gray-100 dark:border-neutral-800 overflow-hidden transition-transform transform hover:-translate-y-0.5">
-      <div className="relative w-full aspect-[4/5] bg-gray-50 dark:bg-neutral-900">
+    <div className="group relative overflow-hidden rounded-3xl border border-gray-100 bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_12px_40px_rgba(0,0,0,0.08)]">
+
+      {/* IMAGE */}
+      <div className="relative aspect-[4/5] overflow-hidden bg-gray-100">
+
         <img
           src={product?.images?.[0] || "/placeholder.png"}
           alt={product?.title}
-          className="w-full h-full object-cover"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
         />
+
+        {/* OVERLAY */}
+        <div className="absolute inset-0 bg-gradient-to-t from-black/10 via-transparent to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
+
+        {/* WISHLIST */}
         <button
           type="button"
           onClick={(e) => {
             e.stopPropagation();
             e.preventDefault();
+
             onToggle(product?._id);
           }}
-          aria-label={isWishlisted ? "Remove from wishlist" : "Add to wishlist"}
-          className="absolute top-3 right-3 p-2"
+          aria-label={
+            isWishlisted
+              ? "Remove from wishlist"
+              : "Add to wishlist"
+          }
+          className="absolute right-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur transition-all duration-300 hover:scale-110"
         >
-         {isWishlisted ?  <Heart className="h-5 w-5 text-green-500 fill-green-500" /> :  <HeartOutline className="h-5 w-5 text-black dark:text-white" />}
+          {isWishlisted ? (
+            <Heart className="h-5 w-5 fill-black text-black" />
+          ) : (
+            <HeartOutline className="h-5 w-5 text-black" />
+          )}
         </button>
+
+        {/* SALE */}
+        {product?.onSale && (
+          <div className="absolute left-4 top-4 rounded-full bg-black px-3 py-1 text-[10px] font-semibold uppercase tracking-wide text-white">
+            Sale
+          </div>
+        )}
       </div>
 
-      <div className="p-4">
-        <div className="flex items-start justify-between gap-3">
+      {/* CONTENT */}
+      <div className="p-5">
+
+        {/* TITLE */}
+        <div className="flex items-start justify-between gap-4">
+
           <div className="min-w-0">
-            <h3 className="text-sm font-semibold text-black dark:text-white truncate uppercase">
+            <h3 className="truncate text-[15px] font-semibold uppercase tracking-wide text-black">
               {product?.title}
             </h3>
-            <p className="text-xs text-gray-500 dark:text-neutral-400 mt-1 line-clamp-2">
-              {product?.subtitle || ""}
-            </p>
+
+            {product?.subtitle && (
+              <p className="mt-1 line-clamp-2 text-xs leading-relaxed text-gray-500">
+                {product.subtitle}
+              </p>
+            )}
           </div>
 
-          <div className="flex flex-col items-end gap-2">
-            <div className="text-sm font-bold text-black dark:text-white">₹{Number(product?.price ?? 0).toLocaleString()}</div>
-            {product?.onSale && (
-              <div className="text-[10px] font-semibold bg-black text-white px-2 py-1 rounded">{/* small badge */}
-                SALE
-              </div>
-            )}
+          {/* PRICE */}
+          <div className="shrink-0 text-right">
+            <p className="text-sm font-bold text-black">
+              ₹
+              {Number(
+                product?.price ?? 0
+              ).toLocaleString()}
+            </p>
           </div>
         </div>
 
-        <div className="mt-3 flex items-center justify-between gap-3">
+        {/* ACTIONS */}
+        <div className="mt-5 flex items-center gap-3">
+
+          {/* ADD TO CART */}
           <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(product?._id); }}
-            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-neutral-700 bg-white hover:bg-gray-50 dark:bg-neutral-900 dark:hover:bg-neutral-800 text-sm transition"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+
+              onAddToCart(product);
+            }}
+            className="flex-1 rounded-2xl bg-black py-3 text-sm font-medium text-white transition-all duration-200 hover:opacity-90  hover:text-white/70"
           >
-            {isWishlisted ? "Remove" : "Save"}
+            Add to Cart
           </button>
 
-          <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onRemove(product?._id); }}
-            className="w-10 h-10 flex items-center justify-center rounded-lg border border-gray-200 dark:border-neutral-700 bg-white dark:bg-neutral-900 hover:bg-red-50 text-red-600 transition"
-            title="Remove"
-          >
-            <X className="w-4 h-4" />
-          </button>
+          {/* REMOVE */}
+     <button
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    onRemove(product?._id);
+  }}
+  title="Remove"
+  className="
+    h-12 px-6 rounded-2xl
+    bg-gray-100
+    text-sm font-medium text-black
+    transition-all duration-200
+    hover:bg-black hover:text-white
+
+  "
+>
+  Remove
+</button>
         </div>
       </div>
     </div>
   );
 }
-
 export default function WishlistPage() {
   const { user } = useAuth();
   const { wishlist, removeFromWishlist, toggleWishlist, syncWishlistToUser } = useWishlist();
@@ -93,26 +152,17 @@ useEffect(() => {
     }
 
     try {
-      // Try batch endpoint first: /products?ids=1,2,3
-      const idsParam = ids.join(",");
+      const promises = ids.map((id) =>
+        api
+          .get(`/products/${id}`)
+          .then((r) => r.data)
+          .catch(() => null)
+      );
 
-      try {
-        const { data } = await api.get("/products", { params: { ids: idsParam } });
-        // some APIs return { items: [...] } or an array directly
-        const returned = Array.isArray(data) ? data : data.items ?? [];
-        // FILTER returned list to only wishlist ids (defensive)
-        const filtered = returned.filter((p) => {
-          const pid = p?._id ?? p?.id;
-          return pid && ids.includes(String(pid));
-        });
-        if (mounted) setProducts(filtered);
-      } catch (batchErr) {
-        // fallback: fetch individually (this already returns only wishlist items)
-        const promises = ids.map((id) =>
-          api.get(`/products/${id}`).then((r) => r.data).catch(() => null)
-        );
-        const results = await Promise.all(promises);
-        if (mounted) setProducts(results.filter(Boolean));
+      const results = await Promise.all(promises);
+
+      if (mounted) {
+        setProducts(results.filter(Boolean));
       }
     } catch (err) {
       console.error("Failed to load wishlist products", err);
@@ -193,7 +243,7 @@ useEffect(() => {
                   product={p}
                   onRemove={handleRemove}
                   onToggle={handleToggle}
-                  isWishlisted={ids.includes(p._id || p.id)}
+                  isWishlisted={ids.includes(String(p._id || p.id))}
                 />
               </Link>
             ))}

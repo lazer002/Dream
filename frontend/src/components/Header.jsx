@@ -252,7 +252,11 @@ useEffect(() => {
 >
   {navItems.map((item) => {
     const active =
-      location.pathname === item.url;
+  item.url === "/"
+    ? false
+    : location.pathname.startsWith(
+        item.url
+      );
 
     return (
       <div
@@ -757,7 +761,8 @@ className="
   <div
     className={`absolute left-0 top-0 h-[100vh]    w-[86vw]
     max-w-[420px] bg-white shadow-2xl flex flex-col
-transform transition-transform  duration-500 ease-[cubic-bezier(.76,0,.24,1)]
+transform transition-transform  duration-500 
+ease-\[cubic-bezier\(.76\,0\,.24\,1\)\]
 ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
   >
     {/* Header row */}

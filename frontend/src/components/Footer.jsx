@@ -34,7 +34,7 @@ const handleSubmit = async (e) => {
 };
     return (
         <footer className="bg-black text-white  tracking-wide">
-            <div className=" mx-auto px-4 sm:px-6 lg:px-8 py-10">
+            <div className=" mx-auto px-4 sm:px-6 lg:px-8 py-3">
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8 py-8 border-b border-white/10 font-medium text-[12px] leading-loose">
                     {/* Newsletter */}
                         {/* KNOW */}
@@ -204,7 +204,7 @@ const handleSubmit = async (e) => {
                 </div>
 
                 {/* Social + Bottom */}
-                <div className="mt-6 flex flex-col md:flex-row justify-between items-center">
+                <div className="mt-2 flex flex-col md:flex-row justify-between items-center">
                     {/* Social Box */}
                     <div className="bg-[#1B1A1A] border border-white/10 px-4 py-2 flex items-center gap-3 rounded-md">
                         <span className="uppercase text-xs">Follow us on</span>

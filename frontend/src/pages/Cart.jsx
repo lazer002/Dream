@@ -1,316 +1,633 @@
 // src/pages/Cart.jsx
-import { Link } from "react-router-dom"
-import { useCart } from "../state/CartContext.jsx"
-import { Trash } from "lucide-react"
+
+import { Link } from "react-router-dom";
+import { Trash } from "lucide-react";
+import { useCart } from "../state/CartContext.jsx";
 import { getDeliveryDate } from "@/utils/public.js";
+import { useState } from "react";
+import { useWishlist } from "../state/WishlistContext.jsx";
 
 export default function Cart() {
-  const { items, update, remove, loading } = useCart()
-
-const subtotal = items.reduce((s, it) => {
-  return s + (it.bundle ? it.bundle.price * it.quantity : (it.product?.price || 0) * it.quantity);
-}, 0);
-
-const tax = subtotal * 0.05;
-const deliveryFee = subtotal > 500 ? 0 : 50;
-const discount = 0;
-const total = subtotal + tax + deliveryFee - discount;
-
-
- if (loading) {
-    // Skeleton loader
+  const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const { items, update, remove, loading } = useCart();
+const [expandedBundles, setExpandedBundles] = useState({});
+const [removeModal, setRemoveModal] = useState({
+  open: false,
+  id: null,
+  size: null,
+  isBundle: false,
+  image: null,
+  title: "",
+});
+  const subtotal = items.reduce((s, it) => {
     return (
-      <div className="flex flex-col md:flex-row gap-6 px-6 py-8 min-h-screen">
-        <div className="md:w-2/3 flex flex-col gap-4">
-          {[1, 2, 3].map((_, i) => (
-            <div
-              key={i}
-              className="flex flex-col gap-4 p-5 border border-gray-200 rounded-xl bg-white shadow-sm animate-pulse"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-start gap-4">
-                  <div className="w-20 h-20 bg-gray-300 rounded-lg" />
-                  <div className="flex flex-col gap-2 flex-1">
-                    <div className="h-5 bg-gray-300 rounded w-3/4" />
-                    <div className="h-4 bg-gray-300 rounded w-1/2" />
-                  </div>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <div className="w-6 h-6 bg-gray-300 rounded-full" />
-                  <div className="h-4 bg-gray-300 rounded w-12 mt-2" />
-                </div>
-              </div>
-              <div className="flex items-center gap-3 mt-3 border-t pt-3">
-                <div className="h-6 w-20 bg-gray-300 rounded" />
-                <div className="flex items-center gap-1">
-                  <div className="h-6 w-6 bg-gray-300 rounded" />
-                  <div className="h-6 w-12 bg-gray-300 rounded" />
-                  <div className="h-6 w-6 bg-gray-300 rounded" />
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+      s +
+      (it.bundle
+        ? it.bundle.price * it.quantity
+        : (it.product?.price || 0) * it.quantity)
+    );
+  }, 0);
 
-        <div className="md:w-1/3 flex flex-col gap-4">
-          <div className="p-5 border rounded-lg shadow-sm flex flex-col gap-4 sticky top-6 bg-white animate-pulse">
-            <div className="h-7 bg-gray-300 w-3/4 rounded" />
-            {[1, 2, 3, 4].map((_, i) => (
-              <div key={i} className="h-4 bg-gray-300 w-full rounded" />
+  const tax = subtotal * 0.05;
+  const deliveryFee = subtotal > 500 ? 0 : 50;
+  const discount = 0;
+  const total = subtotal + tax + deliveryFee - discount;
+const openRemoveModal = (
+  id,
+  size = null,
+  isBundle = false,
+  image = null,
+  title = ""
+) => {
+  setRemoveModal({
+    open: true,
+    id,
+    size,
+    isBundle,
+    image,
+    title,
+  });
+};
+  // =========================
+  // LOADING
+  // =========================
+
+  if (loading) {
+    return (
+      <div className=" mx-auto px-4 md:px-8 py-10 animate-pulse">
+        <div className="h-10 w-40 bg-gray-200 mb-10"></div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-12">
+          <div className="space-y-8">
+            {[1, 2, 3].map((_, i) => (
+              <div key={i} className="border-b pb-6 flex gap-5">
+                <div className="w-28 h-32 bg-gray-200"></div>
+
+                <div className="flex-1 space-y-3">
+                  <div className="h-4 bg-gray-200 w-48"></div>
+                  <div className="h-3 bg-gray-200 w-24"></div>
+                  <div className="h-3 bg-gray-200 w-20"></div>
+                </div>
+              </div>
             ))}
-            <div className="h-6 bg-gray-300 w-full rounded mt-3" />
-            <div className="h-10 bg-gray-300 w-full rounded mt-2" />
           </div>
+
+          <div className="border p-6 h-[350px] bg-gray-50"></div>
         </div>
       </div>
     );
   }
 
-  if (items.length === 0)
+  // =========================
+  // EMPTY CART
+  // =========================
+
+  if (items.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-32 gap-6 text-center">
-        {/* Cart Icon */}
-        <div className="relative w-24 h-24 mb-6">
-          <div className="absolute inset-0 flex items-center justify-center">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              className="w-16 h-16 text-black"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13l-1.6 8H19M7 13L5.4 5M19 21a1 1 0 100-2 1 1 0 000 2zm-10 0a1 1 0 100-2 1 1 0 000 2z"
-              />
-            </svg>
-          </div>
-        </div>
+        <h2 className="text-4xl font-black uppercase">
+          Your Cart is Empty
+        </h2>
 
-        {/* Heading */}
-        <h2 className="text-3xl font-bold text-black">Your Cart is Empty</h2>
-
-        {/* Subtext */}
-        <p className="text-gray-700 max-w-md">
-          Looks like you haven’t added any products yet. Explore our collection and find your favorites.
+        <p className="text-gray-600 max-w-md">
+          Looks like you haven’t added any products yet.
         </p>
 
-        {/* Buttons */}
-        <div className="flex gap-4 mt-6">
-          <Link to="/products"
-            className="px-6 py-3 font-medium text-white bg-black rounded-lg hover:bg-gray-900 transition"
-          >
-            Continue Shopping
-          </Link>
-          <Link
-            to="/login"
-            className="px-6 py-3 font-medium text-black border-2 border-black rounded-lg hover:bg-black hover:text-white transition"
-          >
-            Sign In
-          </Link>
-        </div>
+        <Link
+          to="/products"
+          className="bg-black text-white px-8 py-4 uppercase text-sm tracking-wide"
+        >
+          Continue Shopping
+        </Link>
       </div>
-    )
+    );
+  }
 
-return (
-  <div className="flex flex-col md:flex-row gap-6 px-6 py-8 min-h-screen">
-    {/* Left: Cart Items */}
-    
-        <div className="md:w-2/3 flex flex-col gap-4">
-{items.map((it) => {
-  const isBundle = !!it.bundle;
-  const key = isBundle ? it.bundle._id : `${it.product._id}-${it.size}`;
-
-  const imageSrc = isBundle
-    ? it.mainImage || "/placeholder.jpg"
-    : it.product?.images?.[0] || "/placeholder.jpg";
+  // =========================
+  // MAIN
+  // =========================
 
   return (
-    <div
-      key={key}
-      className="flex flex-col p-4 border border-gray-200 rounded-xl bg-white hover:shadow-sm transition"
-    >
-      {/* 🔹 MAIN ROW */}
-      <div className="flex items-center justify-between">
+    <div className="max-w-[75vw] mx-auto px-4 md:px-8 py-10">
+      
+      {/* HEADER */}
+      <div className="flex items-center justify-between border-b border-gray-200 pb-5 mb-10">
+        <div className="flex items-center gap-3">
+          <h1 className="text-4xl md:text-5xl font-black uppercase tracking-tight">
+            Cart
+          </h1>
 
-        {/* LEFT */}
-        <div className="flex items-center gap-4 flex-1">
-          <img
-            src={imageSrc}
-            alt=""
-            className="w-20 h-20 rounded-lg object-cover border"
-          />
-
-          <div className="flex flex-col gap-1 flex-1">
-            <h3 className="text-base font-semibold text-gray-900">
-              {isBundle ? it.bundle.title : it.product.title}
-            </h3>
-
-            {isBundle ? (
-              <p className="text-xs text-gray-500">
-                Bundle of {it.bundleProducts?.length || 0} items
-              </p>
-            ) : (
-              it.size && (
-                <p className="text-xs text-gray-500">
-                  Size: <span className="font-medium">{it.size}</span>
-                </p>
-              )
-            )}
-
-            {/* ✅ Inline quantity */}
-            <div className="flex items-center gap-2 mt-2">
-              <div className="flex items-center border rounded-full overflow-hidden">
-                <button
-                  onClick={() => {
-                    if (it.quantity === 1) {
-                      isBundle
-                        ? remove(it.bundle._id)
-                        : remove(it.product._id, it.size);
-                    } else {
-                      update(
-                        isBundle ? it.bundle._id : it.product._id,
-                        it.quantity - 1,
-                        it.size,
-                        isBundle
-                      );
-                    }
-                  }}
-                  className="px-3 py-1 text-gray-600 hover:bg-gray-100"
-                >
-                  -
-                </button>
-
-                <span className="px-3 text-sm font-medium">
-                  {it.quantity}
-                </span>
-
-                <button
-                  onClick={() =>
-                    update(
-                      isBundle ? it.bundle._id : it.product._id,
-                      it.quantity + 1,
-                      it.size,
-                      isBundle
-                    )
-                  }
-                  className="px-3 py-1 text-gray-600 hover:bg-gray-100"
-                >
-                  +
-                </button>
-              </div>
-            </div>
-          </div>
+          <span className="text-xs uppercase tracking-widest text-gray-500 mt-4">
+            [{items.length} Items]
+          </span>
         </div>
 
-        {/* RIGHT */}
-        <div className="flex flex-col items-end gap-2">
-          <Trash
-            className="cursor-pointer text-gray-400 hover:text-red-500 transition size-5"
-            onClick={() =>
-              isBundle
-                ? remove(it.bundle._id, null, true)
-                : remove(it.product._id, it.size)
-            }
-          />
-
-          <p className="text-xs text-gray-500">
-            Delivery by{" "}
-            <span className="font-medium text-gray-800">
-              {getDeliveryDate()}
-            </span>
-          </p>
-
-          <p className="font-semibold text-lg text-gray-900">
-            ₹{" "}
-            {(isBundle
-              ? it.bundle.price * it.quantity
-              : it.product.price * it.quantity
-            ).toLocaleString()}
-          </p>
+        <div className="hidden md:flex items-center gap-2 text-xs text-gray-600">
+          <div className="w-2 h-2 rounded-full bg-black"></div>
+          <span>You have unlocked free shipping</span>
         </div>
       </div>
 
-      {/* 🔹 BUNDLE ITEMS (clean + minimal, no heavy divider) */}
-      {isBundle && (
-        <div className="mt-4 ml-24 space-y-2">
-          {it.bundleProducts?.map((bp, i) => (
-            <div
-              key={i}
-              className="flex items-center gap-3 text-xs text-gray-600"
-            >
-              <img
-                src={bp.product?.images?.[0] || "/placeholder.jpg"}
-                alt=""
-                className="w-10 h-10 rounded object-cover border"
-              />
+      {/* MAIN GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-14">
+        
+        {/* ========================= */}
+        {/* LEFT SIDE */}
+        {/* ========================= */}
 
-              <div>
-                <p className="font-medium text-gray-800">
-                  {bp.product?.title}
+        <div>
+          {items.map((it) => {
+            const isBundle = !!it.bundle;
+
+            const key = isBundle
+              ? it.bundle._id
+              : `${it.product._id}-${it.size}`;
+
+            const imageSrc = isBundle
+              ? it.mainImage || "/placeholder.jpg"
+              : it.product?.images?.[0] || "/placeholder.jpg";
+
+            return (
+              <div
+                key={key}
+                className="border-b border-gray-200 py-6 max-w-4xl"
+              >
+                <div className="flex gap-5 justify-between">
+                  
+                  {/* LEFT */}
+                  <div className="flex gap-4 flex-1">
+                    
+                    {/* IMAGE */}
+                    <img
+                      src={imageSrc}
+                      alt=""
+                      className="w-32 h-38 object-cover bg-gray-100"
+                    />
+
+                    {/* INFO */}
+                    <div className="flex flex-col justify-between">
+                      
+                      <div>
+                        <h3 className="uppercase tracking-wide text-xl font-semibold text-black">
+                          {isBundle
+                            ? it.bundle.title
+                            : it.product.title}
+                        </h3>
+
+                        {isBundle ? (
+                          <p className="text-sm text-black/70 font-semibold mt-1 uppercase">
+                            Bundle of{" "}
+                            {it.bundleProducts?.length || 0} items
+                          </p>
+                        ) : (
+                          it.size && (
+                            <p className="text-sm text-black/70 font-semibold mt-1 uppercase">
+                              Size {it.size}
+                            </p>
+                          )
+                        )}
+
+                        <p className="text-sm font-bold text-black/70 mt-2">
+                          Delivery by{" "}
+                          <span className="text-black font-bold">
+                            {getDeliveryDate()}
+                          </span>
+                        </p>
+                      </div>
+
+                      {/* QUANTITY */}
+                      <div className="flex items-center gap-5 mt-4">
+                        
+          <button
+  onClick={() => {
+
+    // OPEN MODAL WHEN QTY = 1
+    if (it.quantity === 1) {
+
+      openRemoveModal(
+        isBundle
+          ? it.bundle._id
+          : it.product._id,
+
+        isBundle ? null : it.size,
+
+        isBundle,
+
+        imageSrc,
+
+        isBundle
+          ? it.bundle.title
+          : it.product.title
+      );
+
+      return;
+    }
+
+    // NORMAL DECREASE
+    update(
+      isBundle
+        ? it.bundle._id
+        : it.product._id,
+      it.quantity - 1,
+      it.size,
+      isBundle
+    );
+
+  }}
+  className="text-xl text-gray-500 hover:text-black transition"
+>
+  -
+</button>
+
+                        <span className="text-sm font-medium min-w-[20px] text-center">
+                          {it.quantity}
+                        </span>
+
+                        <button
+                          onClick={() =>
+                            update(
+                              isBundle
+                                ? it.bundle._id
+                                : it.product._id,
+                              it.quantity + 1,
+                              it.size,
+                              isBundle
+                            )
+                          }
+                          className="text-xl text-gray-500 hover:text-black transition"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* RIGHT */}
+                  <div className="flex flex-col items-end justify-between">
+                    
+                    {/* PRICE */}
+                    <div className="text-right">
+                      <p className="text-lg font-semibold text-black">
+                        ₹
+                        {(
+                          isBundle
+                            ? it.bundle.price * it.quantity
+                            : it.product.price * it.quantity
+                        ).toLocaleString()}
+                      </p>
+                    </div>
+
+                    {/* ACTIONS */}
+                    <div className="flex items-center gap-4">
+                <Trash
+  className="size-4 text-gray-400 hover:text-red-500 cursor-pointer transition"
+  onClick={() =>
+    openRemoveModal(
+      isBundle
+        ? it.bundle._id
+        : it.product._id,
+
+      isBundle ? null : it.size,
+
+      isBundle,
+
+      imageSrc,
+
+      isBundle
+        ? it.bundle.title
+        : it.product.title
+    )
+  }
+/>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ========================= */}
+                {/* KEEP THIS EXACTLY */}
+                {/* ========================= */}
+
+           {/* ========================= */}
+{/* BUNDLE EXPAND SECTION */}
+{/* ========================= */}
+
+{isBundle && (
+  <div className="mt-4 ml-24">
+    
+    {/* Toggle Button */}
+    <button
+      onClick={() =>
+        setExpandedBundles((prev) => ({
+          ...prev,
+          [key]: !prev[key],
+        }))
+      }
+      className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500 hover:text-black transition"
+    >
+      <span>
+        {expandedBundles[key] ? "Hide Items" : "View Items"}
+      </span>
+
+      <span
+        className={`transition-transform duration-300 ${
+          expandedBundles[key] ? "rotate-180" : ""
+        }`}
+      >
+        ▼
+      </span>
+    </button>
+
+    {/* Expand Content */}
+    <div
+      className={`overflow-hidden transition-all duration-300 ${
+        expandedBundles[key]
+          ? "max-h-[500px] opacity-100 mt-4"
+          : "max-h-0 opacity-0"
+      }`}
+    >
+      <div className="space-y-3 border-l border-gray-200 pl-4">
+        {it.bundleProducts?.map((bp, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3"
+          >
+            {/* IMAGE */}
+            <img
+              src={
+                bp.product?.images?.[0] ||
+                "/placeholder.jpg"
+              }
+              alt=""
+              className="w-12 h-12 rounded object-cover border border-gray-200"
+            />
+
+            {/* INFO */}
+            <div className="flex flex-col">
+              <p className="text-xs font-medium text-gray-800 uppercase">
+                {bp.product?.title}
+              </p>
+
+              {bp.size && (
+                <p className="text-[11px] text-gray-500 uppercase">
+                  Size {bp.size}
                 </p>
-                {bp.size && (
-                  <p className="text-gray-500">Size: {bp.size}</p>
-                )}
-              </div>
+              )}
             </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-})}
-
-    </div>
-
-    {/* Right: Order Summary */}
-    <div className="md:w-1/3 flex flex-col gap-4">
-      <div className="p-5 border rounded-lg shadow-sm flex flex-col gap-4 sticky top-24 bg-white">
-        <h2 className="text-2xl font-bold text-gray-900">Order Summary</h2>
-
-        <div className="flex justify-between text-gray-700 text-sm">
-          <span>Subtotal</span>
-          <span>₹{subtotal.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-gray-700 text-sm">
-          <span>Tax (5%)</span>
-          <span>₹{tax.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-gray-700 text-sm">
-          <span>Delivery Fee</span>
-          <span>₹{deliveryFee.toFixed(2)}</span>
-        </div>
-        <div className="flex justify-between text-gray-700 text-sm">
-          <span>Discount</span>
-          <span>-₹{discount.toFixed(2)}</span>
-        </div>
-
-        <div className="border-t mt-2 pt-2 flex justify-between font-bold text-lg text-gray-900">
-          <span>Total</span>
-          <span>₹{total.toFixed(2)}</span>
-        </div>
-
-        <div className="flex gap-2 mt-2">
-          <input
-            type="text"
-            placeholder="Enter coupon code"
-            className="flex-1 border rounded px-3 py-2 text-gray-900"
-          />
-          <button className="bg-black text-white px-4 py-2 rounded hover:bg-gray-900 transition">
-            Apply
-          </button>
-        </div>
-
-        <Link to="/checkout">
-          <button className="mt-4 w-full bg-black text-white py-2 rounded hover:bg-gray-900 transition">
-            Proceed to Checkout
-          </button>
-        </Link>
+          </div>
+        ))}
       </div>
     </div>
   </div>
-);
+)}
+              </div>
+            );
+          })}
+        </div>
 
+        {/* ========================= */}
+        {/* RIGHT SUMMARY */}
+        {/* ========================= */}
+
+        <div>
+          <div className="sticky top-24 border border-gray-200 p-6 bg-white">
+            
+            <h2 className="text-2xl font-black uppercase mb-8">
+              Order Summary
+            </h2>
+
+            <div className="space-y-5 text-sm">
+              
+              <div className="flex justify-between">
+                <span className="uppercase text-gray-500">
+                  Subtotal
+                </span>
+
+                <span>
+                  ₹{subtotal.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="uppercase text-gray-500">
+                  Tax
+                </span>
+
+                <span>
+                  ₹{tax.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="uppercase text-gray-500">
+                  Delivery
+                </span>
+
+                <span>
+                  ₹{deliveryFee.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="uppercase text-gray-500">
+                  Discount
+                </span>
+
+                <span>
+                  -₹{discount.toFixed(2)}
+                </span>
+              </div>
+
+              <div className="border-t pt-5 flex justify-between text-lg font-bold">
+                <span className="uppercase">
+                  Total
+                </span>
+
+                <span>
+                  ₹{total.toFixed(2)}
+                </span>
+              </div>
+            </div>
+
+            {/* PROMO */}
+            <div className="mt-8">
+              <p className="text-xs uppercase tracking-wide mb-3 font-semibold">
+                Promo Code
+              </p>
+
+              <div className="flex">
+                <input
+                  type="text"
+                  placeholder="ENTER PROMO CODE"
+                  className="flex-1 border border-gray-300 px-3 py-3 text-xs outline-none"
+                />
+
+                <button className="bg-black text-white px-5 text-xs font-semibold hover:opacity-90 transition rounded-lg">
+                  APPLY
+                </button>
+              </div>
+            </div>
+
+            {/* CHECKOUT */}
+            <Link to="/checkout">
+              <button className="w-full bg-black text-white py-4 mt-6 uppercase tracking-wide text-sm hover:opacity-90 transition rounded-lg">
+                Checkout
+              </button>
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ========================= */}
+      {/* YOU MIGHT ALSO LIKE */}
+      {/* ========================= */}
+
+      <div className="mt-24">
+        <h2 className="text-4xl md:text-5xl font-black uppercase mb-10">
+          You Might Also Like
+        </h2>
+
+        {/* PUT YOUR PRODUCT SLIDER HERE */}
+      </div>
+
+{/* REMOVE MODAL */}
+{removeModal.open && (
+  <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+    
+    {/* BACKDROP */}
+    <div
+      className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+      onClick={() =>
+        setRemoveModal({
+          open: false,
+          id: null,
+          size: null,
+          isBundle: false,
+          image: null,
+          title: "",
+        })
+      }
+    />
+
+    {/* MODAL */}
+    <div className="relative w-full max-w-md rounded-[30px] bg-white p-7 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+
+      {/* CLOSE */}
+      <button
+        onClick={() =>
+          setRemoveModal({
+            open: false,
+            id: null,
+            size: null,
+            isBundle: false,
+            image: null,
+            title: "",
+          })
+        }
+        className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+      >
+        ✕
+      </button>
+
+      {/* HEADER */}
+      <div className="text-center">
+        <p className="text-xs uppercase tracking-[0.25em] text-gray-400">
+          Shopping Bag
+        </p>
+
+        <h2 className="mt-3 text-[30px] font-semibold tracking-tight text-black">
+          Move from bag
+        </h2>
+
+      </div>
+
+      {/* PRODUCT */}
+      <div className="mt-2 flex items-center gap-4 rounded-2xl border border-gray-100 p-4">
+        
+        {/* IMAGE */}
+        <img
+          src={removeModal.image}
+          alt=""
+          className="h-24 w-20 rounded-xl object-cover bg-gray-100"
+        />
+
+        {/* INFO */}
+        <div className="flex flex-col">
+          
+          <p className="text-sm font-bold leading-relaxed text-black">
+            {removeModal.title}
+          </p>
+
+        <p className="text-sm leading-relaxed text-gray-500">
+          Are you sure you want to move this
+          product from bag?
+        </p>
+          {removeModal.isBundle && (
+            <span className="mt-2 w-fit rounded-full bg-gray-100 px-3 py-1 text-[10px] uppercase tracking-wide text-gray-500">
+              Bundle
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* BUTTONS */}
+      <div className="mt-8 grid grid-cols-2 gap-3">
+        
+        {/* REMOVE */}
+        <button
+          onClick={async () => {
+
+            const { id, size, isBundle } = removeModal;
+
+            setRemoveModal({
+              open: false,
+              id: null,
+              size: null,
+              isBundle: false,
+              image: null,
+              title: "",
+            });
+
+            await remove(id, size, isBundle);
+          }}
+          className="w-full h-14 rounded-2xl border border-gray-300 bg-white text-sm font-semibold tracking-wide text-black transition hover:bg-gray-100"
+        >
+          REMOVE
+        </button>
+
+        {/* WISHLIST */}
+    <button
+  onClick={async () => {
+
+    const { id, size, isBundle } = removeModal;
+
+    // wishlist toggle
+    wishlist.includes(id)
+      ? removeFromWishlist(id)
+      : addToWishlist(id);
+
+    // close modal
+    setRemoveModal({
+      open: false,
+      id: null,
+      size: null,
+      isBundle: false,
+      image: null,
+      title: "",
+    });
+
+    // remove from cart
+    await remove(id, size, isBundle);
+
+  }}
+  className="w-full h-14 rounded-2xl bg-black text-sm font-semibold tracking-wide text-white transition hover:opacity-90"
+>
+  MOVE TO WISHLIST
+</button>
+      </div>
+    </div>
+  </div>
+)}
+
+    </div>
+  );
 }

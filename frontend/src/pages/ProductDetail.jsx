@@ -11,8 +11,9 @@ import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
 import api from "@/utils/config"
 import toast from "react-hot-toast"
-
+import { useWishlist } from "../state/WishlistContext.jsx";
 export default function ProductDetail() {
+    const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const { id } = useParams()
   const navigate = useNavigate()
   const { add } = useCart()
@@ -20,11 +21,16 @@ export default function ProductDetail() {
   const [selectedSize, setSelectedSize] = useState("")
   const [recommendedProducts, setRecommendedProducts] = useState([])
   const [activeImage, setActiveImage] = useState(0)
-  const [openZoom, setOpenZoom] = useState(false)
-  const [wishlisted, setWishlisted] = useState(false)
+  const [openZoom, setOpenZoom] = useState(false)  
   const [loading, setLoading] = useState(true)
   const [showMagnifier, setShowMagnifier] =
     useState(false)
+  const [showRequest, setShowRequest] = useState(false);
+const [request, setRequest] = useState({
+  email: "",
+  size: "",
+});
+
 
   const [zoomPosition, setZoomPosition] =
     useState({ x: 50, y: 50 })
@@ -32,6 +38,34 @@ export default function ProductDetail() {
     useState({ x: 0, y: 0 })
 
   const magnifierTimeout = useRef(null)
+
+
+
+  const handleRequestSubmit = async () => {
+  if (!request.email || !request.size) {
+    toast.error("Please fill all fields");
+    return;
+  }
+
+  try {
+    await api.post("/product-request", {
+      productId: product._id,
+      email: request.email,
+      size: request.size,
+    });
+
+    toast.success("We’ll notify you when available 🚀");
+
+    setShowRequest(false);
+    setRequest({ email: "", size: "" });
+
+  } catch (err) {
+    console.error(err);
+    toast.error("Failed to send request");
+  }
+};
+
+
 
   useEffect(() => {
     const getProduct = async () => {
@@ -113,7 +147,7 @@ export default function ProductDetail() {
       // check if there is at least one available size
       const availableSizes = ["XS", "S", "M", "L", "XL", "XXL"].filter((s) => (product.inventory?.[s] || 0) > 0)
       if (availableSizes.length && !selectedSize) {
-        window.alert("Please select a size before adding to cart.")
+        toast.error("Please select a size before adding to cart.")
         return
       }
     }
@@ -137,12 +171,17 @@ export default function ProductDetail() {
     navigate("/checkout")
   }
 
+  const isOutOfStock = Object.values(product.inventory || {}).every(q => q === 0);
 
-  const handleWishlist = () => {
-    setWishlisted((w) => !w)
-    // TODO: persist wishlist to server / local storage if desired
-  }
+const handleWishlist = (e) => {
+  e.preventDefault();
+  e.stopPropagation();
 
+  wishlisted
+    ? removeFromWishlist(product._id)
+    : addToWishlist(product._id);
+};
+const wishlisted = wishlist.includes(product._id);
   return (
     <>
       <div
@@ -403,6 +442,11 @@ isolate
           </div>
 
           <span className="text-green-700 text-[19px]">Inclusive of all taxes</span>
+           {isOutOfStock && (
+            <div  className="px-3 text-lg font-semibold text-white bg-red-600 rounded-full w-max">
+              Out of Stock
+            </div>
+          )}
           <Separator className="my-4" />
 
           {/* Size Selection */}
@@ -504,6 +548,8 @@ isolate
           )}
 
           {/* Action Buttons */}
+         <div className="mt-4 flex flex-col gap-3">
+          {!isOutOfStock ? (
           <div className="mt-4 flex flex-col gap-3">
             {/* Row 1: Cart + Wishlist */}
             <div className="flex gap-3">
@@ -515,17 +561,30 @@ isolate
                 Add to Cart
               </Button>
 
-              <Button
-                variant="outline"
-                className={`w-1/2 flex items-center justify-center gap-2 border-black text-black hover:bg-pink-50 text-xl py-6 `}
-                onClick={handleWishlist}
-                aria-pressed={wishlisted}
-              >
-                <Heart
-                  className={`w-5 h-5 ${wishlisted ? "fill-black text-black" : ""}`}
-                />
-                Wishlist
-              </Button>
+            <Button
+  variant="outline"
+  className={`
+    w-1/2 flex items-center justify-center gap-2
+    border-black text-black
+    hover:bg-gray-100
+    text-base py-6
+    transition-all duration-200
+  `}
+  onClick={handleWishlist}
+  aria-pressed={wishlisted}
+>
+  <Heart
+    className={`
+      w-5 h-5 transition-all
+      ${wishlisted
+        ? "fill-black text-black"
+        : "text-black"
+      }
+    `}
+  />
+
+  {wishlisted ? "Wishlisted" : "Add to Wishlist"}
+</Button>
             </div>
 
             {/* Row 2: Buy Now */}
@@ -538,6 +597,45 @@ isolate
               Buy Now
             </Button>
           </div>
+  ) : (
+     <div className="mt-4 flex flex-col gap-3">
+<div className="flex  gap-3">
+
+  {/* DISABLED */}
+    <Button
+                className="w-1/2 flex items-center justify-center gap-2 text-xl py-6 bg-gray-100 text-gray-400 cursor-not-allowed hover:bg-gray-100"
+                
+              >
+                <ShoppingCart className="w-5 h-5" />
+                Add to Cart
+              </Button>
+
+  {/* REQUEST */}
+  <Button
+    onClick={() =>
+      setShowRequest(true)
+    }
+    className="
+      flex-1
+
+      py-6
+
+      text-lg
+
+      bg-black
+      text-white
+
+      hover:bg-neutral-800
+
+    "
+  >
+    Request Product
+  </Button>
+
+</div>
+</div>
+  )}
+</div>
 
           <Separator className="my-4" />
 
@@ -596,7 +694,7 @@ isolate
               <AccordionContent>
                 <p className="text-gray-700 text-sm">
                   Returns accepted for defective/incorrect items. Exchange fee: ₹399. Contact{" "}
-                  <strong>urbanfits519@gmail.com</strong>.
+                  <strong>garrib@gmail.com</strong>.
                 </p>
               </AccordionContent>
             </AccordionItem>
@@ -613,45 +711,75 @@ isolate
         </div>
 
         {/* Fullscreen Image Zoom Modal */}
-        <Dialog open={openZoom} onOpenChange={setOpenZoom}>
-          <DialogContent
-            className="fixed inset-0 w-screen h-screen max-w-none max-h-none p-0 bg-black flex items-center justify-center rounded-none"
-          >
-            <DialogClose asChild>
-              <button className="absolute top-4 right-4 z-50 p-2 rounded-full bg-gray-200 hover:bg-gray-400 transition" aria-label="Close zoom">
-                <X className="w-6 h-6 text-black" />
-              </button>
-            </DialogClose>
+    {showRequest && (
+  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+    
+    {/* Modal box */}
+    <div className="bg-white w-full max-w-md p-6 rounded-lg relative">
 
-            <div className="relative flex items-center justify-center w-full h-full">
-              <img
-                src={images[activeImage]}
-                alt={product.title}
-                className="max-h-full max-w-full object-contain"
-              />
+      {/* Close button */}
+      <button
+        className="absolute top-3 right-3 text-xl"
+        onClick={() => setShowRequest(false)}
+      >
+        ✕
+      </button>
 
-              {imageCount > 1 && (
-                <>
-                  <button
-                    onClick={prevImage}
-                    className="absolute left-6 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-gray-200 hover:bg-gray-400"
-                    aria-label="Previous image"
-                  >
-                    <ChevronLeft className="w-7 h-7 text-black" />
-                  </button>
+      <h2 className="text-xl font-bold mb-4">
+        Get Notified
+      </h2>
 
-                  <button
-                    onClick={nextImage}
-                    className="absolute right-6 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-gray-200 hover:bg-gray-400"
-                    aria-label="Next image"
-                  >
-                    <ChevronRight className="w-7 h-7 text-black" />
-                  </button>
-                </>
-              )}
-            </div>
-          </DialogContent>
-        </Dialog>
+      {/* Email */}
+      <div className=" border-b py-3">
+      <input
+        type="email"
+        placeholder="Enter your email"
+        value={request.email}
+        onChange={(e) =>
+          setRequest({ ...request, email: e.target.value })
+        }
+        className="w-full border"
+      />
+</div>
+      {/* Size */}
+<div className="border-b py-4">
+  <p className="text-sm font-semibold mb-3 tracking-wide uppercase">
+    Select Size
+  </p>
+
+  <div className="flex flex-wrap gap-2">
+    {Object.keys(product.inventory || {}).map((size) => {
+      const isSelected = request.size === size;
+
+      return (
+        <button
+          key={size}
+          type="button"
+          onClick={() => setRequest({ ...request, size })}
+          className={`px-4 py-2 border text-sm font-medium transition-all duration-200
+            ${
+              isSelected
+                ? "bg-black text-white border-black"
+                : "bg-white text-black border-gray-300 hover:border-black"
+            }
+          `}
+        >
+          {size}
+        </button>
+      );
+    })}
+  </div>
+</div>
+      {/* Submit */}
+      <button
+        onClick={handleRequestSubmit}
+        className="w-full bg-black text-white py-3 font-bold"
+      >
+        Notify Me
+      </button>
+    </div>
+  </div>
+)}
       </div>
 
       {/* You Might Be Interested Section */}

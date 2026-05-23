@@ -215,7 +215,7 @@ const handleFilterChange = (type, value) => {
           className="flex items-center gap-2 px-4 py-2 bg-black text-white font-bold uppercase hover:bg-black transition"
         >
           <Filter className="w-5 h-5" />
-          Filter
+         <span className="max-[500]:hidden"> Filter</span>
         </button>
 
         <div className="w-48">
@@ -241,18 +241,18 @@ const handleFilterChange = (type, value) => {
             const id = String(p._id);
           return (
             <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">
-              <div className="bg-white border border-gray-200 transition overflow-hidden relative">
-                <div className="relative w-full h-[54vh] overflow-hidden">
+              <div className="bg-white transition border border-gray-100 overflow-hidden relative rounded-2xl">
+                <div className="relative w-full h-[50vh] overflow-hidden">
                   <img
                     src={p.images[0]}
                     alt={p.title}
-                    className="w-full h-full object-cover transition-all duration-500 hover:opacity-0"
+                    className="w-full h-full object-cover transition-all duration-500 hover:opacity-0 rounded-xl"
                   />
                   {p.images[1] && (
                     <img
                       src={p.images[1]}
                       alt={p.title + " hover"}
-                      className="w-full h-full object-cover absolute top-0 left-0 opacity-0 hover:opacity-100 transition-opacity duration-500" />
+                      className="w-full h-full object-cover absolute top-0 left-0 opacity-0 hover:opacity-100 transition-opacity duration-500 rounded-xl" />
                   )}
                   {p.isNew && (
                     <span className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 uppercase">
@@ -260,9 +260,33 @@ const handleFilterChange = (type, value) => {
                     </span>
                   )}
                   {p.onSale && (
-                    <span className="absolute top-2 right-2 bg-red-500 text-white text-xs font-bold px-2 py-1 uppercase">
-                      SALE
-                    </span>
+                <span
+  className="
+    absolute
+    top-3
+    right-3
+
+    z-20
+
+    bg-red-500
+    text-white
+
+    text-[12px]
+    font-black
+
+    uppercase
+    tracking-wide
+
+    px-4 py-2
+
+    rounded-full
+
+    shadow-lg
+    shadow-red-500/30
+  "
+>
+  30% OFF
+</span>
                   )}
                     <button
                     onClick={(e) => {
@@ -273,7 +297,7 @@ const handleFilterChange = (type, value) => {
                         : addToWishlist(id);
                     }}
                       aria-label={wishlist.includes(id) ? "Remove from wishlist" : "Add to wishlist"}
-                      className="absolute bottom-2 right-2 p-1 flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
+                      className="absolute bottom-2 right-2  flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
                     >
                       {wishlist.includes(id)? (
                         <Heart className="h-10 w-10 text-black fill-black" />
@@ -338,9 +362,9 @@ const handleFilterChange = (type, value) => {
       ₹ {Number(p.price).toLocaleString()}.00
     </span>
      {/* Discount label */}
-        <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
+        {/* <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
           30% OFF
-        </span>
+        </span> */}
   </div>
   
               

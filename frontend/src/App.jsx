@@ -124,12 +124,17 @@ export default function App() {
       {/* ✅ Global toaster */}
       <Toaster
         position="bottom-center"
+          containerStyle={{
+    bottom: "80px", // move higher from bottom
+  }}
         toastOptions={{
           style: {
             background: "#111",
             color: "#fff",
-            fontSize: "14px",
+            fontSize: "18px",
             borderRadius: "10px",
+            width: "max-content",
+            whiteSpace: "nowrap",
           },
         }}
       />

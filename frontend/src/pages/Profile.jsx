@@ -163,13 +163,17 @@ function formatDate(iso) {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
+ const { add, addBundle } = useCart();
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [sortDir, setSortDir] = useState("desc");
   const [refreshing, setRefreshing] = useState(false);
 
   const [modalOrder, setModalOrder] = useState(null);
+  const [cancelModal, setCancelModal] = useState({
+  open: false,
+  order: null,
+});
   const printRef = useRef(null);
   async function fetchOrders() {
     try {
@@ -228,41 +232,46 @@ function formatDate(iso) {
     setRefreshing(false);
   }
 
-  // Reorder / Cancel placeholders — replace with your endpoints
-  async function handleReorder(orderId) {
-    try {
-      await api.post(`/orders/${orderId}/reorder`);
-      alert("Reorder request sent.");
-    } catch (err) {
-      console.error("reorder failed", err);
-      alert("Reorder failed");
-    }
-  }
-  async function handleCancel(orderId) {
-    if (!confirm("Cancel this order?")) return;
-    try {
-      await api.post(`/orders/${orderId}/cancel`);
-      await fetchOrders();
-    } catch (err) {
-      console.error("cancel failed", err);
-      alert("Cancel failed");
-    }
-  }
 
-  // When user clicks product item in modal: navigate to PDP.
-  // Adjust this function to match your routing (react-router, next/link, etc).
-  function goToPDP(productId, bundleId) {
-    // prefer productId, fall back to bundle route if productId missing
-    if (productId) {
-      // for client-side routing with react-router, replace with navigate(`/product/${productId}`)
-      window.open(`/product/${productId}`, "_blank", "noopener");
-    } else if (bundleId) {
-      window.open(`/bundle/${bundleId}`, "_blank", "noopener");
-    } else {
-      // nothing to navigate to
-      console.warn("No productId or bundleId to navigate to");
-    }
+async function handleCancel(orderId) {
+  try {
+    const { data } = await api.put("/orders/cancel", {
+      orderId,
+    });
+
+    toast.success(
+      data.message || "Order cancelled successfully"
+    );
+
+    await fetchOrders();
+
+    setModalOrder(null);
+  } catch (err) {
+    toast.error(
+      err.response?.data?.error ||
+      "Cancel failed"
+    );
   }
+}
+
+async function handleReorder(order) {
+  try {
+    for (const item of order.items) {
+      if (item.productId) {
+        for (let i = 0; i < item.quantity; i++) {
+          add(item.productId, item.variant);
+        }
+      }
+
+      if (item.bundleId) {
+        addBundle(item.bundleId, item.quantity);
+      }
+    }
+
+  } catch (err) {
+    toast.error(err.message || "Reorder failed");
+  }
+}
 
   const StatusBadge = ({ status }) => {
     const s = (status || "pending").toLowerCase();
@@ -273,6 +282,16 @@ function formatDate(iso) {
       "bg-gray-100 text-gray-800";
     return <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${bg}`}>{status}</span>;
   };
+  const canCancel =
+    modalOrder &&
+    ["pending", "confirmed"].includes(
+      (
+        modalOrder.orderStatus ||
+        modalOrder.status ||
+        ""
+      ).toLowerCase()
+    );
+
 
   if (loading) {
     return (
@@ -292,32 +311,38 @@ function formatDate(iso) {
     <div className="space-y-4">
       {/* Controls */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-        <div className="flex gap-2 items-center">
-          <div className="relative">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search order number, email or item..."
-              className="pl-10 pr-3 py-2 border rounded w-72 focus:outline-none"
-            />
-            <div className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400">
-              <SearchIcon size={14} />
-            </div>
-          </div>
+ <div className="flex flex-wrap items-center gap-3">
+<div className="flex items-center w-72 border-b border-gray-300 px-3 py-2">
+    <SearchIcon size={16} className="text-gray-400 shrink-0" />
 
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="py-2 px-3 border rounded">
-            <option value="all">All statuses</option>
-            <option value="pending">Pending</option>
-            <option value="fulfilled">Fulfilled</option>
-            <option value="completed">Completed</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
+  <input
+    value={query}
+    onChange={(e) => setQuery(e.target.value)}
+    placeholder="Search order number, email or item..."
+    className="ml-2 w-full outline-none border-none bg-transparent"
+  />
+</div>
+  <select
+    value={statusFilter}
+    onChange={(e) => setStatusFilter(e.target.value)}
+    className="h-10 min-w-[160px] rounded-md border border-gray-300 px-3"
+  >
+    <option value="all">All statuses</option>
+    <option value="pending">Pending</option>
+    <option value="fulfilled">Fulfilled</option>
+    <option value="completed">Completed</option>
+    <option value="cancelled">Cancelled</option>
+  </select>
 
-          <select value={sortDir} onChange={(e) => setSortDir(e.target.value)} className="py-2 px-3 border rounded">
-            <option value="desc">Newest first</option>
-            <option value="asc">Oldest first</option>
-          </select>
-        </div>
+  <select
+    value={sortDir}
+    onChange={(e) => setSortDir(e.target.value)}
+    className="h-10 min-w-[140px] rounded-md border border-gray-300 px-3"
+  >
+    <option value="desc">Newest first</option>
+    <option value="asc">Oldest first</option>
+  </select>
+</div>
 
         <div className="flex gap-2 items-center">
           <button onClick={handleRefresh} className="flex items-center gap-2 px-3 py-2 border rounded">
@@ -346,248 +371,402 @@ function formatDate(iso) {
       ? `/bundle/${bundleId}`
       : "#";
 
-    return (
-      <div key={order._id || order.id} className="p-4 border rounded">
-        <div className="flex justify-between items-start gap-4">
+  return (
+  <div
+    key={order._id || order.id}
+    className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md"
+  >
+    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+      
+      {/* LEFT */}
+      <div className="flex flex-1 gap-5">
+        
+        {/* Product Image */}
+        <Link
+          to={pdpUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="h-24 w-24 overflow-hidden rounded-xl border bg-gray-100"
+        >
+          {img ? (
+            <img
+              src={img}
+              alt={firstItem?.title || "Product"}
+              className="h-full w-full object-cover"
+            />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
+              No Image
+            </div>
+          )}
+        </Link>
 
-          {/* LEFT: Thumbnail + Order info */}
-          <div className="flex-1 flex gap-4">
+        {/* Order Details */}
+        <div className="flex flex-1 flex-col justify-between">
+          
+          {/* Header */}
+          <div className="flex flex-wrap items-center gap-3">
+            <button
+              onClick={() => setModalOrder(order)}
+              className="text-lg font-semibold text-gray-900 hover:text-blue-600"
+            >
+              #{order.orderNumber || (order._id || order.id).slice(-8)}
+            </button>
 
-            {/* THUMBNAIL WITH LINK */}
+            <StatusBadge
+              status={order.orderStatus || order.status || "pending"}
+            />
+
+            <span className="text-sm text-gray-500">
+              {formatDate(order.createdAt)}
+            </span>
+          </div>
+
+          {/* Product Name */}
+          {firstItem?.title && (
             <Link
               to={pdpUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="w-16 h-16 flex-shrink-0 rounded overflow-hidden bg-gray-100"
+              className="mt-2 text-base font-medium text-gray-800 hover:text-blue-600 hover:underline"
             >
-              {img ? (
-                <img
-                  src={img}
-                  alt={firstItem?.title || "Product"}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">
-                  No image
-                </div>
-              )}
+              {firstItem.title}
             </Link>
+          )}
 
-            {/* ORDER INFO */}
+          {/* Meta */}
+          <div className="mt-3 flex flex-wrap gap-6 text-sm text-gray-600">
             <div>
-              <div className="flex items-center gap-3">
-                <div
-                  className="font-medium cursor-pointer"
-                  onClick={() => setModalOrder(order)}
-                >
-                  #{order.orderNumber || (order._id || order.id).slice(-8)}
-                </div>
-
-                <div className="text-sm text-gray-500">
-                  {formatDate(order.createdAt)}
-                </div>
-
-                <StatusBadge
-                  status={order.orderStatus || order.status || "pending"}
-                />
-              </div>
-
-              {/* CLICKABLE TITLE TO PDP */}
-              {firstItem?.title && (
-                <Link
-                  to={pdpUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-600 text-sm hover:underline"
-                >
-                  {firstItem.title}
-                </Link>
-              )}
-
-              <div className="text-sm text-gray-600">
-                Items: {order.itemCount ?? (order.items || []).length}
-              </div>
-
-            
+              <span className="font-medium text-gray-900">Items:</span>{" "}
+              {order.itemCount ?? (order.items || []).length}
             </div>
-          </div>
 
-          {/* RIGHT SIDE */}
-          <div className="text-right flex-shrink-0">
-            <div className="text-sm text-gray-500">Total</div>
-            <div className="text-lg font-semibold">
-              {formatCurrency(order.total)}
-            </div>
-            <div className="mt-2 flex gap-2 justify-end">
-              <button
-                onClick={() => setModalOrder(order)}
-                className="px-2 py-1 border rounded text-xs"
-              >
-                View
-              </button>
+         
+
+            <div>
+              <span className="font-medium text-gray-900">Payment:</span>{" "}
+              {order.paymentStatus || "Paid"}
             </div>
           </div>
         </div>
       </div>
-    );
+
+      {/* RIGHT */}
+      <div className="min-w-[180px] rounded-xl bg-gray-50 p-4 text-right">
+        <div className="text-xs uppercase tracking-wide text-gray-500">
+          Order Total
+        </div>
+
+        <div className="mt-1 text-2xl font-bold text-gray-900">
+          {formatCurrency(order.total)}
+        </div>
+
+        <button
+          onClick={() => setModalOrder(order)}
+          className="mt-4 w-full rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
+        >
+          View Order
+        </button>
+      </div>
+    </div>
+  </div>
+);
   })}
 </div>
 
 
 
       {/* modal */}
-  {modalOrder && (
+{modalOrder && (
   <div
-    className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+    className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4"
     role="dialog"
     aria-modal="true"
   >
-    <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full p-5 overflow-auto max-h-[90vh]" id="print-section" ref={printRef}>
-      {/* header */}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h3 className="text-xl font-semibold">
-              Order {modalOrder.orderNumber || (modalOrder._id || modalOrder.id)}
-            </h3>
-            <span className="text-xs text-gray-500">{formatDate(modalOrder.createdAt)}</span>
-            <StatusBadge status={modalOrder.orderStatus || modalOrder.status || "pending"} />
-          </div>
-          <div className="text-sm text-gray-600 mt-1">Email: {modalOrder.email || "—"}</div>
-        </div>
+    <div
+      id="print-section"
+      ref={printRef}
+      className="w-full max-w-6xl max-h-[92vh] overflow-y-auto rounded-3xl border border-gray-200 bg-white shadow-2xl"
+    >
+      {/* Header */}
+      <div className="border-b border-gray-200 px-8 py-6">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <div className="flex flex-wrap items-center gap-3">
+              <h3 className="text-2xl font-bold text-gray-900">
+                Order {modalOrder.orderNumber || (modalOrder._id || modalOrder.id)}
+              </h3>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => window.print()}
-            className="px-3 py-1 border rounded text-sm bg-gray-50 hover:bg-gray-100"
-            title="Print order"
-          >
-            Print
-          </button>
-          <button
-            onClick={() => {
-              // close
-              setModalOrder(null);
-            }}
-            aria-label="Close"
-            className="px-3 py-1 border rounded text-sm bg-white hover:bg-gray-50"
-          >
-            Close
-          </button>
+              <StatusBadge
+                status={modalOrder.orderStatus || modalOrder.status || "pending"}
+              />
+            </div>
+
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-gray-500">
+              <span>{formatDate(modalOrder.createdAt)}</span>
+              <span>•</span>
+              <span>{modalOrder.email || "—"}</span>
+            </div>
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => window.print()}
+              className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-medium transition hover:bg-gray-50"
+            >
+              Print
+            </button>
+
+            <button
+              onClick={() => setModalOrder(null)}
+              className="rounded-xl bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
-        {/* Left: order summary */}
-        <div className="md:col-span-1 border rounded p-3 bg-gray-50">
-          <div className="text-sm text-gray-700 font-medium mb-2">Summary</div>
+      <div className="grid gap-6 p-8 lg:grid-cols-3">
+        {/* LEFT SIDEBAR */}
+        <div className="space-y-6">
+          {/* Summary */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-4 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Summary
+            </div>
 
-          <div className="text-sm text-gray-600">
-            <div className="flex justify-between"><span>Subtotal</span><span>{formatCurrency(modalOrder.subtotal ?? modalOrder.total ?? modalOrder.amount ?? 0)}</span></div>
-            <div className="flex justify-between mt-1"><span>Shipping</span><span>{modalOrder.shippingFee ? formatCurrency(modalOrder.shippingFee) : "—"}</span></div>
-            {modalOrder.couponDiscount ? <div className="flex justify-between mt-1"><span>Discount</span><span>-{formatCurrency(modalOrder.couponDiscount)}</span></div> : null}
-            <div className="flex justify-between mt-2 font-semibold"><span>Total</span><span>{formatCurrency(modalOrder.total)}</span></div>
+            <div className="space-y-3 text-sm">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Subtotal</span>
+                <span className="font-medium">
+                  {formatCurrency(
+                    modalOrder.subtotal ??
+                    modalOrder.total ??
+                    modalOrder.amount ??
+                    0
+                  )}
+                </span>
+              </div>
+
+              <div className="flex justify-between">
+                <span className="text-gray-500">Shipping</span>
+                <span>
+                  {modalOrder.shippingFee
+                    ? formatCurrency(modalOrder.shippingFee)
+                    : "—"}
+                </span>
+              </div>
+
+              {modalOrder.couponDiscount ? (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Discount</span>
+                  <span>
+                    -{formatCurrency(modalOrder.couponDiscount)}
+                  </span>
+                </div>
+              ) : null}
+
+              <div className="flex justify-between border-t pt-4 text-lg font-bold">
+                <span>Total</span>
+                <span>{formatCurrency(modalOrder.total)}</span>
+              </div>
+            </div>
           </div>
 
-          <hr className="my-3" />
+          {/* Payment */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Payment
+            </div>
 
-          <div className="text-sm text-gray-700 font-medium">Payment & shipping</div>
-          <div className="text-sm text-gray-600 mt-1">Method: {modalOrder.paymentMethod ? modalOrder.paymentMethod.toUpperCase() : "—"}</div>
-          <div className="text-sm text-gray-600 mt-2">
-            <div className="font-medium">Shipping address</div>
-            <div className="text-sm text-gray-600">
-              {modalOrder.shippingAddress?.firstName} {modalOrder.shippingAddress?.lastName}<br />
-              {modalOrder.shippingAddress?.address}{modalOrder.shippingAddress?.apartment ? `, ${modalOrder.shippingAddress.apartment}` : ""}<br />
-              {modalOrder.shippingAddress?.city}, {modalOrder.shippingAddress?.state} {modalOrder.shippingAddress?.zip}<br />
-              {modalOrder.shippingAddress?.country}<br />
+            <div className="font-medium text-gray-900">
+              {modalOrder.paymentMethod
+                ? modalOrder.paymentMethod.toUpperCase()
+                : "—"}
+            </div>
+          </div>
+
+          {/* Shipping Address */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500">
+              Shipping Address
+            </div>
+
+            <div className="text-sm leading-6 text-gray-600">
+              {modalOrder.shippingAddress?.firstName}{" "}
+              {modalOrder.shippingAddress?.lastName}
+              <br />
+              {modalOrder.shippingAddress?.address}
+              {modalOrder.shippingAddress?.apartment
+                ? `, ${modalOrder.shippingAddress.apartment}`
+                : ""}
+              <br />
+              {modalOrder.shippingAddress?.city},{" "}
+              {modalOrder.shippingAddress?.state}{" "}
+              {modalOrder.shippingAddress?.zip}
+              <br />
+              {modalOrder.shippingAddress?.country}
+              <br />
               Phone: {modalOrder.shippingAddress?.phone}
             </div>
           </div>
         </div>
 
-        {/* Right: items + timeline */}
-        <div className="md:col-span-2 space-y-4">
-          {/* Status timeline */}
-          <div className="border rounded p-3">
-            <div className="text-sm font-medium mb-2">Order progress</div>
-            {Array.isArray(modalOrder.statusHistory) && modalOrder.statusHistory.length ? (
-              <ol className="space-y-2">
+        {/* RIGHT */}
+        <div className="space-y-6 lg:col-span-2">
+          {/* Timeline */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-4 text-lg font-semibold">
+              Order Progress
+            </div>
+
+            {Array.isArray(modalOrder.statusHistory) &&
+            modalOrder.statusHistory.length ? (
+              <ol className="space-y-4">
                 {modalOrder.statusHistory.map((s, idx) => (
-                  <li key={s._id || s.id || idx} className="flex items-start gap-3">
-                    <div className="w-3 h-3 rounded-full mt-1 bg-blue-600" />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium">{s.status}</div>
-                      <div className="text-xs text-gray-500">{s.updatedAt ? formatDate(s.updatedAt) : "—"}</div>
+                  <li
+                    key={s._id || s.id || idx}
+                    className="flex gap-4"
+                  >
+                    <div className="mt-2 h-3 w-3 rounded-full bg-black" />
+
+                    <div>
+                      <div className="font-medium">
+                        {s.status}
+                      </div>
+
+                      <div className="text-xs text-gray-500">
+                        {s.updatedAt
+                          ? formatDate(s.updatedAt)
+                          : "—"}
+                      </div>
                     </div>
                   </li>
                 ))}
               </ol>
             ) : (
-              <div className="text-sm text-gray-500">No status updates yet</div>
+              <div className="text-sm text-gray-500">
+                No status updates yet
+              </div>
             )}
           </div>
 
-          {/* Items grid */}
-          <div className="border rounded p-3">
-            <div className="text-sm font-medium mb-3">Items ({modalOrder.itemCount ?? (modalOrder.items || []).length})</div>
+          {/* Items */}
+          <div className="rounded-2xl border border-gray-200 bg-white p-5">
+            <div className="mb-5 text-lg font-semibold">
+              Items (
+              {modalOrder.itemCount ??
+                (modalOrder.items || []).length}
+              )
+            </div>
 
-            <ul className="space-y-3">
-              {Array.isArray(modalOrder.items) && modalOrder.items.length ? (
+            <ul className="space-y-4">
+              {Array.isArray(modalOrder.items) &&
+              modalOrder.items.length ? (
                 modalOrder.items.map((it) => {
-                  const img = it.mainImage || it.image || "";
-                  // small badge for bundle vs product
-                  const badge = it.bundleId ? "Bundle" : (it.productId ? "Product" : "Item");
+                  const img =
+                    it.mainImage || it.image || "";
+
+                  const badge = it.bundleId
+                    ? "Bundle"
+                    : it.productId
+                    ? "Product"
+                    : "Item";
+
                   return (
-                    <li key={it._id || it.id || `${it.productId}-${it.variant || ""}`} className="flex items-center gap-3 p-2 rounded hover:bg-gray-50">
-                      <div className="w-16 h-16 flex-shrink-0 rounded overflow-hidden bg-gray-100">
-                        {img ? <img src={img} alt={it.title} className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-gray-400 text-xs">No image</div>}
+                    <li
+                      key={
+                        it._id ||
+                        it.id ||
+                        `${it.productId}-${it.variant || ""}`
+                      }
+                      className="flex gap-4 rounded-2xl border border-gray-200 p-4 transition hover:bg-gray-50"
+                    >
+                      <div className="h-20 w-20 overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
+                        {img ? (
+                          <img
+                            src={img}
+                            alt={it.title}
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-xs text-gray-400">
+                            No image
+                          </div>
+                        )}
                       </div>
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="font-medium truncate">{it.title || "Item"}</div>
-                          <div className="text-sm text-gray-600">{formatCurrency(it.price)}</div>
+                      <div className="flex-1">
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="font-semibold text-gray-900">
+                            {it.title || "Item"}
+                          </div>
+
+                          <div className="text-lg font-semibold">
+                            {formatCurrency(it.price)}
+                          </div>
                         </div>
-                        <div className="text-xs text-gray-500 mt-1">Variant: {it.variant ?? it.size ?? "—"}</div>
-                        <div className="text-xs text-gray-500 mt-1">Qty: {it.quantity} • {badge}</div>
-                        {it.sku && <div className="text-xs text-gray-400 mt-1">SKU: {it.sku}</div>}
+
+                        <div className="mt-2 flex flex-wrap gap-4 text-xs text-gray-500">
+                          <span>
+                            Variant: {it.variant ?? it.size ?? "—"}
+                          </span>
+                          <span>Qty: {it.quantity}</span>
+                          <span>{badge}</span>
+                        </div>
+
+                        {it.sku && (
+                          <div className="mt-2 text-xs text-gray-400">
+                            SKU: {it.sku}
+                          </div>
+                        )}
                       </div>
                     </li>
                   );
                 })
               ) : (
-                <div className="text-sm text-gray-500">No items</div>
+                <div className="text-sm text-gray-500">
+                  No items
+                </div>
               )}
             </ul>
           </div>
 
           {/* Actions */}
-          <div className="flex flex-wrap gap-2">
-            <button
-              onClick={() => handleReorder(modalOrder._id || modalOrder.id)}
-              className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-            >
-              Reorder
-            </button>
+          <div className="flex flex-wrap gap-3">
+      
 
-            <button
-              onClick={() => {
-                // disable cancel if already not pending
-                const s = (modalOrder.orderStatus || modalOrder.status || "").toLowerCase();
-                if (!["pending", "initiated"].includes(s)) {
-                  alert("This order cannot be canceled.");
-                  return;
+              <button
+                onClick={() => handleReorder(modalOrder)}
+                className="rounded-xl bg-black px-5 py-2.5 font-medium text-white hover:bg-gray-800"
+              >
+                Reorder
+              </button>
+
+              <button
+                disabled={!canCancel}
+                onClick={() =>
+                  setCancelModal({
+                    open: true,
+                    order: modalOrder,
+                  })
                 }
-                handleCancel(modalOrder._id || modalOrder.id);
-              }}
-              className="px-4 py-2 border rounded text-red-600 hover:bg-red-50"
-            >
-              Cancel Order
-            </button>
+                className={`rounded-xl px-5 py-2.5 font-medium transition ${
+                  canCancel
+                    ? "border border-gray-300 hover:bg-gray-50"
+                    : "cursor-not-allowed border border-gray-200 bg-gray-100 text-gray-400"
+                }`}
+              >
+                {canCancel ? "Cancel Order" : "Order Cancelled"}
+              </button>
 
             <Link
-              to={`mailto:support@yourdomain.com?subject=Order%20${encodeURIComponent(modalOrder.orderNumber || modalOrder._id)}&body=Hi%2C%0A%0AI%20need%20help%20with%20order%20${encodeURIComponent(modalOrder.orderNumber || modalOrder._id)}.%0A%0AThanks`}
-              className="px-4 py-2 border rounded text-sm text-gray-700 hover:bg-gray-50"
+              to={`mailto:support@yourdomain.com?subject=Order%20${encodeURIComponent(
+                modalOrder.orderNumber ||
+                modalOrder._id
+              )}`}
+              className="rounded-xl border border-gray-300 px-5 py-2.5 text-sm font-medium hover:bg-gray-50"
             >
               Contact Support
             </Link>
@@ -598,6 +777,141 @@ function formatDate(iso) {
   </div>
 )}
 
+{/* order CANCEL MODAL */}
+{cancelModal.open && (
+  <div className="fixed inset-0 z-[999] flex items-center justify-center p-4">
+
+    {/* BACKDROP */}
+    <div
+      className="absolute inset-0 bg-black/30 backdrop-blur-[2px]"
+      onClick={() =>
+        setCancelModal({
+          open: false,
+          order: null,
+        })
+      }
+    />
+
+    {/* MODAL */}
+    <div className="relative w-full max-w-md rounded-[30px] bg-white p-7 shadow-[0_20px_60px_rgba(0,0,0,0.12)]">
+
+      {/* CLOSE */}
+      <button
+        onClick={() =>
+          setCancelModal({
+            open: false,
+            order: null,
+          })
+        }
+        className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-full hover:bg-gray-100 transition"
+      >
+        ✕
+      </button>
+
+      {/* HEADER */}
+      <div className="text-center">
+        <p className="text-xs uppercase tracking-[0.25em] text-gray-400">
+          Order Management
+        </p>
+
+        <h2 className="mt-3 text-[30px] font-semibold tracking-tight text-black">
+          Cancel Order
+        </h2>
+      </div>
+
+      {/* ORDER CARD */}
+<div className="mt-6 rounded-3xl border border-gray-200 p-5">
+  <div className="flex gap-4">
+
+    {/* IMAGE */}
+    <img
+      src={
+        cancelModal.order?.items?.[0]?.mainImage ||
+        cancelModal.order?.items?.[0]?.image ||
+        "/placeholder.png"
+      }
+      alt={cancelModal.order?.items?.[0]?.title || "Product"}
+      className="h-24 w-20 flex-shrink-0 rounded-xl object-cover bg-gray-100"
+    />
+
+    {/* CONTENT */}
+    <div className="flex-1">
+      <p className="text-xs uppercase tracking-[0.2em] text-gray-400">
+        Order Number
+      </p>
+
+      <p className="mt-1 text-lg font-semibold text-black">
+        #{cancelModal.order?.orderNumber}
+      </p>
+
+      <p className="mt-2 line-clamp-2 text-sm font-medium text-black">
+        {cancelModal.order?.items?.[0]?.title}
+      </p>
+
+      <div className="mt-3 flex items-center justify-between">
+        <span className="text-sm text-gray-500">
+          Total
+        </span>
+
+        <span className="font-semibold text-black">
+          {formatCurrency(cancelModal.order?.total)}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div className="mt-5 rounded-2xl bg-gray-50 p-4 text-sm text-gray-500">
+    Are you sure you want to cancel this order?
+    <br />
+    This action cannot be undone.
+  </div>
+</div>
+
+      {/* BUTTONS */}
+      <div className="mt-8 grid grid-cols-2 gap-3">
+
+        {/* KEEP ORDER */}
+        <button
+          onClick={() =>
+            setCancelModal({
+              open: false,
+              order: null,
+            })
+          }
+          className="h-14 rounded-2xl border border-gray-300 bg-white text-sm font-semibold tracking-wide text-black transition hover:bg-gray-100"
+        >
+          KEEP ORDER
+        </button>
+
+        {/* CANCEL ORDER */}
+        <button
+          onClick={async () => {
+            try {
+              await handleCancel(
+                cancelModal.order._id ||
+                cancelModal.order.id
+              );
+
+              setCancelModal({
+                open: false,
+                order: null,
+              });
+
+              toast.success(
+                "Order cancelled successfully"
+              );
+            } catch (err) {
+              toast.error("Cancel failed");
+            }
+          }}
+          className="h-14 rounded-2xl bg-black text-sm font-semibold tracking-wide text-white transition hover:opacity-90"
+        >
+          CANCEL ORDER
+        </button>
+      </div>
+    </div>
+  </div>
+)}
     </div>
   );
 }
@@ -735,7 +1049,9 @@ return (
 
               {/* Info */}
               <div className="flex-1">
-                <div className="font-medium">{it.title}</div>
+                <Link to={`/product/${it._id}`}>
+                  <div className="font-medium">{it.title}</div>
+                </Link>
                 <div className="text-sm text-gray-500">
                   ₹{Number(it.price).toLocaleString()}
                 </div>

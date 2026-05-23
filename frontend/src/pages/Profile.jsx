@@ -60,81 +60,185 @@ if (authStatus === "unauthenticated") {
     { id: "account", label: "Account Settings", icon: <User size={18} /> },
   ];
 
-  return (
-    <div className=" mx-auto p-6 flex flex-col md:flex-row gap-6 bg-gray-50 dark:bg-slate-900 min-h-screen">
-      <div className="md:w-1/3 bg-white dark:bg-slate-800 rounded-lg shadow divide-y border border-gray-200 dark:border-slate-700">
-        <div className="p-4 flex items-center gap-4">
-          <div className="relative">
-            <img
-              src={user?.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}`}
-              alt="avatar"
-              className="w-12 h-12 rounded-full object-cover border"
-            />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-gray-900 dark:text-slate-100">{user?.name || "Unnamed"}</div>
-            <div className="text-xs text-gray-500 dark:text-slate-400 flex items-center gap-2">
-              <Mail size={12} /> <span>{user?.email}</span>
+return (
+  <div className="min-h-screen bg-neutral-50">
+    <div className="mx-auto max-w-7xl px-4 py-6 sm:px-6">
+
+      <div className="space-y-6">
+
+        {/* HERO CARD */}
+        <div className="overflow-hidden rounded-[32px] border border-neutral-200 bg-white shadow-sm">
+
+          {/* Top */}
+          <div className="p-6 sm:p-8">
+            <div className="flex flex-col items-center text-center gap-5 sm:flex-row sm:items-center sm:text-left">
+
+              <img
+                src={
+                  user?.avatar ||
+                  `https://ui-avatars.com/api/?name=${encodeURIComponent(
+                    user?.name || "User"
+                  )}`
+                }
+                alt="avatar"
+                className="h-24 w-24 rounded-full object-cover ring-4 ring-neutral-100"
+              />
+
+             <div className="min-w-0 flex-1 text-center sm:text-left">
+                <h1 className="truncate text-3xl font-bold text-neutral-900">
+                  {user?.name}
+                </h1>
+
+                <p className="mt-1 truncate text-neutral-500">
+                  {user?.email}
+                </p>
+              </div>
+
+         <button
+  onClick={() => setShowLogoutConfirm(true)}
+  className="
+    w-full
+    sm:w-auto
+    rounded-2xl
+    border
+    border-red-200
+    px-5
+    py-3
+    font-medium
+    text-red-600
+    transition
+    hover:bg-red-50
+  "
+>
+  Sign Out
+</button>
             </div>
           </div>
+
+          {/* Tabs */}
+          <div className="border-t border-neutral-200 px-4 py-4">
+
+            <div
+              className="
+                flex
+                gap-3
+                overflow-x-auto
+                pb-1
+              "
+            >
+              {tabs.map((tab) => (
+                <button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`
+                    flex-shrink-0
+                    rounded-2xl
+                    px-5
+                    py-3
+                    text-sm
+                    font-medium
+                    transition-all
+                    ${
+                      activeTab === tab.id
+                        ? "bg-black text-white shadow-sm"
+                        : "border border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
+                    }
+                  `}
+                >
+                  {tab.label}
+                </button>
+              ))}
+            </div>
+
+          </div>
         </div>
 
-        <div className="flex flex-col">
-          {tabs.map((tab) => (
-            <TabButton
-              key={tab.id}
-              tab={tab}
-              active={activeTab === tab.id}
-              onClick={() => setActiveTab(tab.id)}
-            />
-          ))}
+        {/* CONTENT */}
+        <div
+          className="
+            rounded-[32px]
+            border
+            border-neutral-200
+            bg-white
+            p-4
+            sm:p-8
+            shadow-sm
+          "
+        >
+          {activeTab === "orders" && <OrdersContent />}
+
+          {activeTab === "wishlist" && (
+            <WishlistContent user={user} />
+          )}
+
+          {activeTab === "addresses" && (
+            <AddressesContent user={user} />
+          )}
+
+          {activeTab === "account" && (
+            <AccountContent user={user} />
+          )}
         </div>
 
-        <div className="p-4">
-          <button
-            onClick={() => setShowLogoutConfirm(true)}
-            className="flex items-center gap-3 w-full p-3 text-left text-red-600 hover:bg-red-50 rounded-md transition"
-          >
-            <LogOut size={16} />
-            <span>Sign Out</span>
-          </button>
-        </div>
       </div>
 
-      <div className="md:w-2/3 bg-white dark:bg-slate-800 rounded-lg shadow p-6 min-h-[480px] border border-gray-200 dark:border-slate-700">
-        {activeTab === "orders" && <OrdersContent />}
-        {activeTab === "wishlist" && <WishlistContent user={user} />}
-        {activeTab === "addresses" && <AddressesContent user={user} />}
-        {activeTab === "account" && <AccountContent user={user}  />}
-      </div>
-
+      {/* LOGOUT MODAL */}
       {showLogoutConfirm && (
         <Modal onClose={() => setShowLogoutConfirm(false)}>
-          <div className="p-4">
-            <h3 className="text-lg font-semibold mb-2">Confirm sign out</h3>
-            <p className="text-sm text-gray-600 dark:text-slate-300">Are you sure you want to sign out?</p>
-            <div className="mt-4 flex gap-2 justify-end">
+          <div className="p-6">
+
+            <h3 className="text-xl font-semibold text-black">
+              Confirm Sign Out
+            </h3>
+
+            <p className="mt-2 text-sm text-neutral-500">
+              Are you sure you want to sign out of your account?
+            </p>
+
+            <div className="mt-6 flex justify-end gap-3">
+
               <button
                 onClick={() => setShowLogoutConfirm(false)}
-                className="px-4 py-2 rounded bg-gray-100 dark:bg-slate-700"
+                className="
+                  rounded-xl
+                  border
+                  border-neutral-300
+                  px-4
+                  py-2
+                  text-sm
+                  font-medium
+                  hover:bg-neutral-50
+                "
               >
                 Cancel
               </button>
+
               <button
                 onClick={() => {
                   setShowLogoutConfirm(false);
                   logout();
                 }}
-                className="px-4 py-2 rounded bg-red-600 text-white"
+                className="
+                  rounded-xl
+                  bg-red-600
+                  px-4
+                  py-2
+                  text-sm
+                  font-medium
+                  text-white
+                  hover:bg-red-700
+                "
               >
                 Sign Out
               </button>
+
             </div>
           </div>
         </Modal>
       )}
     </div>
-  );
+  </div>
+);
 }
 
 /* ---------------------
@@ -326,167 +430,371 @@ async function handleReorder(order) {
   return (
     <div className="space-y-4">
       {/* Controls */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
- <div className="flex flex-wrap items-center gap-3">
-<div className="flex items-center w-72 border-b border-gray-300 px-3 py-2">
-    <SearchIcon size={16} className="text-gray-400 shrink-0" />
-
-  <input
-    value={query}
-    onChange={(e) => setQuery(e.target.value)}
-    placeholder="Search order number, email or item..."
-    className="ml-2 w-full outline-none border-none bg-transparent"
-  />
-</div>
-  <select
-    value={statusFilter}
-    onChange={(e) => setStatusFilter(e.target.value)}
-    className="h-10 min-w-[160px] rounded-md border border-gray-300 px-3"
+{/* Controls */}
+<div
+  className="
+    flex
+    flex-col
+    lg:flex-row
+    lg:items-center
+    lg:justify-between
+    gap-4
+  "
+>
+  {/* Left Side */}
+  <div
+    className="
+      flex
+      flex-col
+      md:flex-row
+      md:items-center
+      gap-3
+      flex-1
+    "
   >
-    <option value="all">All statuses</option>
-    <option value="pending">Pending</option>
-    <option value="fulfilled">Fulfilled</option>
-    <option value="completed">Completed</option>
-    <option value="cancelled">Cancelled</option>
-  </select>
+    {/* Search */}
+    <div
+      className="
+        flex
+        items-center
+        h-12
+        w-full
+        md:w-80
+        rounded-2xl
+        border
+        border-gray-200
+        bg-white
+        px-4
+      "
+    >
+      <SearchIcon
+        size={16}
+        className="text-gray-400 shrink-0"
+      />
 
-  <select
-    value={sortDir}
-    onChange={(e) => setSortDir(e.target.value)}
-    className="h-10 min-w-[140px] rounded-md border border-gray-300 px-3"
-  >
-    <option value="desc">Newest first</option>
-    <option value="asc">Oldest first</option>
-  </select>
+      <input
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        placeholder="Search order number, email or item..."
+        className="
+          ml-2
+          w-full
+          border-none
+          bg-transparent
+          outline-none
+          text-sm
+        "
+      />
+    </div>
+
+    {/* Status Filter */}
+    <select
+      value={statusFilter}
+      onChange={(e) => setStatusFilter(e.target.value)}
+      className="
+        h-12
+        w-full
+        md:w-auto
+        min-w-[180px]
+        rounded-2xl
+        border
+        border-gray-200
+        bg-white
+        px-4
+        text-sm
+      "
+    >
+      <option value="all">All statuses</option>
+      <option value="pending">Pending</option>
+      <option value="fulfilled">Fulfilled</option>
+      <option value="completed">Completed</option>
+      <option value="cancelled">Cancelled</option>
+    </select>
+
+    {/* Sort */}
+    <select
+      value={sortDir}
+      onChange={(e) => setSortDir(e.target.value)}
+      className="
+        h-12
+        w-full
+        md:w-auto
+        min-w-[170px]
+        rounded-2xl
+        border
+        border-gray-200
+        bg-white
+        px-4
+        text-sm
+      "
+    >
+      <option value="desc">Newest first</option>
+      <option value="asc">Oldest first</option>
+    </select>
+  </div>
+
+  {/* Right Side */}
+  <div className="flex items-center">
+    <button
+      onClick={handleRefresh}
+      className="
+        h-12
+        rounded-2xl
+        border
+        border-gray-200
+        bg-white
+        px-5
+        flex
+        items-center
+        justify-center
+        gap-2
+        whitespace-nowrap
+        transition
+        hover:bg-gray-50
+      "
+    >
+      <RefreshCcw
+        size={16}
+        className={refreshing ? "animate-spin" : ""}
+      />
+
+      {refreshing ? "Refreshing..." : "Refresh"}
+    </button>
+  </div>
 </div>
-
-        <div className="flex gap-2 items-center">
-          <button onClick={handleRefresh} className="flex items-center gap-2 px-3 py-2 border rounded">
-            <RefreshCcw size={16} />
-            {refreshing ? "Refreshing..." : "Refresh"}
-          </button>
-        </div>
-      </div>
-
       {error && <div className="p-3 bg-red-50 text-red-800 border rounded">Error: {error}</div>}
 
       {!filtered.length && <div className="p-6 border rounded text-center text-gray-500">No orders found.</div>}
 
-<div className="space-y-4">
+<div className="space-y-5">
   {filtered.map((order) => {
-    const firstItem = Array.isArray(order.items) && order.items.length ? order.items[0] : null;
+    const firstItem =
+      Array.isArray(order.items) && order.items.length
+        ? order.items[0]
+        : null;
 
-    const img = firstItem?.mainImage || firstItem?.image || "";
-    const productId = firstItem?.productId || null;
-    const bundleId = firstItem?.bundleId || null;
+    const img =
+      firstItem?.mainImage ||
+      firstItem?.image ||
+      "";
 
-    // PDP URL
+    const productId =
+      firstItem?.productId || null;
+
+    const bundleId =
+      firstItem?.bundleId || null;
+
     const pdpUrl = productId
       ? `/product/${productId}`
       : bundleId
       ? `/bundle/${bundleId}`
       : "#";
 
-  return (
-  <div
-    key={order._id || order.id}
-    className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:shadow-md"
-  >
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-      
-      {/* LEFT */}
-      <div className="flex flex-1 gap-5">
-        
-        {/* Product Image */}
-        <Link
-          to={pdpUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="h-24 w-24 overflow-hidden rounded-xl border bg-gray-100"
-        >
-          {img ? (
-            <img
-              src={img}
-              alt={firstItem?.title || "Product"}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <div className="flex h-full w-full items-center justify-center text-xs text-gray-400">
-              No Image
-            </div>
-          )}
-        </Link>
+    return (
+      <div
+        key={order._id || order.id}
+        className="
+          group
+          overflow-hidden
+          rounded-[30px]
+          border
+          border-neutral-200
+          bg-white
+          p-5
+          transition-all
+          duration-300
+          hover:border-neutral-300
+          hover:shadow-xl
+        "
+      >
+        <div className="grid gap-6 lg:grid-cols-[1fr_240px]">
 
-        {/* Order Details */}
-        <div className="flex flex-1 flex-col justify-between">
-          
-          {/* Header */}
-          <div className="flex flex-wrap items-center gap-3">
-            <button
-              onClick={() => setModalOrder(order)}
-              className="text-lg font-semibold text-gray-900 hover:text-blue-600"
-            >
-              #{order.orderNumber || (order._id || order.id).slice(-8)}
-            </button>
+          {/* LEFT SIDE */}
+          <div className="flex flex-col sm:flex-row gap-5">
 
-            <StatusBadge
-              status={order.orderStatus || order.status || "pending"}
-            />
-
-            <span className="text-sm text-gray-500">
-              {formatDate(order.createdAt)}
-            </span>
-          </div>
-
-          {/* Product Name */}
-          {firstItem?.title && (
+            {/* IMAGE */}
             <Link
               to={pdpUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="mt-2 text-base font-medium text-gray-800 hover:text-blue-600 hover:underline"
+              className="
+                mx-auto
+                sm:mx-0
+                h-28
+                w-28
+                overflow-hidden
+                rounded-2xl
+                border
+                border-neutral-200
+                bg-neutral-100
+                flex-shrink-0
+              "
             >
-              {firstItem.title}
+              {img ? (
+                <img
+                  src={img}
+                  alt={firstItem?.title || "Product"}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center text-xs text-neutral-400">
+                  No Image
+                </div>
+              )}
             </Link>
-          )}
 
-          {/* Meta */}
-          <div className="mt-3 flex flex-wrap gap-6 text-sm text-gray-600">
-            <div>
-              <span className="font-medium text-gray-900">Items:</span>{" "}
-              {order.itemCount ?? (order.items || []).length}
-            </div>
+            {/* DETAILS */}
+            <div className="flex flex-1 flex-col justify-center">
 
-         
+              <div
+                className="
+                  flex
+                  flex-wrap
+                  items-center
+                  justify-center
+                  sm:justify-start
+                  gap-3
+                "
+              >
+                <button
+                  onClick={() => setModalOrder(order)}
+                  className="
+                    text-xl
+                    font-bold
+                    text-neutral-900
+                    hover:text-blue-600
+                  "
+                >
+                  #
+                  {order.orderNumber ||
+                    (order._id || order.id).slice(-8)}
+                </button>
 
-            <div>
-              <span className="font-medium text-gray-900">Payment:</span>{" "}
-              {order.paymentStatus || "Paid"}
+                <StatusBadge
+                  status={
+                    order.orderStatus ||
+                    order.status ||
+                    "pending"
+                  }
+                />
+              </div>
+
+              <div
+                className="
+                  mt-2
+                  text-center
+                  sm:text-left
+                  text-sm
+                  text-neutral-500
+                "
+              >
+                {formatDate(order.createdAt)}
+              </div>
+
+              {firstItem?.title && (
+                <Link
+                  to={pdpUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="
+                    mt-3
+                    text-center
+                    sm:text-left
+                    text-lg
+                    font-medium
+                    text-neutral-900
+                    hover:text-blue-600
+                  "
+                >
+                  {firstItem.title}
+                </Link>
+              )}
+
+              <div
+                className="
+                  mt-4
+                  flex
+                  flex-wrap
+                  justify-center
+                  sm:justify-start
+                  gap-5
+                  text-sm
+                "
+              >
+                <div>
+                  <span className="font-semibold">
+                    Items:
+                  </span>{" "}
+                  {order.itemCount ??
+                    (order.items || []).length}
+                </div>
+
+                <div>
+                  <span className="font-semibold">
+                    Payment:
+                  </span>{" "}
+                  {order.paymentStatus || "Paid"}
+                </div>
+              </div>
             </div>
           </div>
+
+          {/* RIGHT SIDE */}
+          <div
+            className="
+              flex
+              flex-col
+              justify-center
+              rounded-3xl
+              bg-neutral-100
+              p-5
+              text-center
+              lg:text-right
+            "
+          >
+            <div
+              className="
+                text-xs
+                uppercase
+                tracking-widest
+                text-neutral-500
+              "
+            >
+              Order Total
+            </div>
+
+            <div
+              className="
+                mt-2
+                text-4xl
+                font-bold
+                text-black
+              "
+            >
+              {formatCurrency(order.total)}
+            </div>
+
+            <button
+              onClick={() => setModalOrder(order)}
+              className="
+                mt-5
+                h-12
+                w-full
+                rounded-xl
+                bg-black
+                font-medium
+                text-white
+                transition
+                hover:bg-neutral-800
+              "
+            >
+              View Order
+            </button>
+          </div>
+
         </div>
       </div>
-
-      {/* RIGHT */}
-      <div className="min-w-[180px] rounded-xl bg-gray-50 p-4 text-right">
-        <div className="text-xs uppercase tracking-wide text-gray-500">
-          Order Total
-        </div>
-
-        <div className="mt-1 text-2xl font-bold text-gray-900">
-          {formatCurrency(order.total)}
-        </div>
-
-        <button
-          onClick={() => setModalOrder(order)}
-          className="mt-4 w-full rounded-lg bg-black px-4 py-2 text-sm font-medium text-white transition hover:bg-gray-800"
-        >
-          View Order
-        </button>
-      </div>
-    </div>
-  </div>
-);
+    );
   })}
 </div>
 
@@ -1049,7 +1357,7 @@ return (
       {products.length === 0 ? (
         <p className="text-gray-600">Your wishlist is empty.</p>
       ) : (
-        <ul className="space-y-5">
+        <ul className="grid gap-4 md:grid-cols-2">
           {products.map((it) => (
    <li
   key={it._id}

@@ -310,23 +310,33 @@ const handleFilterChange = (type, value) => {
                 </div>
 
               <div className="p-3 flex flex-col gap-1">
-              <div
-  className={`
-    text-red-600
-    text-lg
-    font-bold
+{Object.values(p.inventory || {}).every(qty => qty === 0) && (
+  <div
+    className="
+      absolute
+      top-3
+      left-3
 
-    ${
-      Object.values(
-        p.inventory || {}
-      ).every(qty => qty === 0)
-        ? "block"
-        : "hidden"
-    }
-  `}
->
-  Out of Stock
-</div>
+      z-20
+
+      bg-black/80
+      backdrop-blur-md
+
+      text-white
+
+      text-[11px]
+      font-bold
+      tracking-[0.15em]
+      uppercase
+
+      px-3 py-2
+
+      rounded-full
+    "
+  >
+    Sold Out
+  </div>
+)}
   <div className="flex items-center justify-between">
     
     <h3 className="text-sm font-bold text-black uppercase truncate">{p.title}</h3>

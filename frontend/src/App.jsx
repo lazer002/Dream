@@ -39,6 +39,7 @@ import AdminReturns from "./pages/admin/ReturnList.jsx";
 import AdminReturnDetail from "./pages/admin/ReturnDetail.jsx";
 import ThankYouPage from "./pages/Thankyou.jsx";
 import SearchResultsPage from "./pages/Search.jsx";
+import BuildYourLookPage from "./pages/BuildYourLookPage.jsx";
 
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="/return" element={<ReturnExchange />} />
             <Route path="/thankyou/:id" element={<ThankYouPage />} />
             <Route  path="/search"  element={<SearchResultsPage />}/>
+            <Route path="/build-your-look"  element={<BuildYourLookPage />}/>
             <Route
               path="/return/:orderNumber"
               element={<ReturnStatusPage />}

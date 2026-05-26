@@ -141,7 +141,7 @@ const update = async (id, quantity, size, isBundle = false) => {
     prev.map((i) => {
       if (isBundle) {
         // match bundle by id
-        return i.bundle?._id === id ? { ...i, quantity } : i;
+        return i._id === id ? { ...i, quantity } : i;
       } else {
         // match single product by id + size
         return i.product?._id === id && i.size === size
@@ -170,9 +170,10 @@ const update = async (id, quantity, size, isBundle = false) => {
 
   // 🧩 Remove item
 const remove = async (id, size, isBundle = false) => {
+  console.log("Removing item from cart:", { id, size, isBundle });
   if (isBundle) {
     // Remove bundle locally
-    setItems((prev) => prev.filter((i) => i.bundle?._id !== id));
+    setItems((prev) => prev.filter((i) => i._id !== id));
   } else {
     // Remove single product locally
     setItems((prev) =>
@@ -182,7 +183,7 @@ const remove = async (id, size, isBundle = false) => {
 
   try {
     if (isBundle) {
-      await client().post("/remove", { bundleId: id });
+      await client().post("/remove", { cartItemId: id });
     } else {
       await client().post("/remove", { productId: id, size });
     }
@@ -214,7 +215,7 @@ const clearCart = async (opts = { server: true }) => {
 };
 
 const addBundleToCart = async (bundle, selectedSizes) => {
-  // console.log("Adding bundle to cart:", bundle, selectedSizes);
+  console.log("Adding bundle to cart:", bundle, selectedSizes);
 
   // Ensure all products have a selected size
   const allSizesSelected =
@@ -228,8 +229,11 @@ const addBundleToCart = async (bundle, selectedSizes) => {
 
   // Check if bundle already exists in cart (with same sizes)
   const existing = items.find((item) => {
-    if (!item.bundle) return false;
-    if (item.bundle._id !== bundle._id) return false;
+    const sameBundle = bundle.custom
+  ? item.customBundle?.title === bundle.title
+  : item.bundle?._id === bundle._id;
+
+if (!sameBundle) return false;
 
     return item.bundleProducts.every((bp) => {
       const productId = bp.product?._id || bp.product;
@@ -261,30 +265,59 @@ const addBundleToCart = async (bundle, selectedSizes) => {
 
     setItems((prev) => [
       ...prev,
-      {
+ {
+  ...(bundle.custom
+    ? {
+        customBundle: {
+          title: bundle.title,
+          price: bundle.price,
+        },
+      }
+    : {
         bundle: {
           _id: bundle._id,
           title: bundle.title,
           price: bundle.price,
-          mainImage: bundle.mainImages?.[0] || "/placeholder.jpg",
         },
-        bundleProducts,
-        quantity: 1,
-      },
+      }),
+
+  mainImage:
+    bundle.products?.[0]?.images?.[0] ||
+    bundle.mainImages?.[0] ||
+    "/placeholder.jpg",
+
+  bundleProducts,
+  quantity: 1,
+},
     ]);
   }
 
   // 🔗 Send to backend
   try {
-    await client().post("/addbundle", {
-      bundleId: bundle._id,
-      mainImage: bundle.mainImages?.[0] || "",
-      bundleProducts: bundle.products.map((p) => ({
-        productId: p._id,
-        size: selectedSizes[p._id],
-        quantity: 1,
-      })),
-    });
+const payload = {
+  bundleProducts: bundle.products.map((p) => ({
+    productId: p._id,
+    size: selectedSizes[p._id],
+    quantity: 1,
+  })),
+};
+
+if (bundle.custom) {
+  payload.customBundle = {
+    title: bundle.title,
+    price: bundle.price,
+  };
+
+  payload.mainImage =
+    bundle.products?.[0]?.images?.[0] || "";
+} else {
+  payload.bundleId = bundle._id;
+
+  payload.mainImage =
+    bundle.mainImages?.[0] || "";
+}
+
+await client().post("/addbundle", payload);
 
     await refresh();
     toast.success("Bundle added to cart!");

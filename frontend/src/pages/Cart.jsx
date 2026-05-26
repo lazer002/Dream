@@ -19,14 +19,22 @@ const [removeModal, setRemoveModal] = useState({
   image: null,
   title: "",
 });
-  const subtotal = items.reduce((s, it) => {
-    return (
-      s +
-      (it.bundle
-        ? it.bundle.price * it.quantity
-        : (it.product?.price || 0) * it.quantity)
-    );
-  }, 0);
+const subtotal = items.reduce((s, it) => {
+  const isBundle =
+    !!it.bundle || !!it.customBundle;
+
+  return (
+    s +
+    (
+      isBundle
+        ? (it.bundle?.price ||
+           it.customBundle?.price ||
+           0) * it.quantity
+        : (it.product?.price || 0) *
+          it.quantity
+    )
+  );
+}, 0);
 
   const tax = subtotal * 0.05;
   const deliveryFee = subtotal > 500 ? 0 : 50;
@@ -137,11 +145,12 @@ const openRemoveModal = (
 
         <div>
           {items.map((it) => {
-            const isBundle = !!it.bundle;
+            const isBundle =  !!it.bundle || !!it.customBundle;
 
-            const key = isBundle
-              ? it.bundle._id
-              : `${it.product._id}-${it.size}`;
+           const key = isBundle
+  ? (it.bundle?._id ||
+     `custom-${it._id}`)
+  : `${it.product?._id}-${it.size}`;
 
             const imageSrc = isBundle
               ? it.mainImage || "/placeholder.jpg"
@@ -170,7 +179,7 @@ const openRemoveModal = (
                       <div>
                         <h3 className="uppercase tracking-wide text-xl font-semibold text-black">
                           {isBundle
-                            ? it.bundle.title
+                            ? it.bundle?.title ||it.customBundle?.title || "Custom Bundle"
                             : it.product.title}
                         </h3>
 
@@ -206,7 +215,7 @@ const openRemoveModal = (
 
       openRemoveModal(
         isBundle
-          ? it.bundle._id
+          ?  it._id
           : it.product._id,
 
         isBundle ? null : it.size,
@@ -215,9 +224,13 @@ const openRemoveModal = (
 
         imageSrc,
 
-        isBundle
-          ? it.bundle.title
-          : it.product.title
+    isBundle
+  ? (
+      it.bundle?.title ||
+      it.customBundle?.title ||
+      "Custom Bundle"
+    )
+  : it.product?.title
       );
 
       return;
@@ -226,7 +239,7 @@ const openRemoveModal = (
     // NORMAL DECREASE
     update(
       isBundle
-        ? it.bundle._id
+        ? it.bundle?._id || it._id
         : it.product._id,
       it.quantity - 1,
       it.size,
@@ -247,7 +260,7 @@ const openRemoveModal = (
                           onClick={() =>
                             update(
                               isBundle
-                                ? it.bundle._id
+                                ? it.bundle?._id || it._id
                                 : it.product._id,
                               it.quantity + 1,
                               it.size,
@@ -271,7 +284,7 @@ const openRemoveModal = (
                         ₹
                         {(
                           isBundle
-                            ? it.bundle.price * it.quantity
+                            ?  (it.bundle?.price || it.customBundle?.price ) * it.quantity
                             : it.product.price * it.quantity
                         ).toLocaleString()}
                       </p>
@@ -284,7 +297,7 @@ const openRemoveModal = (
   onClick={() =>
     openRemoveModal(
       isBundle
-        ? it.bundle._id
+        ?  it._id
         : it.product._id,
 
       isBundle ? null : it.size,
@@ -293,9 +306,13 @@ const openRemoveModal = (
 
       imageSrc,
 
-      isBundle
-        ? it.bundle.title
-        : it.product.title
+     isBundle
+  ? (
+      it.bundle?.title ||
+      it.customBundle?.title ||
+      "Custom Bundle"
+    )
+  : it.product?.title
     )
   }
 />

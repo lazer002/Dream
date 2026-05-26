@@ -197,7 +197,7 @@ useEffect(() => {
   return (
     <header
       className="
-        sticky top-0 z-[100]
+        sticky top-0 z-[10000]
         bg-white/95 backdrop-blur-xl
         border-b border-gray-100
       "
@@ -883,28 +883,27 @@ ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
 
 
 {/* Search Overlay */}
-{/* Search Overlay */}
-{searchOpen && (
-  <div
-    onClick={() => setSearchOpen(false)}
+<div
+  onClick={() => setSearchOpen(false)}
+className={`
+  fixed
+  inset-0
+  z-[9999]
 
-    className={`
-      fixed inset-0 z-[9999]
+  flex justify-end
 
-      flex justify-end
+  
+  backdrop-blur-[2px]
 
-      bg-black/40
-      backdrop-blur-[2px]
+  transition-all duration-500
 
-      transition-all duration-500
-
-      ${
-        searchOpen
-          ? "opacity-100"
-          : "opacity-0 pointer-events-none"
-      }
-    `}
-  >
+  ${
+    searchOpen
+      ? "opacity-100 visible"
+      : "opacity-0 invisible pointer-events-none bg-black/40"
+  }
+`}
+>
 
     {/* DRAWER */}
     <div
@@ -913,32 +912,35 @@ ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
       onClick={(e) =>
         e.stopPropagation()
       }
+className={`
+  ml-auto
 
-      className={`
-        ml-auto
+  h-screen
+  max-[400px]:w-[300px]
+  max-[700px]:w-[400px]
+  w-full
+  sm:w-[480px]
+  lg:w-[620px]
 
-        h-screen
-max-[400px]:w-[300px]
-max-[700px]:w-[400px]
-        w-full
-        sm:w-[480px]
-        lg:w-[620px]
+  bg-white
 
-        bg-white
+  shadow-[-20px_0_60px_rgba(0,0,0,0.18)]
 
-        shadow-[-10px_0_40px_rgba(0,0,0,0.12)]
+  overflow-y-auto
+  overscroll-contain
 
-        overflow-y-auto
-        overscroll-contain
+  transform-gpu
 
-        transition-transform duration-500
+  transition-transform
+  duration-700
+  ease-[cubic-bezier(0.22,1,0.36,1)]
 
-        ${
-          searchOpen
-            ? "translate-x-0"
-            : "translate-x-full"
-        }
-      `}
+  ${
+    searchOpen
+      ? "translate-x-0"
+      : "translate-x-full"
+  }
+`}
     >
 
       {/* TOP */}
@@ -1297,7 +1299,7 @@ max-[700px]:w-[400px]
     </div>
 
   </div>
-)}
+
     </header>
   );
 }

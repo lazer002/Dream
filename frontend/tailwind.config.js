@@ -86,10 +86,45 @@ export default {
           '0%, 100%': { backgroundColor: 'white' },
           '50%': { backgroundColor: 'antiquewhite' },
         },
+		cartShake: {
+
+      '0%': {
+        transform: 'rotate(0deg)'
+      },
+
+      '20%': {
+        transform:
+          'rotate(-12deg) scale(1.12)'
+      },
+
+      '40%': {
+        transform:
+          'rotate(10deg) scale(1.12)'
+      },
+
+      '60%': {
+        transform:
+          'rotate(-6deg) scale(1.08)'
+      },
+
+      '80%': {
+        transform:
+          'rotate(4deg) scale(1.05)'
+      },
+
+      '100%': {
+        transform: 'rotate(0deg)'
+      },
+
+    },
+		
       },
       animation: {
         blink: 'blink 4s infinite',
+		 cartShake:
+      'cartShake 0.65s cubic-bezier(.36,.07,.19,.97)',
       },
+
 	  
 	   }
 	},

@@ -1,5 +1,5 @@
 "use client";
-
+// data-lenis-prevent
 import { useEffect, useRef, useState } from "react";
 import {
   Menu,
@@ -51,7 +51,8 @@ export default function Header() {
   const { user, logout } = useAuth();
   const { items } = useCart();
   const { wishlist } = useWishlist();
-
+const [cartAnimate, setCartAnimate] =
+  useState(false);
   const [mobileOpen, setMobileOpen] =
     useState(false);
 
@@ -193,6 +194,24 @@ useEffect(() => {
   };
 
 }, [query]);
+
+
+
+useEffect(() => {
+
+  if (items.length > 0) {
+
+    setCartAnimate(true);
+
+    const timer = setTimeout(() => {
+      setCartAnimate(false);
+    }, 600);
+
+    return () => clearTimeout(timer);
+
+  }
+
+}, [items.length]);
 
   return (
     <header
@@ -440,22 +459,56 @@ useEffect(() => {
           </div>
 
           {/* CART */}
-          <Link
-            to="/cart"
-            className="relative"
-          >
+      <Link
+  to="/cart"
+
+  className={`
+    relative
+
+    transition-transform
+    duration-300
+
+    ${
+      cartAnimate
+        ? "animate-cartShake"
+        : ""
+    }
+  `}
+>
             <ShoppingCart className="w-5 h-5" />
 
             {items.length > 0 && (
-              <span
-                className="
-                  absolute -top-2 -right-2
-                  bg-black text-white
-                  text-xs rounded-full
-                  w-5 h-5
-                  flex items-center justify-center
-                "
-              >
+        <span
+  className={`
+    absolute
+    -top-2
+    -right-2
+
+    bg-black
+    text-white
+
+    text-[10px]
+    font-bold
+
+    rounded-full
+
+    min-w-[20px]
+    h-5
+
+    px-1
+
+    flex items-center justify-center
+
+    transition-all
+    duration-500
+
+    ${
+      cartAnimate
+        ? "animate-cartShake"
+        : ""
+    }
+  `}
+>
                 {items.length}
               </span>
             )}
@@ -883,422 +936,474 @@ ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
 
 
 {/* Search Overlay */}
+
 <div
-  onClick={() => setSearchOpen(false)}
-className={`
-  fixed
-  inset-0
-  z-[9999]
+  className={`
+    absolute
+    left-0
+    top-[74px]
 
-  flex justify-end
+    w-full
 
-  
-  backdrop-blur-[2px]
+    bg-white
 
-  transition-all duration-500
+    border-t border-gray-200
+    border-b border-gray-200
 
-  ${
-    searchOpen
-      ? "opacity-100 visible"
-      : "opacity-0 invisible pointer-events-none bg-black/40"
-  }
-`}
+    z-[999]
+
+   overflow-hidden
+max-h-[100vh]
+
+    transition-all duration-500 ease-out
+
+    ${
+      searchOpen
+        ? "max-h-[1000px] opacity-100"
+        : "max-h-0 opacity-0 pointer-events-none"
+    }
+  `}
+  data-lenis-prevent
 >
 
-    {/* DRAWER */}
+  {/* SEARCH BAR */}
+  <div
+    className="
+      h-[86px]
+
+      px-6
+      md:px-10
+
+      flex items-center
+
+      border-b border-gray-100
+    "
+  >
+
     <div
-      data-lenis-prevent
+      className="
+        flex items-center
+        gap-4
 
-      onClick={(e) =>
-        e.stopPropagation()
-      }
-className={`
-  ml-auto
-
-  h-screen
-  max-[400px]:w-[300px]
-  max-[700px]:w-[400px]
-  w-full
-  sm:w-[480px]
-  lg:w-[620px]
-
-  bg-white
-
-  shadow-[-20px_0_60px_rgba(0,0,0,0.18)]
-
-  overflow-y-auto
-  overscroll-contain
-
-  transform-gpu
-
-  transition-transform
-  duration-700
-  ease-[cubic-bezier(0.22,1,0.36,1)]
-
-  ${
-    searchOpen
-      ? "translate-x-0"
-      : "translate-x-full"
-  }
-`}
+        w-full
+      "
     >
 
-      {/* TOP */}
+<Search
+  className="
+    w-5 h-5
+    text-gray-400
+  "
+/>
+
+<input
+  type="text"
+
+  value={query}
+
+  onChange={(e) =>
+    setQuery(e.target.value)
+  }
+
+  placeholder="Search for a Product, Category..."
+
+  autoFocus
+
+  className="
+    flex-1
+
+    h-full
+
+    bg-transparent
+
+    outline-none
+
+    text-[16px]
+    md:text-[18px]
+
+    font-light
+
+    placeholder:text-gray-400
+  "
+/>
+
+{/* RESET BUTTON */}
+{query.length > 0 && (
+
+  <button
+    onClick={() => {
+      setQuery("");
+      setResults([]);
+    }}
+
+    className="
+    p-3
+
+      flex items-center
+      justify-center
+
+      rounded-lg
+
+      hover:bg-gray-100
+
+      transition
+    "
+  >
+ Reset
+  </button>
+
+)}
+
+{/* CLOSE SEARCH */}
+<button
+  onClick={() =>
+    setSearchOpen(false)
+  }
+
+  className="
+    flex items-center justify-center
+
+    w-10 h-10
+
+    hover:rotate-90
+
+    transition-transform duration-300
+  "
+>
+  <X className="w-7 h-7" />
+</button>
+
+    </div>
+
+  </div>
+
+
+
+{/* RESULTS */}
+{results.length > 0 && (
+
+  <div
+    className="
+      px-6
+      md:px-10
+      py-10
+
+      overflow-y-auto
+
+      max-h-[calc(100vh-160px)]
+
+      search-scroll
+    "
+  >
+
+      {/* TITLE */}
       <div
         className="
-          sticky top-0 z-40
+          flex items-center
+          justify-between
 
-          bg-white
-
-          border-b border-gray-200
+          mb-8
         "
       >
 
-        {/* HEADER */}
-        <div
+        <h3
           className="
-            flex items-center justify-between
+            text-2xl
+            md:text-3xl
 
-            px-5
-            pt-5
-            pb-4
+            font-bold
+            tracking-tight
           "
         >
+          Products
+        </h3>
 
-          <h2
-            className="
-              text-2xl
-              font-semibold
-              tracking-tight
-            "
-          >
-            Search our site
-          </h2>
+        <Link
+          to={`/search?q=${encodeURIComponent(query)}`}
 
-          <button
-            onClick={() =>
-              setSearchOpen(false)
-            }
+          onClick={() =>
+            setSearchOpen(false)
+          }
 
-            className="
-              w-11 h-11
+          className="
+            text-sm
+            font-medium
 
-              flex items-center justify-center
-
-              rounded-full
-
-              hover:bg-gray-100
-
-              transition
-            "
-          >
-            <X className="w-6 h-6" />
-          </button>
-
-        </div>
-
-        {/* INPUT */}
-        <div className="px-5 pb-5">
-
-          <div
-            className="
-              flex items-center gap-3
-
-              border border-gray-200
-
-              rounded-xl
-
-              px-4
-
-              h-14
-            "
-          >
-
-            <Search className="w-5 h-5 text-gray-400" />
-
-            <input
-              type="text"
-
-              value={query}
-
-              onChange={(e) =>
-                setQuery(e.target.value)
-              }
-
-              placeholder="Search products..."
-
-              autoFocus
-
-              className="
-                flex-1
-
-                h-full
-
-                bg-transparent
-
-                outline-none
-
-                text-base
-              "
-            />
-
-          </div>
-
-        </div>
+            hover:underline
+          "
+        >
+          View all
+        </Link>
 
       </div>
 
-      {/* CONTENT */}
-      <div className="px-5 py-6">
-
-        {/* EMPTY */}
-        {query.length === 0 && (
-
-          <div
-            className="
-              flex flex-col
-              items-center
-              justify-center
+      {/* GRID */}
+      <div
+        className="
+          grid
 
-              h-[60vh]
+          grid-cols-2
+          md:grid-cols-3
+          lg:grid-cols-5
 
-              text-center
-            "
-          >
+          gap-6
+        "
+      >
 
-            <p
-              className="
-                text-[11px]
-                uppercase
-                tracking-[0.35em]
+        {results.map((p) => (
 
-                text-gray-400
+         <Link
+  key={p._id}
 
-                mb-3
-              "
-            >
-              Discover Fashion
-            </p>
+  to={`/product/${p._id}`}
 
-            <h2
-              className="
-                text-5xl
+  onClick={() =>
+    setSearchOpen(false)
+  }
 
-                font-black
+  className="
+    group
 
-                tracking-tight
+    relative
 
-                leading-none
+    flex
+    flex-col
+  "
+>
 
-                mb-4
-              "
-            >
-              SEARCH
-              <br />
-              PRODUCTS
-            </h2>
+  {/* IMAGE */}
+  <div
+    className="
+      relative
 
-            <p className="text-gray-500">
-              Hoodies, cargos, jackets, essentials...
-            </p>
+      aspect-[3/4]
 
-          </div>
-        )}
+      bg-[#f5f5f5]
 
-        {/* RESULTS */}
-        {results.length > 0 && (
+      overflow-hidden
 
-          <div>
+      rounded-[2px]
 
-            {/* HEADER */}
-            <div
-              className="
-                flex items-center
-                justify-between
+      mb-4
+    "
+  >
 
-                mb-6
-              "
-            >
+    {/* IMAGE */}
+    <img
+      src={
+        p.images?.[0]
+        || "/placeholder.png"
+      }
 
-              <h3
-                className="
-                  text-3xl
-                  font-bold
-                  tracking-tight
-                "
-              >
-                Products
-              </h3>
+      alt={p.title}
 
-              <Link
-                to={`/search?q=${encodeURIComponent(query)}`}
+      className="
+        w-full
+        h-full
 
-                onClick={() =>
-                  setSearchOpen(false)
-                }
+        object-cover
 
-                className="
-                  text-sm
-                  font-medium
+        transition-transform
+        duration-700
+        ease-out
 
-                  flex items-center gap-1
+        group-hover:scale-[1.04]
+      "
+    />
 
-                  hover:underline
-                "
-              >
-                View all →
-              </Link>
+    {/* QUICK VIEW */}
+    <div
+      className="
+        absolute
+        left-1/2
+        bottom-4
 
-            </div>
+        -translate-x-1/2
+        translate-y-3
 
-            {/* PRODUCTS */}
-            <div className="flex flex-col">
+        opacity-0
 
-              {results.map((p) => (
+        group-hover:opacity-100
+        group-hover:translate-y-0
 
-                <Link
-                  key={p._id}
+        transition-all
+        duration-500
+      "
+    >
 
-                  to={`/product/${p._id}`}
+      <button
+        className="
+          whitespace-nowrap
 
-                  onClick={() =>
-                    setSearchOpen(false)
-                  }
+          bg-white/95
+          backdrop-blur-md
 
-                  className="
-                    flex gap-4
+          text-[11px]
+          font-semibold
+          tracking-[0.18em]
+          uppercase
 
-                    py-5
+          px-5
+          py-3
 
-                    border-b border-gray-100
+          rounded-full
 
-                    group
-                  "
-                >
+          shadow-lg
 
-                  {/* IMAGE */}
-                  <div
-                    className="
-                      w-24 h-28
+          hover:bg-black
+          hover:text-white
 
-                      bg-gray-100
+          transition
+        "
+      >
+        Quick View
+      </button>
 
-                      rounded-xl
+    </div>
 
-                      overflow-hidden
+    {/* SALE BADGE */}
+    {p.onSale && (
 
-                      flex-shrink-0
-                    "
-                  >
+      <div
+        className="
+          absolute
+          top-3
+          left-3
 
-                    <img
-                      src={
-                        p.images?.[0]
-                        || "/placeholder.png"
-                      }
+          bg-red-500
+          text-white
 
-                      alt={p.title}
+          text-[10px]
+          font-bold
 
-                      className="
-                        w-full
-                        h-full
+          tracking-[0.18em]
 
-                        object-cover
+          px-3
+          py-1.5
 
-                        transition-transform
-                        duration-500
+          rounded-full
+        "
+      >
+        SALE
+      </div>
 
-                        group-hover:scale-105
-                      "
-                    />
+    )}
 
-                  </div>
+  </div>
 
-                  {/* INFO */}
-                  <div className="flex-1 pt-1">
+  {/* INFO */}
+  <div className="space-y-1">
 
-                    <h4
-                      className="
-                        text-lg
-                        font-semibold
+    {/* TITLE */}
+    <h4
+      className="
+        text-[14px]
+        md:text-[15px]
 
-                        tracking-tight
+        font-medium
 
-                        mb-2
+        tracking-tight
 
-                        line-clamp-2
-                      "
-                    >
-                      {p.title}
-                    </h4>
+        text-black/90
 
-                    {/* PRICE */}
-                    <div className="flex items-center gap-2">
+        line-clamp-1
 
-                      <span
-                        className="
-                          text-lg
-                          font-bold
+        transition-colors
+        duration-300
 
-                          text-red-600
-                        "
-                      >
-                        ₹{Number(p.price).toLocaleString()}
-                      </span>
+        group-hover:text-black
+      "
+    >
+      {p.title}
+    </h4>
 
-                      {p.onSale && (
-                        <span
-                          className="
-                            text-sm
-                            text-gray-400
-                            line-through
-                          "
-                        >
-                          ₹
-                          {Math.round(
-                            Number(p.price) / 0.7
-                          ).toLocaleString()}
-                        </span>
-                      )}
+    {/* CATEGORY */}
+    {p.category?.name && (
 
-                    </div>
+      <p
+        className="
+          text-[11px]
 
-                    {/* STOCK */}
-                    {Object.values(
-                      p.inventory || {}
-                    ).every(qty => qty === 0) && (
+          uppercase
 
-                      <p
-                        className="
-                          mt-2
+          tracking-[0.18em]
 
-                          text-sm
-                          font-medium
+          text-gray-400
+        "
+      >
+        {p.category.name}
+      </p>
 
-                          text-red-500
-                        "
-                      >
-                        Out of Stock
-                      </p>
+    )}
 
-                    )}
+    {/* PRICE */}
+    <div
+      className="
+        flex items-center
+        gap-2
 
-                  </div>
+        pt-1
+      "
+    >
 
-                </Link>
+      {p.onSale && (
 
-              ))}
+        <span
+          className="
+        text-xs text-gray-500 line-through
+          "
+        >
+          ₹ 
+          {Math.round(
+            Number(p.price) / 0.7
+          ).toLocaleString()}
+        </span>
 
-            </div>
+      )}
+      <span
+        className="
+     text-md font-bold text-red-600
+        "
+      >
+        ₹ {Number(p.price).toLocaleString()}
+      </span>
 
-          </div>
-        )}
+
+    </div>
+
+    {/* STOCK */}
+    {Object.values(
+      p.inventory || {}
+    ).every(qty => qty === 0) && (
+
+      <p
+        className="
+          text-[12px]
+
+          text-red-500
+
+          font-medium
+
+          pt-1
+        "
+      >
+        Out of stock
+      </p>
+
+    )}
+
+  </div>
+
+</Link>
+        ))}
 
       </div>
 
     </div>
 
-  </div>
+  )}
+
+</div>
 
     </header>
   );

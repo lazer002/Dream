@@ -3,7 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import api  from "@/utils/config";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { X } from "lucide-react";
+import { X,ChevronRight  } from "lucide-react";
 import { useCart } from "@/state/CartContext";
 
 const BundlesPage = () => {
@@ -173,11 +173,72 @@ const BundlesPage = () => {
 </div>
 
         {/* States */}
-        {loading && <div className="text-gray-500 text-center py-20">Loading...</div>}
-        {error && <div className="text-red-500 text-center py-20">{error}</div>}
-        {!loading && !error && bundles.length === 0 && (
-          <div className="text-gray-500 text-center py-20">No bundles available yet.</div>
-        )}
+        {loading && (
+  <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+    {[...Array(6)].map((_, i) => (
+      <div
+        key={i}
+        className="bg-white rounded-[28px] overflow-hidden border border-neutral-200 animate-pulse"
+      >
+        {/* Image */}
+        <div className="h-[420px] md:h-[520px] bg-neutral-200" />
+
+        {/* Content */}
+        <div className="p-6 md:p-8">
+
+          {/* Title */}
+          <div className="h-3 w-24 bg-neutral-200 rounded mb-4" />
+
+          <div className="h-8 w-3/4 bg-neutral-200 rounded mb-6" />
+
+          {/* Price */}
+          <div className="flex gap-3 mb-6">
+            <div className="h-8 w-24 bg-neutral-200 rounded" />
+            <div className="h-8 w-20 bg-neutral-100 rounded" />
+          </div>
+
+          {/* Description */}
+          <div className="space-y-2 mb-6">
+            <div className="h-3 bg-neutral-200 rounded" />
+            <div className="h-3 bg-neutral-200 rounded w-5/6" />
+            <div className="h-3 bg-neutral-200 rounded w-4/6" />
+          </div>
+
+          {/* Avatars */}
+          <div className="flex -space-x-3 mb-6">
+            {[...Array(4)].map((_, idx) => (
+              <div
+                key={idx}
+                className="w-14 h-14 rounded-2xl bg-neutral-200 border-2 border-white"
+              />
+            ))}
+          </div>
+
+          {/* Stats */}
+          <div className="flex justify-between mb-6">
+            <div>
+              <div className="h-3 w-16 bg-neutral-200 rounded mb-2" />
+              <div className="h-6 w-24 bg-neutral-200 rounded" />
+            </div>
+
+            <div>
+              <div className="h-3 w-12 bg-neutral-200 rounded mb-2" />
+              <div className="h-6 w-10 bg-neutral-200 rounded" />
+            </div>
+          </div>
+
+          {/* Buttons */}
+          <div className="flex gap-3">
+            <div className="flex-1 h-12 rounded-full bg-neutral-200" />
+            <div className="flex-1 h-12 rounded-full bg-neutral-300" />
+          </div>
+
+        </div>
+      </div>
+    ))}
+  </div>
+)}
+ 
 
         {/* Grid */}
         {!loading && bundles.length > 0 && (
@@ -189,345 +250,360 @@ const BundlesPage = () => {
               const discountPercent = Math.round(((fakeOriginal - bundlePrice) / fakeOriginal) * 100);
 
               return (
-                <Link key={bundle._id} to={`/collections/${bundle._id}`}>
-              <div
+             <Link
   key={bundle._id}
-  className="
-    group
-
-    bg-white
-
-    rounded-[28px]
-
-    overflow-hidden
-
-    border border-neutral-200
-
-    transition-all duration-500
-
-    hover:-translate-y-1
-    hover:shadow-2xl
-  "
+  to={`/collections/${bundle._id}`}
+  className="group block"
 >
-  {/* HERO IMAGE */}
-  <div className="relative overflow-hidden">
+  <article
+    className="
+      relative
+      overflow-hidden
+      rounded-[34px]
+      bg-black
+      h-[620px]
+      shadow-sm
+      transition-all
+      duration-500
+      hover:-translate-y-2
+      hover:shadow-[0_25px_80px_rgba(0,0,0,.18)]
+    "
+  >
+
+    {/* HERO IMAGE */}
+
     <img
       src={
         bundle.mainImages?.[0] ||
         bundle.products?.[0]?.images?.[0] ||
-        "/images/placeholder-800.png"
+        "/images/placeholder.png"
       }
       alt={bundle.title}
       className="
+        absolute
+        inset-0
+        h-full
         w-full
-
-        h-[420px]
-        md:h-[520px]
-
         object-cover
-
         transition-transform
         duration-700
-
         group-hover:scale-105
       "
     />
 
-    {/* DARK OVERLAY */}
+    {/* Overlay */}
+
     <div
       className="
-        absolute inset-0
-
+        absolute
+        inset-0
         bg-gradient-to-t
-        from-black/70
+        from-black/85
         via-black/20
         to-transparent
       "
     />
 
-    {/* TOP BADGE */}
+    {/* Top Row */}
+
     <div
       className="
         absolute
-
-        top-5
-        left-5
-
-        bg-white/95
-        backdrop-blur-md
-
-        rounded-full
-
-        px-4 py-2
-
-        text-[11px]
-        font-bold
-
-        uppercase
-        tracking-[0.25em]
+        left-6
+        right-6
+        top-6
+        flex
+        items-center
+        justify-between
       "
     >
-      GET THE LOOK
+
+      <span
+        className="
+          rounded-full
+          bg-white
+          px-4
+          py-2
+          text-[11px]
+          font-bold
+          uppercase
+          tracking-[0.25em]
+          text-black
+        "
+      >
+        Bundle
+      </span>
+
+      {discountPercent > 0 && (
+
+        <span
+          className="
+            rounded-full
+            bg-lime-400
+            px-4
+            py-2
+            text-[11px]
+            font-bold
+            uppercase
+            text-black
+          "
+        >
+          {discountPercent}% OFF
+        </span>
+
+      )}
+
     </div>
 
-    {/* BOTTOM CONTENT */}
+    {/* Bottom Content */}
+
     <div
       className="
         absolute
-
         bottom-0
         left-0
         right-0
-
-        p-6
-        md:p-8
-
+        p-7
         text-white
       "
     >
       <p
-        className="
-          text-xs
+  className="
+    text-[11px]
+    uppercase
+    tracking-[0.45em]
+    text-white/60
+  "
+>
+  CURATED BUNDLE
+</p>
 
-          uppercase
+<h2
+  className="
+    mt-3
+    text-4xl
+    md:text-5xl
+    font-black
+    leading-none
+    max-w-[260px]
+  "
+>
+  {bundle.title}
+</h2>
 
-          tracking-[0.3em]
+{/* Price */}
 
-          text-white/70
+<div className="mt-6 flex items-center flex-wrap gap-3">
 
-          mb-3
-        "
-      >
-        Curated Outfit
-      </p>
+  <span className="text-4xl font-black">
+    ₹{bundlePrice.toLocaleString()}
+  </span>
 
-      <h3
-        className="
-          text-2xl
-          md:text-4xl
+  <span className="text-lg text-white/50 line-through">
+    ₹{fakeOriginal.toLocaleString()}
+  </span>
 
-          font-black
+  <span
+    className="
+      rounded-full
+      bg-lime-400
+      px-3
+      py-2
+      text-[11px]
+      font-bold
+      uppercase
+      text-black
+    "
+  >
+    SAVE {discountPercent}%
+  </span>
 
-          tracking-tight
+</div>
 
-          mb-4
-        "
-      >
-        {bundle.title}
-      </h3>
+{/* Description */}
 
-      <div className="flex items-center gap-3">
-        <span
+<p
+  className="
+    mt-6
+    max-w-[280px]
+    text-sm
+    leading-7
+    text-white/75
+  "
+>
+  {bundle.description ||
+    "Premium pieces curated together for effortless everyday styling."}
+</p>
+
+{/* Bottom Row */}
+
+<div className="mt-8 flex items-end justify-between">
+
+  {/* Product Images */}
+
+  <div>
+
+    <div className="flex -space-x-4">
+
+      {(bundle.products || [])
+        .slice(0, 3)
+        .map((p) => (
+
+          <img
+            key={p._id}
+            src={p.images?.[0]}
+            alt={p.title}
+            className="
+              h-14
+              w-14
+              rounded-full
+              border-[3px]
+              border-white
+              object-cover
+              shadow-lg
+            "
+          />
+
+      ))}
+
+      {bundle.products?.length > 3 && (
+
+        <div
           className="
-            text-2xl
-            md:text-3xl
-
-            font-black
+            flex
+            h-14
+            w-14
+            items-center
+            justify-center
+            rounded-full
+            border-[3px]
+            border-white
+            bg-black
+            text-sm
+            font-bold
           "
         >
-          ₹{bundlePrice.toLocaleString()}
-        </span>
+          +{bundle.products.length - 3}
+        </div>
 
-        <span
-          className="
-            line-through
+      )}
 
-            text-white/60
-          "
-        >
-          ₹{fakeOriginal.toLocaleString()}
-        </span>
-      </div>
     </div>
+
   </div>
 
-  {/* BODY */}
-  <div className="p-6 md:p-8">
+  {/* Included */}
 
-    {/* DESCRIPTION */}
-    <p
-      className="
-        text-neutral-500
+  <div className="text-right">
 
-        leading-relaxed
-
-        mb-6
-      "
-    >
-      {bundle.description ||
-        "A complete outfit curated by GARRIB stylists for effortless everyday wear."}
+    <p className="text-[11px] uppercase tracking-[0.35em] text-white/60">
+      Included
     </p>
 
-    {/* INCLUDED PRODUCTS */}
-    <div className="mb-6">
-      <p
-        className="
-          text-xs
+    <p className="mt-2 text-3xl font-black">
+      {bundle.products?.length || 0}
+    </p>
 
-          uppercase
+    <p className="text-sm text-white/70">
+      Items
+    </p>
 
-          tracking-[0.25em]
-
-          text-neutral-400
-
-          mb-3
-        "
-      >
-        Included Pieces
-      </p>
-
-      <div className="flex -space-x-3">
-        {(bundle.products || [])
-          .slice(0, 5)
-          .map((p) => (
-            <img
-              key={p._id}
-              src={
-                p.images?.[0] ||
-                "/images/placeholder.png"
-              }
-              alt={p.title}
-              className="
-                w-14 h-14
-
-                rounded-2xl
-
-                border-2
-                border-white
-
-                object-cover
-
-                shadow-sm
-              "
-            />
-          ))}
-      </div>
-    </div>
-
-    {/* SAVINGS */}
-    <div
-      className="
-        flex items-center
-        justify-between
-
-        mb-6
-      "
-    >
-      <div>
-        <p
-          className="
-            text-xs
-
-            uppercase
-
-            tracking-[0.2em]
-
-            text-neutral-400
-          "
-        >
-          Savings
-        </p>
-
-        <p
-          className="
-            text-lg
-
-            font-bold
-
-            text-green-600
-          "
-        >
-          Save ₹
-          {(
-            fakeOriginal -
-            bundlePrice
-          ).toLocaleString()}
-        </p>
-      </div>
-
-      <div>
-        <p
-          className="
-            text-xs
-
-            uppercase
-
-            tracking-[0.2em]
-
-            text-neutral-400
-          "
-        >
-          Items
-        </p>
-
-        <p
-          className="
-            text-lg
-
-            font-bold
-          "
-        >
-          {bundle.products?.length || 0}
-        </p>
-      </div>
-    </div>
-
-    {/* ACTIONS */}
-    <div className="flex gap-3">
-      <button
-        onClick={() =>
-          navigate(`/collections/${bundle._id}`)
-        }
-        className="
-          flex-1
-
-          border
-          border-black
-
-          py-3
-
-          rounded-full
-
-          text-sm
-          font-semibold
-
-          transition
-
-          hover:bg-black
-          hover:text-white
-        "
-      >
-        VIEW LOOK
-      </button>
-
-      <button
-        onClick={() =>
-          openBundleModal(bundle)
-        }
-        className="
-          flex-1
-
-          bg-black
-          text-white
-
-          py-3
-
-          rounded-full
-
-          text-sm
-          font-semibold
-
-          transition
-
-          hover:bg-neutral-800
-        "
-      >
-        ADD COMPLETE LOOK
-      </button>
-    </div>
   </div>
+
 </div>
-                </Link>
+{/* CTA */}
+
+<div className="mt-10 flex items-center justify-between">
+
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      openBundleModal(bundle);
+    }}
+    className="
+      group/button
+
+      flex
+      items-center
+      justify-center
+
+      rounded-full
+
+      bg-white
+
+      px-8
+      py-4
+
+      text-sm
+      font-black
+
+      uppercase
+      tracking-[0.25em]
+
+      text-black
+
+      transition-all
+      duration-300
+
+      hover:scale-105
+    "
+  >
+
+    VIEW BUNDLE
+
+  </button>
+
+  <button
+    onClick={(e) => {
+      e.preventDefault();
+      openBundleModal(bundle);
+    }}
+    className="
+      group/arrow
+
+      flex
+      h-16
+      w-16
+
+      items-center
+      justify-center
+
+      rounded-full
+
+      border
+      border-white/30
+
+      bg-white/10
+      backdrop-blur-xl
+
+      transition-all
+      duration-300
+
+      hover:bg-white
+      hover:scale-110
+    "
+  >
+
+    <ChevronRight
+      size={26}
+      className="
+        text-white
+        transition-all
+        duration-300
+        group-hover/arrow:text-black
+        group-hover/arrow:translate-x-1
+      "
+    />
+
+  </button>
+
+</div>
+
+</div>
+
+</article>
+
+</Link>
               );
             })}
           </div>

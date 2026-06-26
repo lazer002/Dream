@@ -1,14 +1,10 @@
 // src/pages/BundlePDP.jsx
-import { useState, useEffect } from "react";
+import { useState, useEffect,useRef } from "react";
 import { useParams } from "react-router-dom";
 import api  from "@/utils/config";
-import {
-  Dialog,
-  DialogContent,
-  DialogClose,
-} from "@/components/ui/dialog";
+
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
-import { ShoppingCart, Heart, CreditCard, Gift, X, ChevronLeft, ChevronRight } from "lucide-react";
+import { ShoppingCart, Heart, CreditCard, Gift } from "lucide-react";
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -23,10 +19,24 @@ export default function BundlePDP() {
   const [bundle, setBundle] = useState(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
-  const [openZoom, setOpenZoom] = useState(false);
   const [wishlisted, setWishlisted] = useState(false);
+  const [targetImage, setTargetImage] = useState(0);
   const [selectedSizes, setSelectedSizes] = useState({});
+const [showMagnifier, setShowMagnifier] = useState(false);
+const [zoomPosition, setZoomPosition] = useState({ x: 50, y: 50 });
 
+
+
+const images = bundle
+  ? [
+      ...new Set([
+        ...(bundle.mainImages || []),
+        ...bundle.products.flatMap((p) =>
+          (p.images || []).slice(0, 2)
+        ),
+      ]),
+    ]
+  : [];
 
   useEffect(() => {
     const fetchBundle = async () => {
@@ -50,38 +60,184 @@ export default function BundlePDP() {
   if (loading) return <div className="text-center py-20">Loading bundle...</div>;
   if (!bundle) return <div className="text-center py-20">Bundle not found.</div>;
 
-  const nextImage = () => setActiveImage((prev) => (prev + 1) % bundle.mainImages.length);
-  const prevImage = () => setActiveImage((prev) => (prev - 1 + bundle.mainImages.length) % bundle.mainImages.length);
 // console.log("selectedSizes",bundle);
   return (
     <div className="flex flex-col md:flex-row gap-12 p-6 relative mb-40">
       {/* Left: Sticky Image Section */}
       <div className="md:w-[60%] md:sticky md:top-0 h-[100vh] flex flex-col justify-center">
         <div className="flex flex-col gap-3 h-full justify-between">
-          <Card
-            className="relative overflow-hidden border-0 cursor-zoom-in flex-1"
-            onClick={() => setOpenZoom(true)}
-          >
-            <img
-              src={bundle.mainImages[activeImage]}
-              alt={bundle.title}
-              className="w-full h-full object-contain rounded-md"
-            />
-          </Card>
+      <div
+  className="flex-1 flex gap-6 relative"
+
+>
+<Card
+  className="
+    relative
+    overflow-hidden
+    border-0
+    flex-1
+    bg-[#f5f5f3]
+    cursor-crosshair
+  "
+  onMouseEnter={() => {
+    if (window.innerWidth < 1024) return;
+    setShowMagnifier(true);
+  }}
+  onMouseLeave={() => {
+    setShowMagnifier(false);
+  }}
+  onMouseMove={(e) => {
+    if (window.innerWidth < 1024) return;
+
+    const { left, top, width, height } =
+      e.currentTarget.getBoundingClientRect();
+
+    const x = ((e.clientX - left) / width) * 100;
+    const y = ((e.clientY - top) / height) * 100;
+
+    setZoomPosition({ x, y });
+  }}
+>
+  <div
+    className="flex h-full transition-transform duration-500 ease-in-out"
+    style={{
+      transform: `translateX(-${activeImage * 100}%)`,
+    }}
+  >
+    {images.map((img, idx) => (
+      <img
+        key={idx}
+        src={img}
+        alt={`${bundle.title}-${idx}`}
+        className="
+          w-full
+          shrink-0
+          max-h-[55vh]
+          md:max-h-[82vh]
+          object-cover
+        "
+      />
+    ))}
+  </div>
+
+  <div
+    className="
+      absolute
+      bottom-3
+      right-3
+      bg-black/70
+      text-white
+      px-3 py-1
+      rounded-full
+      text-xs
+      md:hidden
+    "
+  >
+    {activeImage + 1}/{images.length}
+  </div>
+
+  <div className="flex justify-center gap-2 mt-3 md:hidden">
+    {images.map((_, idx) => (
+      <button
+        key={idx}
+        onClick={() => setActiveImage(idx)}
+        className={`h-2 rounded-full transition-all ${
+          activeImage === idx
+            ? "w-6 bg-black"
+            : "w-2 bg-gray-300"
+        }`}
+      />
+    ))}
+  </div>
+  {showMagnifier && (
+  <div
+    className="
+      absolute
+      z-[999]
+
+      w-60 h-60
+
+      border-2 border-black/20
+
+      bg-white/20
+
+      pointer-events-none
+
+      shadow-lg
+    "
+    style={{
+      left: `calc(${zoomPosition.x}% - 80px)`,
+      top: `calc(${zoomPosition.y}% - 80px)`,
+    }}
+  />
+)}
+</Card>
+
+
+
+<div
+  className={`
+    hidden xl:block
+    absolute
+    left-[calc(100%+24px)]
+    top-0
+
+    w-[620px]
+    h-[620px]
+
+    overflow-hidden
+    bg-[#f5f5f3]
+
+    border border-gray-200
+    shadow-2xl
+
+    z-50
+
+    transition-all duration-300
+
+    ${
+      showMagnifier
+        ? "opacity-100"
+        : "opacity-0 pointer-events-none"
+    }
+  `}
+  onMouseEnter={() => {
+    setShowMagnifier(false);
+  }}
+>
+    <div
+      className="w-full h-full bg-no-repeat"
+      style={{
+        backgroundImage: `url(${images[activeImage]})`,
+        backgroundSize: "250%",
+        backgroundPosition: `
+          ${Math.min(Math.max(zoomPosition.x, 15), 85)}%
+          ${Math.min(Math.max(zoomPosition.y, 15), 85)}%
+        `,
+      }}
+    />
+  </div>
+</div>
 
           {/* Thumbnails */}
-          <div className="flex gap-2 overflow-x-auto pb-2 mt-3">
-            {bundle.mainImages.map((img, idx) => (
-              <img
-                key={idx}
-                src={img}
-                alt={`${bundle.title} ${idx}`}
-                className={`w-20 h-20 object-cover rounded-md cursor-pointer flex-shrink-0 border transition ${activeImage === idx ? "border-black" : "border-gray-200"
-                  }`}
-                onClick={() => setActiveImage(idx)}
-              />
-            ))}
-          </div>
+       <div className="flex gap-2 overflow-x-auto pb-2 mt-3">
+  {images.map((img, idx) => (
+    <img
+      key={idx}
+      src={img}
+      alt={`${bundle.title} ${idx}`}
+      className={`w-20 h-20 object-cover rounded-md cursor-pointer flex-shrink-0 border transition ${
+        activeImage === idx
+          ? "border-black"
+          : "border-gray-200"
+      }`}
+      onClick={() => {
+        setActiveImage(idx) 
+        setTargetImage(idx)}
+      }
+    />
+  ))}
+</div>
         </div>
       </div>
 
@@ -119,7 +275,7 @@ export default function BundlePDP() {
         </span>
 
    <div className="flex flex-col gap-4 mt-4">
-  {bundle.products.map((p, idx) => (
+  {bundle.products.map((p) => (
     <div
       key={p._id}
       className="flex items-center justify-between gap-4 border border-gray-200 rounded-xl p-3 hover:shadow-md transition-all bg-white"
@@ -265,40 +421,7 @@ export default function BundlePDP() {
 
       </div>
 
-      {/* Zoom Dialog */}
-      <Dialog open={openZoom} onOpenChange={setOpenZoom}>
-        <DialogContent className="fixed inset-0 w-screen h-screen max-w-none max-h-none p-0 bg-black flex items-center justify-center rounded-none">
-          <DialogClose asChild>
-            <button className="absolute top-4 right-4 z-50 p-2 rounded-full bg-gray-200 hover:bg-gray-400 transition">
-              <X className="w-6 h-6 text-black" />
-            </button>
-          </DialogClose>
 
-          <div className="relative flex items-center justify-center w-full h-full">
-            <img
-              src={bundle.mainImages[activeImage]}
-              alt={bundle.title}
-              className="max-h-full max-w-full object-contain"
-            />
-            {bundle.mainImages.length > 1 && (
-              <>
-                <button
-                  onClick={prevImage}
-                  className="absolute left-6 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-gray-200 hover:bg-gray-400"
-                >
-                  <ChevronLeft className="w-7 h-7 text-black" />
-                </button>
-                <button
-                  onClick={nextImage}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 z-40 p-3 rounded-full bg-gray-200 hover:bg-gray-400"
-                >
-                  <ChevronRight className="w-7 h-7 text-black" />
-                </button>
-              </>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 

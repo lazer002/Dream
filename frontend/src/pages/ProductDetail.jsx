@@ -35,10 +35,8 @@ const touchEndX = useRef(null);
 
   const [zoomPosition, setZoomPosition] =
     useState({ x: 50, y: 50 })
-  const [mousePosition, setMousePosition] =
-    useState({ x: 0, y: 0 })
 
-  const magnifierTimeout = useRef(null)
+
 
 
 
@@ -489,25 +487,9 @@ flex-shrink-0
             className="
       flex-1
       flex gap-6
+      relative
     "
 
-  onMouseEnter={() => {
-  if (window.innerWidth < 1024) return;
-
-  if (magnifierTimeout.current) {
-    clearTimeout(magnifierTimeout.current);
-  }
-
-  setShowMagnifier(true);
-}}
-            onMouseLeave={() => {
-
-              magnifierTimeout.current =
-                setTimeout(() => {
-                  setShowMagnifier(false)
-                }, 120)
-
-            }}
           >
 
             {/* MAIN IMAGE */}
@@ -525,6 +507,14 @@ flex-shrink-0
 
         cursor-crosshair
       "
+        onMouseEnter={() => {
+    if (window.innerWidth < 1024) return;
+    setShowMagnifier(true);
+  }}
+  onMouseLeave={() => {
+    setShowMagnifier(false);
+  }}
+
  onTouchStart={onTouchStart}
   onTouchMove={onTouchMove}
   onTouchEnd={onTouchEnd}
@@ -546,29 +536,32 @@ if (window.innerWidth < 1024) return;
 
                 setZoomPosition({ x, y })
 
-                setMousePosition({
-                  x: e.clientX,
-                  y: e.clientY,
-                })
               }}
             >
 
-              <img
-                src={images[activeImage]}
-                alt={
-                  product.title ??
-                  "Product image"
-                }
+ <div
+  className="flex h-full transition-transform duration-500 ease-in-out"
+  style={{
+    transform: `translateX(-${activeImage * 100}%)`,
+  }}
+>
+  {images.map((img, idx) => (
+    <img
+      key={idx}
+      src={img}
+      alt={`${product.title}-${idx}`}
+      className="
+        w-full
+        shrink-0
 
-className="
-  w-full
+        max-h-[55vh]
+        md:max-h-[82vh]
 
-  max-h-[55vh]
-  md:max-h-[82vh]
-
-  object-cover
-"
-              />
+        object-cover
+      "
+    />
+  ))}
+</div>
 <div
   className="
     absolute
@@ -608,44 +601,44 @@ className="
     />
   ))}
 </div>
+        {showMagnifier && (
+  <div
+    className="
+      absolute
+      z-[999]
 
+      w-60 h-60
+
+      border-2 border-black/30
+
+      bg-White/20
+
+      pointer-events-none
+
+      shadow-lg
+    "
+ style={{
+  left: `${Math.min(Math.max(zoomPosition.x, 12), 88)}%`,
+  top: `${Math.min(Math.max(zoomPosition.y, 12), 88)}%`,
+  transform: "translate(-50%, -50%)",
+}}
+  />
+)}
             </Card>
             
-            {showMagnifier && (
-              <div
-                className="
-            absolute
-z-[999]
-            w-44 h-44
-            rounded-full
 
-            border border-white/80
-
-        bg-white/30
-backdrop-blur-md
-ring-2 ring-white/60
-            pointer-events-none
-
-            shadow-[0_10px_40px_rgba(0,0,0,0.18)]
-          "
-
-                style={{
-                  left: `calc(${zoomPosition.x}% - 88px)`,
-
-                  top: `calc(${zoomPosition.y}% - 88px)`,
-                }}
-              />
-            )}
 
             {/* ZOOM PREVIEW */}
             <div
               className={`
-        hidden xl:block
+  hidden xl:block
 
-        fixed
-isolate
-        right-1/4
-        top-32
+  absolute
+
+  left-[calc(100%+24px)]
+  top-0
+
+  isolate
 
         w-[620px]
         h-[620px]
@@ -667,6 +660,9 @@ isolate
                   : "opacity-0 translate-y-3 pointer-events-none"
                 }
       `}
+        onMouseEnter={() => {
+    setShowMagnifier(false);
+  }}
             >
 
               <div

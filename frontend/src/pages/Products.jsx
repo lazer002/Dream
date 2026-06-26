@@ -220,7 +220,7 @@ const handleFilterChange = (type, value) => {
 
         <div className="w-48">
           <Select value={sort} onValueChange={(v) => setSort(v)}>
-            <SelectTrigger className="w-full px-4 py-2 bg-gray-100 text-black flex items-center gap-2">
+            <SelectTrigger className="w-full px-1 py-2 bg-gray-100 text-black flex items-center gap-2">
               <ArrowUpDown className="w-5 h-5 text-gray-700" />
               <SelectValue placeholder="Sort By" />
             </SelectTrigger>

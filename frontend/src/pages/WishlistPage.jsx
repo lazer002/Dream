@@ -1,15 +1,22 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useWishlist } from "../state/WishlistContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
+import { useCart } from "../state/CartContext.jsx";
 import api from "../utils/config.js";
 import { Link } from "react-router-dom";
-import { Heart, ShoppingBag, X, Heart as HeartOutline } from "lucide-react"; // or your icon set
+import { Heart, Heart as HeartOutline } from "lucide-react"; // or your icon set
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 function ProductCard({
   product,
   onRemove,
   onToggle,
-  onAddToCart,
+  add,
   isWishlisted,
 }) {
 
@@ -96,8 +103,7 @@ function ProductCard({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-
-              onAddToCart(product);
+              add(product)
             }}
             className="flex-1 rounded-2xl bg-black py-3 text-sm font-medium text-white transition-all duration-200 hover:opacity-90  hover:text-white/70"
           >
@@ -131,11 +137,14 @@ function ProductCard({
 }
 export default function WishlistPage() {
   const { user } = useAuth();
+  const { add } = useCart();
   const { wishlist, removeFromWishlist, toggleWishlist, syncWishlistToUser } = useWishlist();
 
   const [products, setProducts] = useState([]); // product objects
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+const [isModalOpen, setIsModalOpen] = useState(false);
+const [selectedProduct, setSelectedProduct] = useState(null);
 
   const ids = useMemo(() => (Array.isArray(wishlist) ? wishlist : []), [wishlist]);
 
@@ -193,6 +202,31 @@ useEffect(() => {
     await syncWishlistToUser();
   };
 
+const handleAddClick = async (product) => {
+  if (
+    !product?.inventory ||
+    Object.keys(product.inventory).length === 0
+  ) {
+    toast.error("Please select a size!");
+    return;
+  }
+
+  setSelectedProduct(product);
+  setIsModalOpen(true);
+};
+
+const handleSelectSize = async (size) => {
+  if (!selectedProduct) return;
+
+  await add(
+    selectedProduct._id,
+    size,
+    1
+  );
+ removeFromWishlist(selectedProduct._id);
+  setIsModalOpen(false);
+  setSelectedProduct(null);
+};
   return (
     <div className="max-w-6xl mx-auto px-4 py-10">
       <header className="mb-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -239,17 +273,61 @@ useEffect(() => {
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6">
             {products.map((p) => (
               <Link key={p._id || p.id} to={`/product/${p._id || p.id}`} className="no-underline">
-                <ProductCard
+             <ProductCard
                   product={p}
+                  add={handleAddClick}
                   onRemove={handleRemove}
                   onToggle={handleToggle}
-                  isWishlisted={ids.includes(String(p._id || p.id))}
+                  isWishlisted={ids.some(
+                    (id) => String(id) === String(p._id || p.id)
+                  )}
                 />
               </Link>
             ))}
           </div>
         )}
       </main>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+  <DialogContent className="max-w-sm w-[90%]">
+    <DialogHeader>
+      <DialogTitle>Select Size</DialogTitle>
+    </DialogHeader>
+
+    <div className="p-4 flex flex-col gap-4">
+      {selectedProduct && (
+        <div>
+          <div className="text-sm text-gray-600 mb-2">
+            Choose Size
+          </div>
+        
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(selectedProduct.inventory || {}).map(
+              ([size, qty]) => (
+                <button
+                  key={size}
+                  onClick={() => handleSelectSize(size)}
+                  disabled={qty <= 0}
+                  className={`px-4 py-2 rounded-full border text-sm font-medium transition ${
+                    qty <= 0
+                      ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200"
+                      : "hover:bg-black hover:text-white"
+                  }`}
+                >
+                  <div className="flex flex-col items-center">
+                    <span>{size}</span>
+                    <small className="text-xs">
+                      {qty > 0 ? `${qty} left` : "Out"}
+                    </small>
+                  </div>
+                </button>
+              )
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  </DialogContent>
+</Dialog>
     </div>
   );
 }

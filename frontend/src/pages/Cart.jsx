@@ -6,7 +6,11 @@ import { useCart } from "../state/CartContext.jsx";
 import { getDeliveryDate } from "@/utils/public.js";
 import { useState } from "react";
 import { useWishlist } from "../state/WishlistContext.jsx";
-
+import {
+  RotateCcw,
+  ShieldCheck,
+  Truck
+} from "lucide-react";
 export default function Cart() {
   const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const { items, update, remove, loading } = useCart();
@@ -406,91 +410,153 @@ const openRemoveModal = (
         {/* ========================= */}
 
         <div>
-          <div className="sticky top-24 border border-gray-200 p-6 bg-white">
-            
-            <h2 className="text-2xl font-black uppercase mb-8">
-              Order Summary
-            </h2>
+     <div className="sticky top-24 bg-white border border-neutral-200 p-6">
 
-            <div className="space-y-5 text-sm">
-              
-              <div className="flex justify-between">
-                <span className="uppercase text-gray-500">
-                  Subtotal
-                </span>
+  {/* ORDER SUMMARY */}
+  <div className="mb-8">
+    <h2 className="text-[28px] font-bold tracking-tight">
+      Order Summary
+    </h2>
 
-                <span>
-                  ₹{subtotal.toFixed(2)}
-                </span>
-              </div>
+    <p className="text-sm text-neutral-500 mt-1">
+      Review your order before checkout
+    </p>
+  </div>
 
-              <div className="flex justify-between">
-                <span className="uppercase text-gray-500">
-                  Tax
-                </span>
+  {/* TOTALS */}
+  <div className="space-y-4">
 
-                <span>
-                  ₹{tax.toFixed(2)}
-                </span>
-              </div>
+    <div className="flex justify-between text-sm">
+      <span className="text-neutral-500">
+        Subtotal
+      </span>
 
-              <div className="flex justify-between">
-                <span className="uppercase text-gray-500">
-                  Delivery
-                </span>
+      <span>
+        ₹{subtotal.toFixed(2)}
+      </span>
+    </div>
 
-                <span>
-                  ₹{deliveryFee.toFixed(2)}
-                </span>
-              </div>
+    <div className="flex justify-between text-sm">
+      <span className="text-neutral-500">
+        Tax
+      </span>
 
-              <div className="flex justify-between">
-                <span className="uppercase text-gray-500">
-                  Discount
-                </span>
+      <span>
+        ₹{tax.toFixed(2)}
+      </span>
+    </div>
 
-                <span>
-                  -₹{discount.toFixed(2)}
-                </span>
-              </div>
+    <div className="flex justify-between text-sm">
+      <span className="text-neutral-500">
+        Shipping
+      </span>
 
-              <div className="border-t pt-5 flex justify-between text-lg font-bold">
-                <span className="uppercase">
-                  Total
-                </span>
+      <span>
+        {deliveryFee === 0
+          ? "Free"
+          : `₹${deliveryFee.toFixed(2)}`}
+      </span>
+    </div>
 
-                <span>
-                  ₹{total.toFixed(2)}
-                </span>
-              </div>
-            </div>
+    {discount > 0 && (
+      <div className="flex justify-between text-sm">
+        <span className="text-neutral-500">
+          Discount
+        </span>
 
-            {/* PROMO */}
-            <div className="mt-8">
-              <p className="text-xs uppercase tracking-wide mb-3 font-semibold">
-                Promo Code
-              </p>
+        <span className="text-green-600">
+          -₹{discount.toFixed(2)}
+        </span>
+      </div>
+    )}
 
-              <div className="flex">
-                <input
-                  type="text"
-                  placeholder="ENTER PROMO CODE"
-                  className="flex-1 border border-gray-300 px-3 py-3 text-xs outline-none"
-                />
+    <div className="border-t pt-5 mt-5">
+      <div className="flex justify-between items-end">
 
-                <button className="bg-black text-white px-5 text-xs font-semibold hover:opacity-90 transition rounded-lg">
-                  APPLY
-                </button>
-              </div>
-            </div>
+        <div>
+          <p className="text-sm text-neutral-500">
+            Total
+          </p>
 
-            {/* CHECKOUT */}
-            <Link to="/checkout">
-              <button className="w-full bg-black text-white py-4 mt-6 uppercase tracking-wide text-sm hover:opacity-90 transition rounded-lg">
-                Checkout
-              </button>
-            </Link>
-          </div>
+          <p className="text-xs text-green-600 mt-1">
+            Free shipping included
+          </p>
+        </div>
+
+        <span className="text-4xl font-bold tracking-tight">
+          ₹{total.toFixed(2)}
+        </span>
+
+      </div>
+    </div>
+
+  </div>
+
+  {/* BUTTON */}
+  <Link to="/checkout">
+    <button
+      className="
+        w-full
+        h-14
+
+        mt-8
+
+        bg-black
+        text-white
+
+        font-medium
+        tracking-[0.15em]
+        uppercase
+
+        hover:opacity-90
+        transition
+      "
+    >
+      Secure Checkout
+    </button>
+  </Link>
+
+  {/* TRUST BAR */}
+  <div className="mt-6 pt-6 border-t border-neutral-100">
+
+    <div
+      className="
+        flex
+        items-center
+        justify-center
+        flex-wrap
+        gap-4
+
+        text-[11px]
+        uppercase
+        tracking-[0.15em]
+
+        text-neutral-500
+      "
+    >
+      <span className="flex items-center gap-1">
+        <Truck className="w-3 h-3" />
+        Free Shipping
+      </span>
+
+      <span>•</span>
+
+      <span className="flex items-center gap-1">
+        <RotateCcw className="w-3 h-3" />
+        15 Day Returns
+      </span>
+
+      <span>•</span>
+
+      <span className="flex items-center gap-1">
+        <ShieldCheck className="w-3 h-3" />
+        Secure Checkout
+      </span>
+    </div>
+
+  </div>
+
+</div>
         </div>
       </div>
 

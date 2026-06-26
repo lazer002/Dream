@@ -411,6 +411,25 @@ useEffect(() => {
                   >
                     Track Order
                   </Link>
+   <Link
+                    to="/wishlist"
+                    className="flex items-center justify-between px-4 py-3 text-sm hover:bg-gray-50"
+                  >
+                    Wishlist
+
+                    {wishlist.length > 0 && (
+                      <span
+                        className="
+                          bg-green-500 text-white
+                          text-xs rounded-full
+                          w-5 h-5
+                          flex items-center justify-center
+                        "
+                      >
+                        {wishlist.length}
+                      </span>
+                    )}
+                  </Link>
 
                   <button
                     onClick={logout}

@@ -8,7 +8,7 @@ import { useCart } from "@/state/CartContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog.jsx";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { Swiper, SwiperSlide } from "swiper/react";
-import { X } from "lucide-react";
+import { X ,ChevronRight} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 /* ---------- small debounce hook ---------- */
 function useDebounce(value, delay = 350) {
@@ -507,114 +507,143 @@ z-0
 
   </div>
 
-  <div
-    className="
-      flex
-      flex-col
+<div className="bg-[#fafafa] rounded-[40px] p-5 md:p-8">
 
-      md:flex-row
+  {/* Section Header */}
 
-      max-w-full
+  <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
 
-      relative
-    "
-  >
+    <div>
 
-    {/* LEFT FIXED COLUMN */}
-    <div
+      <p className="text-xs uppercase tracking-[0.45em] text-neutral-400">
+        SHOP BY CATEGORY
+      </p>
+
+      <h2 className="mt-3 text-5xl md:text-6xl font-black tracking-tight">
+        Discover Collections
+      </h2>
+
+      <p className="mt-4 max-w-xl text-neutral-500 leading-7">
+        Explore premium collections curated for every style.
+        Crafted with timeless silhouettes and modern essentials.
+      </p>
+
+    </div>
+
+    <Link
+      to="/products"
       className="
-        w-full
-
-        md:w-96
-        md:flex-shrink-0
-
-        md:sticky
-        md:top-20
-
-        h-auto
-
+        group
+        inline-flex
+        items-center
+        gap-3
+        rounded-full
+        border
+        border-black
         bg-white
-
-        z-20
-
-        mb-6
-        md:mb-0
+        px-6
+        py-3
+        text-sm
+        font-semibold
+        uppercase
+        tracking-[0.2em]
+        transition
+        hover:bg-black
+        hover:text-white
       "
     >
+      Shop All
+
+      <ChevronRight
+        size={18}
+        className="
+          transition-transform
+          duration-300
+          group-hover:translate-x-1
+        "
+      />
+
+    </Link>
+
+  </div>
+
+  <div className="flex flex-col xl:flex-row gap-8">
+
+    {/* HERO */}
+
+    <div className="xl:w-[420px] shrink-0">
 
       <Link
         to="/products"
-        className="block group"
+        className="group block"
       >
 
-        <div className="relative overflow-hidden rounded-[28px]">
+        <div className="relative overflow-hidden rounded-[36px]">
 
-          {/* IMAGE */}
           <img
             src="https://bzmvvcdngqoxwpbulakr.supabase.co/storage/v1/object/public/product-images/products/1760803192692-zasrnaykki8.webp"
-
-            alt="MEN'S COLLECTION"
-
             className="
+              h-[500px]
               w-full
-
-              h-[400px]
-              md:h-[500px]
-
               object-cover
-
-              transition duration-700
-
-              group-hover:scale-[1.03]
+              transition
+              duration-700
+              group-hover:scale-110
             "
           />
 
-          {/* OVERLAY */}
-          <div
-            className="
-              absolute inset-0
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent"/>
 
-              bg-gradient-to-t
-              from-black/45
-              via-black/5
-              to-transparent
-            "
-          />
+          <div className="absolute bottom-8 left-8 right-8 text-white">
 
-          {/* LABEL */}
-          <div
-            className="
-              absolute
+            <span
+              className="
+                inline-flex
+                rounded-full
+                bg-white
+                px-4
+                py-2
+                text-xs
+                font-bold
+                uppercase
+                tracking-[0.25em]
+                text-black
+              "
+            >
+              Featured
+            </span>
 
-              bottom-5
-              left-1/2
+            <h2 className="mt-5 text-4xl font-black">
+              MEN'S COLLECTION
+            </h2>
 
-              -translate-x-1/2
-            "
-          >
+            <p className="mt-3 max-w-xs text-white/75">
+              Premium essentials designed for everyday wear.
+            </p>
 
             <div
               className="
-                bg-red-500
-                text-white
-
-                px-8 py-3
-
+                mt-6
+                inline-flex
+                items-center
+                gap-3
                 rounded-full
-
+                bg-black
+                px-6
+                py-3
                 text-sm
-                font-black
+                font-semibold
                 uppercase
-                tracking-wide
-
-                shadow-lg
-
-                transition-all duration-300
-
-                group-hover:scale-105
+                tracking-[0.2em]
               "
             >
-              MEN'S COLLECTION
+              Shop Now
+
+              <ChevronRight
+                size={18}
+                className="text-lime-400"
+              />
+
             </div>
 
           </div>
@@ -625,223 +654,229 @@ z-0
 
     </div>
 
-    {/* RIGHT SCROLLABLE SECTION */}
-    <div
-      className="
-        relative
+    {/* CATEGORY SLIDER */}
 
-        flex-1
+    <div className="min-w-0 flex-1">
 
-        overflow-x-auto
+      <Swiper
+        spaceBetween={24}
+        grabCursor
 
-        md:pl-6
+        breakpoints={{
+          0:{
+            slidesPerView:1.15
+          },
+          640:{
+            slidesPerView:1.5
+          },
+          768:{
+            slidesPerView:2
+          },
+          1200:{
+            slidesPerView:2.6
+          },
+          1600:{
+            slidesPerView:3
+          }
+        }}
+      >
+        {categories.map((category) => (
 
-        scrollbar-thin
-      "
+  <SwiperSlide
+    key={category._id}
+    className="!w-[320px] md:!w-[360px]"
+  >
+
+    <Link
+      to={`/products?category=${category.slug}`}
+      className="group block"
     >
 
-      <div className="flex gap-8 md:pr-12">
+      <div
+        className="
+          overflow-hidden
+          rounded-[32px]
+          bg-white
+          shadow-sm
+          transition-all
+          duration-500
+          hover:-translate-y-2
+          hover:shadow-[0_20px_60px_rgba(0,0,0,.12)]
+        "
+      >
 
-        <Swiper
-          spaceBetween={30}
-          slidesPerView="auto"
-          grabCursor={true}
-        >
+        {/* IMAGE */}
 
-          {categories.map((category) => (
+        <div className="relative overflow-hidden">
 
-            <SwiperSlide
-              key={category._id}
-              style={{ width: "380px" }}
-            >
+          <img
+            src={
+              category.photo ||
+              `https://via.placeholder.com/600x800?text=${encodeURIComponent(category.name)}`
+            }
+            alt={category.name}
+            className="
+              h-[460px]
+              w-full
+              object-cover
+              transition-transform
+              duration-700
+              group-hover:scale-110
+            "
+          />
 
-              <Link
-                to={`/products?category=${category.slug}`}
-                className="block group"
+          {/* Gradient */}
+
+          <div
+            className="
+              absolute
+              inset-0
+              bg-gradient-to-t
+              from-black/80
+              via-black/10
+              to-transparent
+            "
+          />
+
+          {/* Product Count */}
+
+          <div
+            className="
+              absolute
+              left-5
+              top-5
+              rounded-full
+              bg-white
+              px-4
+              py-2
+              text-xs
+              font-bold
+              uppercase
+              tracking-[0.2em]
+            "
+          >
+            Collection
+          </div>
+
+          {/* Bottom Info */}
+
+          <div
+            className="
+              absolute
+              bottom-0
+              left-0
+              right-0
+              p-6
+              text-white
+            "
+          >
+
+            <h3 className="text-3xl font-black">
+              {category.name}
+            </h3>
+
+            <p className="mt-2 text-sm text-white/75">
+              Explore premium essentials curated for your wardrobe.
+            </p>
+
+            <div className="mt-6 flex items-center justify-between">
+
+              <div>
+
+                <span className="text-xs uppercase tracking-[0.25em] text-white/60">
+                  Shop Collection
+                </span>
+
+              </div>
+
+              <div
+                className="
+                  flex
+                  h-12
+                  w-12
+                  items-center
+                  justify-center
+                  rounded-full
+                  border
+                  border-white/30
+                  backdrop-blur-md
+                  transition-all
+                  group-hover:bg-white
+                  group-hover:text-black
+                "
               >
 
-                <div className="relative overflow-hidden rounded-[18px]">
+                <ChevronRight
+                  size={20}
+                  className="group-hover:text-lime-500"
+                />
 
-                  {/* IMAGE */}
-                  <img
-                    src={
-                      category.photo ||
-                      `https://via.placeholder.com/250x300?text=${encodeURIComponent(
-                        category.name
-                      )}`
-                    }
+              </div>
 
-                    alt={category.name}
+            </div>
 
-                    className="
-                      w-full
+          </div>
 
-                      h-[400px]
-                      md:h-[500px]
-
-                      object-cover
-
-                      transition duration-700
-
-                      group-hover:scale-[1.03]
-                    "
-                  />
-
-                  {/* DARK OVERLAY */}
-                  <div
-                    className="
-                      absolute inset-0
-
-                      bg-gradient-to-t
-                      from-black/40
-                      via-black/5
-                      to-transparent
-                    "
-                  />
-
-                  {/* CATEGORY BUTTON */}
-                  <div
-                    className="
-                      absolute
-
-                      bottom-5
-                      left-1/2
-
-                      -translate-x-1/2
-                    "
-                  >
-
-                    <div
-                      className="
-                        bg-red-500
-                        text-white
-
-                        px-8 py-3
-
-                        rounded-full
-
-                        text-sm
-                        font-black
-                        uppercase
-                        tracking-wide
-
-                        shadow-lg
-
-                        transition-all duration-300
-
-                        group-hover:scale-105
-                      "
-                    >
-                      {category.name}
-                    </div>
-
-                  </div>
-
-                </div>
-
-              </Link>
-
-            </SwiperSlide>
-
-          ))}
-
-        </Swiper>
+        </div>
 
       </div>
 
-      {/* MOBILE LEFT FADE */}
-      <div
+    </Link>
+
+  </SwiperSlide>
+
+))}
+    </Swiper>
+
+    {/* Bottom Controls */}
+
+    <div className="mt-8 flex items-center justify-between">
+
+      <div className="flex items-center gap-3">
+
+        <div className="h-[2px] w-16 bg-black rounded-full" />
+
+        <span className="text-xs uppercase tracking-[0.3em] text-neutral-400">
+          Scroll
+        </span>
+
+      </div>
+
+      <Link
+        to="/products"
         className="
-          md:hidden
-
-          pointer-events-none
-
-          absolute
-          top-0
-          bottom-0
-          left-0
-
-          w-10
-
-          bg-gradient-to-r
-          from-white
-          to-transparent
-
-          z-20
+          group
+          inline-flex
+          items-center
+          gap-2
+          text-sm
+          font-semibold
+          uppercase
+          tracking-[0.2em]
+          transition
+          hover:text-neutral-600
         "
-      />
+      >
+        View All
 
-      {/* MOBILE RIGHT FADE */}
-      <div
-        className="
-          md:hidden
+        <ChevronRight
+          size={18}
+          className="
+            transition-transform
+            duration-300
+            group-hover:translate-x-1
+          "
+        />
 
-          pointer-events-none
-
-          absolute
-          top-0
-          bottom-0
-          right-0
-
-          w-10
-
-          bg-gradient-to-l
-          from-white
-          to-transparent
-
-          z-20
-        "
-      />
-
-      {/* DESKTOP LEFT FADE */}
-      <div
-        className="
-          hidden md:block
-
-          pointer-events-none
-
-          absolute
-          top-0
-          bottom-0
-
-          left-6
-
-          w-12
-
-          bg-gradient-to-r
-          from-white
-          to-transparent
-
-          z-20
-        "
-      />
-
-      {/* DESKTOP RIGHT FADE */}
-      <div
-        className="
-          hidden md:block
-
-          pointer-events-none
-
-          absolute
-          top-0
-          bottom-0
-
-          right-[3rem]
-
-          w-12
-
-          bg-gradient-to-l
-          from-white
-          to-transparent
-
-          z-20
-        "
-      />
+      </Link>
 
     </div>
 
   </div>
+
+</div>
+
+</div>
 
 </section>
 
@@ -877,7 +912,7 @@ z-0
 
 
 
-<section
+{/* <section
   className="
     bg-[#f3f3f1]
     px-4
@@ -901,7 +936,6 @@ z-0
     "
   >
 
-    {/* LEFT IMAGE SIDE */}
     <div
       className="
         relative
@@ -919,7 +953,6 @@ z-0
       "
     >
 
-      {/* TAG */}
       <div
         className="
           absolute
@@ -941,7 +974,6 @@ z-0
         Collection 001
       </div>
 
-      {/* PRODUCT IMAGE */}
       <img
         src="/images/banner_web.webp"
         alt="Collection"
@@ -960,7 +992,6 @@ z-0
 
     </div>
 
-    {/* RIGHT CONTENT */}
     <div
       className="
         flex flex-col justify-center
@@ -974,7 +1005,6 @@ z-0
       "
     >
 
-      {/* MINI LABEL */}
       <div
         className="
           flex items-center gap-4
@@ -996,7 +1026,6 @@ z-0
         <div className="w-10 h-px bg-[#b84332]" />
       </div>
 
-      {/* TITLE */}
       <h2
         className="
           text-[3rem]
@@ -1025,7 +1054,6 @@ z-0
         </span>
       </h2>
 
-      {/* DESCRIPTION */}
       <p
         className="
           mt-8
@@ -1047,7 +1075,6 @@ z-0
         for modern street culture.
       </p>
 
-      {/* DIVIDER */}
       <div
         className="
           mt-10
@@ -1056,7 +1083,6 @@ z-0
         "
       >
 
-        {/* FEATURES */}
         <div
           className="
             flex flex-wrap
@@ -1093,7 +1119,6 @@ z-0
 
       </div>
 
-      {/* CTA */}
       <div
         className="
           mt-10
@@ -1169,7 +1194,7 @@ z-0
     </div>
 
   </div>
-</section>
+</section> */}
 
 
 
@@ -1179,13 +1204,13 @@ z-0
       {/* ======================================================
           JOURNAL / FOOTER
       ====================================================== */}
-      <section className="bg-gray-50 text-center py-20 px-6 md:px-20 relative overflow-hidden">
-        {/* Decorative gradient accent */}
+      {/* <section className="bg-gray-50 text-center py-20 px-6 md:px-20 relative overflow-hidden">
+     
         <div className="absolute -top-20 -left-20 w-72 h-72 bg-gradient-to-tr from-indigo-400 via-purple-400 to-pink-400 rounded-full opacity-30 blur-3xl pointer-events-none"></div>
         <div className="absolute -bottom-20 -right-20 w-72 h-72 bg-gradient-to-tr from-yellow-300 via-orange-400 to-red-400 rounded-full opacity-30 blur-3xl pointer-events-none"></div>
 
         <h3 className="text-2xl md:text-3xl font-extrabold mb-4 tracking-tight uppercase text-gray-900">
-          From the DripJournal
+          From the GARRIB
         </h3>
 
         <p className="text-gray-700 mb-2 text-sm md:text-base max-w-xl mx-auto">
@@ -1199,126 +1224,345 @@ z-0
         <button className="bg-black text-white px-6 py-3 rounded-lg font-semibold text-sm md:text-base hover:bg-gray-900 transition shadow-lg">
           Subscribe Now
         </button>
-      </section>
+      </section> */}
 
 
       {/* ======================================================
           FEATURED PRODUCTS
       ====================================================== */}
-      <section className="bg-white pt-12 pb-16 text-black">
-        <div className=" px-4 sm:px-6 lg:px-8 ">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between mb-8 gap-4">
-            <h2 className="text-3xl font-bold uppercase tracking-tight">FEATURED PRODUCTS</h2>
+<section className="bg-[#fafafa] py-20 overflow-hidden">
 
-            <div className="flex items-center gap-3">
-              <Link
-                to="/products"
-                className="hidden md:inline-flex items-center gap-2 text-sm font-semibold uppercase text-black hover:text-gray-700 transition"
-              >
-                DISCOVER MORE
-                <svg role="presentation" focusable="false" width="8" height="12" className="stroke-current" viewBox="0 0 8 12">
-                  <path d="m1 11 5-5-5-5" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </Link>
+  <div className="mx-auto max-w-[1700px] px-5 md:px-8">
 
-              {/* small homepage CTA (mobile) */}
-              <Link to="/collections/bestseller" className="md:hidden text-xs font-semibold uppercase text-black/80">
-                More
-              </Link>
-            </div>
-          </div>
+    {/* Header */}
 
-          {/* Layout: hero left, scroller right */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {heroes && heroes.length > 0 ? (
-              heroes.map((p) => (
-                <article
-                  key={p._id}
-                  className="bg-gray-50 rounded-lg overflow-hidden relative group"
-                >
-                  <Link to={`/product/${p._id}`} className="block overflow-hidden">
-                    <div className="relative h-72 sm:h-80 lg:h-[420px] overflow-hidden">
-                      <img
-                        src={p.images?.[0] || "https://via.placeholder.com/800x600?text=No+Image"}
-                        alt={p.title}
-                        loading="lazy"
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      />
+    <div className="mb-16 flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
 
-                      {/* Badges */}
-                      <div className="absolute top-4 left-4 flex flex-col gap-2 z-20">
-                        {p.isNewProduct && (
-                          <span className="bg-black text-white px-3 py-1 text-xs uppercase font-semibold rounded">
-                            NEW
-                          </span>
-                        )}
-                        {p.onSale && (
-                          <span className="bg-red-600 text-white px-3 py-1 text-xs uppercase font-semibold rounded">
-                            SALE
-                          </span>
-                        )}
-                      </div>
+      <div>
 
-                      {/* Info Box */}
-                      <div className="absolute bottom-4 left-4 bg-white/90 backdrop-blur-sm rounded-md p-4 shadow-md max-w-xs">
-                        <h3 className="text-base font-bold uppercase truncate">
-                          {p.title}
-                        </h3>
+        <span className="text-xs uppercase tracking-[0.45em] text-neutral-400">
+          FEATURED COLLECTION
+        </span>
 
-                        {/* Price + Discount Row */}
-                        <div className="mt-2 flex items-center gap-2 flex-wrap">
-                          {/* Actual Price */}
-                          <span className="text-sm font-bold text-[#042354]">
-                            ₹{Number(p.price).toLocaleString()}
-                          </span>
+        <h2 className="mt-4 text-5xl md:text-6xl font-black tracking-tight">
+          Featured Products
+        </h2>
 
-                          {/* If on sale — show a fake original price and discount */}
-                          {p.onSale && (
-                            <>
-                              <span className="text-xs text-gray-500 line-through">
-                                ₹{Math.round(Number(p.price) / 0.7).toLocaleString()}
-                              </span>
-                              <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
-                                30% OFF
-                              </span>
-                            </>
-                          )}
-                        </div>
+        <p className="mt-5 max-w-xl text-lg text-neutral-500 leading-8">
+          Discover timeless essentials crafted with premium fabrics,
+          clean silhouettes and modern styling.
+        </p>
 
-                        {/* Buttons */}
-                        <div className="mt-3 flex gap-2">
-                     <span className="bg-black text-white px-3 py-2 rounded text-sm font-semibold">
-                            View Product
-                            </span>
-                          <button
-                            onClick={(e) => {
-                              e.preventDefault();
-                              openModal(p);
-                            }}
-                            className="border border-gray-200 px-3 py-2 rounded text-sm font-medium hover:bg-gray-100"
-                            aria-label={`Add ${p.title} to cart`}
-                          >
-                            Add to Bag
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </Link>
-                </article>
-              ))
-            ) : (
-              <div className="col-span-3 h-72 sm:h-96 bg-gray-100 rounded-lg flex items-center justify-center text-gray-500">
-                No featured products available
-              </div>
-            )}
-          </div>
+      </div>
 
+      <Link
+        to="/products"
+        className="
+          group
+          inline-flex
+          items-center
+          gap-3
+          rounded-full
+          border
+          border-black
+          bg-white
+          px-7
+          py-3
+          text-sm
+          font-semibold
+          uppercase
+          tracking-[0.2em]
+          transition-all
+          hover:bg-black
+          hover:text-white
+        "
+      >
+        Shop Collection
 
+        <ChevronRight
+          size={18}
+          className="
+            transition-transform
+            duration-300
+            group-hover:translate-x-1
+          "
+        />
 
+      </Link>
 
-        </div>
-      </section>
+    </div>
+
+    {/* Products */}
+
+    <div className="grid gap-8 md:grid-cols-2 xl:grid-cols-3">
+
+      {heroes?.length ? (
+
+        heroes.map((p) => (
+
+          <article
+            key={p._id}
+            className="
+              group
+              overflow-hidden
+              rounded-[32px]
+              bg-white
+              shadow-sm
+              transition-all
+              duration-500
+              hover:-translate-y-2
+              hover:shadow-[0_25px_80px_rgba(0,0,0,.12)]
+            "
+          >
+
+            <Link
+              to={`/product/${p._id}`}
+              className="block"
+            >
+
+              <div className="relative h-[420px] overflow-hidden">
+
+                <img
+                  src={
+                    p.images?.[0] ||
+                    "https://via.placeholder.com/900x1200"
+                  }
+                  alt={p.title}
+                  loading="lazy"
+                  className="
+                    h-full
+                    w-full
+                    object-cover
+                    transition-transform
+                    duration-700
+                    group-hover:scale-110
+                  "
+                />
+
+                {/* Gradient */}
+
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent"/>
+
+                {/* Badges */}
+
+                <div className="absolute left-5 top-5 flex gap-2">
+
+                  {p.isNewProduct && (
+
+                    <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase">
+                      NEW
+                    </span>
+
+                  )}
+
+                  {p.onSale && (
+
+                    <span className="rounded-full bg-lime-400 px-3 py-1 text-[11px] font-bold uppercase">
+                      SALE
+                    </span>
+
+                  )}
+
+                </div>
+
+               <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+
+  {/* Category */}
+
+  <p className="text-xs uppercase tracking-[0.35em] text-white/70">
+    {p.category?.name || "ESSENTIAL"}
+  </p>
+
+  {/* Product */}
+
+  <h3
+    className="
+      mt-2
+      text-3xl
+      font-black
+      leading-tight
+      transition-transform
+      duration-300
+      group-hover:-translate-y-1
+    "
+  >
+    {p.title}
+  </h3>
+
+  {/* Price */}
+
+  <div className="mt-4 flex items-center gap-3 flex-wrap">
+
+    <span className="text-3xl font-black">
+      ₹{Number(p.price).toLocaleString()}
+    </span>
+
+    {p.onSale && (
+      <>
+        <span className="text-white/60 line-through text-sm">
+          ₹{Math.round(Number(p.price) / 0.7).toLocaleString()}
+        </span>
+
+        <span className="rounded-full bg-lime-400 px-2 py-1 text-[11px] font-bold text-black">
+          30% OFF
+        </span>
+      </>
+    )}
+
+  </div>
+
+  {/* Description */}
+
+  <p className="mt-4 max-w-sm text-sm leading-6 text-white/80 line-clamp-2">
+    {p.shortDescription ||
+      "Premium everyday essential designed with comfort, durability and timeless style."}
+  </p>
+
+  {/* CTA */}
+
+  <div className="mt-7 flex items-center justify-between">
+
+    <button
+      onClick={(e) => {
+        e.preventDefault();
+        openModal(p);
+      }}
+      className="
+        rounded-full
+        bg-white
+        px-6
+        py-3
+        text-xs
+        font-bold
+        uppercase
+        tracking-[0.2em]
+        text-black
+        transition-all
+        hover:bg-lime-400
+        hover:scale-105
+      "
+    >
+      QUICK ADD
+    </button>
+
+    <div className="flex items-center gap-3">
+
+      <span className="text-sm uppercase tracking-[0.2em] text-white/70">
+        View
+      </span>
+
+      <div
+        className="
+          flex
+          h-12
+          w-12
+          items-center
+          justify-center
+          rounded-full
+          border
+          border-white/30
+          backdrop-blur-md
+          transition-all
+          group-hover:bg-white
+          group-hover:text-black
+        "
+      >
+        <ChevronRight size={20} />
+      </div>
+
+    </div>
+
+  </div>
+
+</div>
+
+</div>
+
+</Link>
+
+</article>
+
+))) : (
+
+  <div
+    className="
+      col-span-full
+      flex
+      h-[520px]
+      items-center
+      justify-center
+      rounded-[32px]
+      bg-white
+      border
+    "
+  >
+
+    <div className="text-center">
+
+      <p className="text-xs uppercase tracking-[0.35em] text-neutral-400">
+        Coming Soon
+      </p>
+
+      <h3 className="mt-4 text-4xl font-black">
+        More Products Are On The Way
+      </h3>
+
+      <p className="mt-4 text-neutral-500">
+        New arrivals will appear here shortly.
+      </p>
+
+    </div>
+
+  </div>
+
+)}
+
+</div>
+
+{/* Bottom CTA */}
+
+<div className="mt-16 flex justify-center">
+
+  <Link
+    to="/products"
+    className="
+      group
+      flex
+      items-center
+      gap-3
+      rounded-full
+      bg-black
+      px-8
+      py-4
+      text-sm
+      font-semibold
+      uppercase
+      tracking-[0.25em]
+      text-white
+      transition-all
+      hover:scale-105
+    "
+  >
+
+    Explore All Products
+
+    <ChevronRight
+      size={18}
+      className="
+        text-lime-400
+        transition-transform
+        duration-300
+        group-hover:translate-x-1
+      "
+    />
+
+  </Link>
+
+</div>
+
+</div>
+
+</section>
 
 
 
@@ -1430,7 +1674,7 @@ z-0
 
 </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
           {bundles.slice(0, 4).map((bundle) => {
             const total =
               bundle.products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0;
@@ -1439,95 +1683,266 @@ z-0
             const discountPercent = Math.round(((fakeOriginal - bundlePrice) / fakeOriginal) * 100);
 
             return (
-              <div
-                key={bundle._id}
-                className="group border border-gray-200 rounded-2xl bg-white hover:shadow-md transition overflow-hidden"
-              >
-                {/* Image */}
-                <div className="relative">
-                  <img
-                    src={
-                      bundle.heroImage ||
-                      bundle.mainImages?.[0] ||
-                      bundle.products?.[0]?.images?.[0] ||
-                      "/images/placeholder-800.png"
-                    }
-                    alt={bundle.title}
-                    className="w-full h-72 object-cover"
-                  />
+          <div
+  key={bundle._id}
+  className="
+    group
+    overflow-hidden
+    rounded-[30px]
+    bg-white
+    shadow-sm
+    transition-all
+    duration-500
+    hover:-translate-y-2
+    hover:shadow-[0_25px_70px_rgba(0,0,0,.12)]
+  "
+>
 
-                  {/* Bundle Tag */}
-                  <span className="absolute top-4 left-4 bg-black text-white text-xs font-semibold px-3 py-1 rounded-full tracking-wide">
-                    Bundle
-                  </span>
+  <div className="relative overflow-hidden">
 
-                  {discountPercent > 0 && (
-                    <span className="absolute top-4 right-4 bg-red-500 text-white text-xs font-semibold px-3 py-1 rounded-full">
-                      {discountPercent}% OFF
-                    </span>
-                  )}
-                </div>
+    <img
+      src={
+        bundle.heroImage ||
+        bundle.mainImages?.[0] ||
+        bundle.products?.[0]?.images?.[0] ||
+        "/images/placeholder.png"
+      }
+      alt={bundle.title}
+      className="
+        h-[420px]
+        w-full
+        object-cover
+        transition-transform
+        duration-700
+        group-hover:scale-110
+      "
+    />
 
-                {/* Content */}
-                <div className="p-5 flex flex-col gap-3">
-                  <h3 className="text-lg font-semibold text-black truncate">
-                    {bundle.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 line-clamp-2 mb-2">
-                    {bundle.description || "Exclusive curated items in one pack."}
-                  </p>
+    {/* Gradient */}
 
-                  {/* Price */}
-                  <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xl font-bold text-black">
-                      ₹{bundlePrice.toLocaleString()}
-                    </span>
-                    {bundle && (
-                      <>
-                        <span className="text-sm text-gray-500 line-through">
-                          ₹{Math.round(Number(bundle.price) / 0.7).toLocaleString()}
-                        </span>
-                        <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
-                          {discountPercent}% OFF
-                        </span>
-                      </>
-                    )}
-                  </div>
+    <div
+      className="
+        absolute
+        inset-0
+        bg-gradient-to-t
+        from-black/80
+        via-black/15
+        to-transparent
+      "
+    />
 
-                  {/* Thumbnails */}
-                  <div className="flex gap-1 mb-3">
-                    {(bundle.products || []).slice(0, 4).map((p) => (
-                      <img
-                        key={p._id}
-                        src={p.images?.[0] || "/images/placeholder.png"}
-                        alt={p.title}
-                        className="w-10 h-10 rounded-md border border-gray-200 object-cover"
-                      />
-                    ))}
-                    {bundle.products?.length > 4 && (
-                      <div className="w-10 h-10 flex items-center justify-center bg-gray-100 text-gray-600 text-xs rounded-md border border-gray-200">
-                        +{bundle.products.length - 4}
-                      </div>
-                    )}
-                  </div>
+    {/* Top */}
 
-                  {/* Buttons */}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => openBundleModal(bundle)}
-                      className="flex-1 px-4 py-2.5 text-sm font-medium border border-gray-300 rounded-full hover:bg-gray-50 transition"
-                    >
-                      View
-                    </button>
-                    <button
-                      onClick={() => openBundleModal(bundle)}
-                      className="flex-1 px-4 py-2.5 text-sm font-medium bg-black text-white rounded-full hover:bg-gray-900 transition"
-                    >
-                      Add Bundle
-                    </button>
-                  </div>
-                </div>
-              </div>
+    <div className="absolute left-5 right-5 top-5 flex justify-between">
+
+      <span
+        className="
+          rounded-full
+          bg-white
+          px-3
+          py-1
+          text-[11px]
+          font-bold
+          uppercase
+        "
+      >
+        Bundle
+      </span>
+
+      {discountPercent > 0 && (
+
+        <span
+          className="
+            rounded-full
+            bg-lime-400
+            px-3
+            py-1
+            text-[11px]
+            font-bold
+            uppercase
+          "
+        >
+          {discountPercent}% OFF
+        </span>
+
+      )}
+
+    </div>
+
+   <div
+  className="
+    absolute
+    bottom-0
+    left-0
+    right-0
+    p-6
+    text-white
+  "
+>
+
+  {/* Title */}
+
+  <p className="text-xs uppercase tracking-[0.35em] text-white/60">
+    Curated Bundle
+  </p>
+
+  <h3 className="mt-2 text-3xl font-black leading-tight">
+    {bundle.title}
+  </h3>
+
+  {/* Price */}
+
+  <div className="mt-4 flex items-center gap-3 flex-wrap">
+
+    <span className="text-3xl font-black">
+      ₹{bundlePrice.toLocaleString()}
+    </span>
+
+    <span className="text-sm text-white/60 line-through">
+      ₹{fakeOriginal.toLocaleString()}
+    </span>
+
+    <span
+      className="
+        rounded-full
+        bg-lime-400
+        px-2
+        py-1
+        text-[11px]
+        font-bold
+        text-black
+      "
+    >
+      SAVE {discountPercent}%
+    </span>
+
+  </div>
+
+  {/* Description */}
+
+  <p className="mt-4 line-clamp-2 max-w-sm text-sm leading-6 text-white/75">
+    {bundle.description ||
+      "Premium pieces curated together for the perfect outfit."}
+  </p>
+
+  {/* Included Products */}
+
+  <div className="mt-6 flex items-center justify-between">
+
+    <div className="flex -space-x-3">
+
+      {(bundle.products || [])
+        .slice(0, 4)
+        .map((p) => (
+
+          <img
+            key={p._id}
+            src={p.images?.[0]}
+            alt={p.title}
+            className="
+              h-11
+              w-11
+              rounded-full
+              border-2
+              border-black
+              object-cover
+            "
+          />
+
+      ))}
+
+      {bundle.products?.length > 4 && (
+
+        <div
+          className="
+            flex
+            h-11
+            w-11
+            items-center
+            justify-center
+            rounded-full
+            border-2
+            border-black
+            bg-white
+            text-xs
+            font-bold
+            text-black
+          "
+        >
+          +{bundle.products.length - 4}
+        </div>
+
+      )}
+
+    </div>
+
+    <div className="text-right">
+
+      <p className="text-xs uppercase tracking-[0.2em] text-white/60">
+        Included
+      </p>
+
+      <p className="font-semibold">
+        {bundle.products?.length} Items
+      </p>
+
+    </div>
+
+  </div>
+
+  {/* CTA */}
+
+  <div className="mt-7 flex items-center justify-between">
+
+    <button
+      onClick={() => openBundleModal(bundle)}
+      className="
+        rounded-full
+        bg-white
+        px-6
+        py-3
+        text-xs
+        font-bold
+        uppercase
+        tracking-[0.2em]
+        text-black
+        transition
+        hover:bg-lime-400
+      "
+    >
+      View Bundle
+    </button>
+
+    <button
+      onClick={() => openBundleModal(bundle)}
+      className="
+        flex
+        h-12
+        w-12
+        items-center
+        justify-center
+        rounded-full
+        border
+        border-white/30
+        backdrop-blur-md
+        transition
+        group-hover:bg-white
+        group-hover:text-black
+      "
+    >
+      <ChevronRight
+        size={20}
+        className="group-hover:text-lime-500"
+      />
+    </button>
+
+  </div>
+
+</div>
+
+</div>
+
+</div>
             );
           })}
         </div>
@@ -1556,7 +1971,7 @@ z-0
             className="grid grid-cols-1 md:grid-cols-2 gap-6"
           >
             {/* Name */}
-            <div className="relative">
+            <div className="relative  px-2">
               <input
                 type="text"
                 name="name"
@@ -1568,7 +1983,7 @@ z-0
               />
               <label
                 htmlFor="ContactForm-name"
-                className="absolute left-4 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
+                className="absolute left-0 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
           transition-all duration-300 ease-in-out
           peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
           peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-black peer-focus:text-xs
@@ -1579,7 +1994,7 @@ z-0
             </div>
 
             {/* Email */}
-            <div className="relative">
+           <div className="relative  px-2">
               <input
                 type="email"
                 name="email"
@@ -1591,7 +2006,7 @@ z-0
               />
               <label
                 htmlFor="ContactForm-email"
-                className="absolute left-4 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
+                className="absolute left-0 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
           transition-all duration-300 ease-in-out
           peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
           peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-black peer-focus:text-xs
@@ -1615,7 +2030,7 @@ z-0
               />
               <label
                 htmlFor="ContactForm-phone"
-                className="absolute left-4 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
+                className="absolute left-0 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
           transition-all duration-300 ease-in-out
           peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
           peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-black peer-focus:text-xs
@@ -1638,7 +2053,7 @@ z-0
               />
               <label
                 htmlFor="ContactForm-body"
-                className="absolute left-4 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
+                className="absolute left-0 top-0 -translate-y-1 text-black text-xs font-bold uppercase tracking-wide
           transition-all duration-300 ease-in-out
           peer-placeholder-shown:top-6 peer-placeholder-shown:text-gray-500 peer-placeholder-shown:text-base
           peer-focus:top-0 peer-focus:-translate-y-1 peer-focus:text-black peer-focus:text-xs
@@ -1662,166 +2077,740 @@ z-0
         </div>
       </section>
       {/* product size modal */}
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent className="max-w-sm w-[90%]">
-          <DialogHeader>
-            <DialogTitle>Select Size</DialogTitle>
-            <DialogClose />
-          </DialogHeader>
+<Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
+  <DialogContent className="w-[95vw] max-w-md overflow-hidden rounded-3xl border-0 bg-white p-0 shadow-[0_25px_80px_rgba(0,0,0,.18)]">
 
-          <div className="p-4 flex flex-col gap-4">
-            {selectedProduct && (
-              <>
+    {selectedProduct && (
+      <>
 
+        {/* Header */}
 
-                <div>
-                  <div className="text-sm text-gray-600 mb-2">Choose Size</div>
-                  <div className="flex flex-wrap gap-2">
-                    {Object.entries(selectedProduct.inventory || {}).map(([size, qty]) => (
-                      <button
-                        key={size}
-                        onClick={() => handleSelectSize(size)}
-                        disabled={qty <= 0}
-                        className={`px-4 py-2 rounded-full border text-sm font-medium transition
-                    ${qty <= 0
-                            ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200"
-                            : "hover:bg-black hover:text-white"
-                          }`}
-                        title={qty <= 0 ? "Out of stock" : `Add ${size} to cart`}
-                      >
-                        <div className="flex flex-col items-center">
-                          <span>{size}</span>
-                          <small className="text-xs">{qty > 0 ? `${qty} left` : "Out"}</small>
-                        </div>
-                      </button>
-                    ))}
-                  </div>
+        <div className="relative">
 
-                  {Object.values(selectedProduct.inventory || {}).every((q) => q <= 0) && (
-                    <div className="mt-3 text-sm text-red-500 font-medium">Out of Stock</div>
-                  )}
-                </div>
-              </>
-            )}
+          <img
+            src={selectedProduct.images?.[0]}
+            alt={selectedProduct.title}
+            className="h-64 w-full object-cover"
+          />
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
+
+          <button
+            onClick={() => setIsModalOpen(false)}
+            className="
+              absolute
+              right-4
+              top-4
+              flex
+              h-10
+              w-10
+              items-center
+              justify-center
+              rounded-full
+              bg-white
+              shadow
+            "
+          >
+            <X className="h-5 w-5" />
+          </button>
+
+          <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+
+            <p className="text-xs uppercase tracking-[0.3em] text-white/70">
+              QUICK ADD
+            </p>
+
+            <h2 className="mt-2 text-3xl font-black">
+              {selectedProduct.title}
+            </h2>
+
+            <p className="mt-2 text-2xl font-bold">
+              ₹{Number(selectedProduct.price).toLocaleString()}
+            </p>
+
           </div>
-        </DialogContent>
-      </Dialog>
+
+        </div>
+
+        {/* Body */}
+
+        <div className="p-6">
+
+          <div className="flex items-center justify-between">
+
+            <h3 className="font-semibold">
+              Select Size
+            </h3>
+
+            <button className="text-sm text-neutral-500 underline">
+              Size Guide
+            </button>
+
+          </div>
+
+          <div className="mt-5 grid grid-cols-3 gap-3">
+
+            {Object.entries(selectedProduct.inventory || {}).map(
+              ([size, qty]) => {
+
+                const disabled = qty <= 0;
+
+                return (
+                  <button
+                    key={size}
+                    disabled={disabled}
+                    onClick={() => handleSelectSize(size)}
+                    className={`
+                      rounded-2xl
+                      border
+                      py-4
+                      transition-all
+
+                      ${
+                        disabled
+                          ? "cursor-not-allowed border-neutral-200 bg-neutral-100 text-neutral-400"
+                          : "border-black hover:bg-black hover:text-white"
+                      }
+                    `}
+                  >
+
+                    <div className="font-semibold">
+                      {size}
+                    </div>
+
+                    <div className="mt-1 text-xs opacity-70">
+                      {disabled ? "Out" : `${qty} Left`}
+                    </div>
+
+                  </button>
+                );
+              }
+            )}
+
+          </div>
+
+          {Object.values(selectedProduct.inventory || {}).every(
+            (q) => q <= 0
+          ) && (
+            <div className="mt-6 rounded-2xl bg-red-50 p-4 text-center text-sm font-medium text-red-600">
+              This product is currently out of stock.
+            </div>
+          )}
+
+        </div>
+
+      </>
+    )}
+
+  </DialogContent>
+</Dialog>
 
 
       {/* bundle model */}
       <Dialog open={isOpen} onOpenChange={(open) => { setIsOpen(open); }}>
-       <DialogContent className="max-w-3xl w-full bg-white p-6 relative max-h-[90vh] overflow-y-auto">
-          {/* Close X */}
-          <button
-            onClick={() => {
-              setIsOpen(false);
+   <DialogContent className="w-[95vw] max-w-6xl overflow-hidden rounded-3xl border-0 bg-[#fafafa] p-0 shadow-2xl" >
 
-            }}
-            aria-label="Close"
-            className="absolute top-4 right-4 w-8 h-8 flex items-center justify-center  hover:bg-gray-100 transition"
-          >
-            <X className="w-5 h-5 text-gray-600" />
-          </button>
+  {/* Close */}
 
-          {/* Top header: title + price + small see details */}
-          <div className="flex items-start justify-between gap-4 mb-6">
-            <div className="flex items-center gap-3">
-              <img
-                src={selectedBundle?.mainImages?.[0] || selectedBundle?.products?.[0]?.images?.[0] || "/images/placeholder.png"}
-                alt={selectedBundle?.title}
-                className="w-14 h-14 object-cover rounded-md border"
-              />
-              <div>
-                <h3 className="text-lg font-semibold">{selectedBundle?.title}</h3>
-                <div className="text-sm text-gray-700 font-semibold">₹{fmt(selectedBundle?.price || selectedBundle?.bundlePrice || 0)}</div>
-                <button
-                  onClick={() => selectedBundle && navigate(`/collections/${selectedBundle._id}`)}
-                  className="text-xs text-gray-500 underline mt-1"
-                >
-                  See Details
-                </button>
-              </div>
+  <button
+    onClick={() => setIsOpen(false)}
+    className="
+      absolute
+      right-5
+      top-5
+      z-50
+      flex
+      h-10
+      w-10
+      items-center
+      justify-center
+      rounded-full
+      bg-white
+      shadow
+      transition
+      hover:bg-neutral-100
+    "
+  >
+    <X className="h-5 w-5"/>
+  </button>
+
+  {/* Desktop */}
+
+  <div className="hidden lg:grid lg:grid-cols-[420px_1fr]">
+
+    {/* LEFT */}
+
+    <div className="relative bg-neutral-100">
+
+      <img
+        src={
+          selectedBundle?.mainImages?.[0] ||
+          selectedBundle?.products?.[0]?.images?.[0] ||
+          "/images/placeholder.png"
+        }
+        alt={selectedBundle?.title}
+        className="
+          h-full
+          w-full
+          object-cover
+        "
+      />
+
+      <div
+        className="
+          absolute
+          inset-0
+          bg-gradient-to-t
+          from-black/70
+          via-black/10
+          to-transparent
+        "
+      />
+
+      <div
+        className="
+          absolute
+          bottom-0
+          left-0
+          right-0
+          p-8
+          text-white
+        "
+      >
+
+        <p className="text-xs uppercase tracking-[0.3em] opacity-80">
+          Build Your Outfit
+        </p>
+
+        <h2 className="mt-3 text-4xl font-black leading-tight">
+          {selectedBundle?.title}
+        </h2>
+
+        <div className="mt-5 flex items-center gap-4">
+
+          <span className="text-3xl font-bold">
+            ₹{fmt(selectedBundle?.price || selectedBundle?.bundlePrice || 0)}
+          </span>
+
+          <span className="rounded-full bg-lime-400 px-3 py-1 text-xs font-semibold text-black">
+            Bundle
+          </span>
+
+        </div>
+
+        <button
+          onClick={() =>
+            navigate(`/collections/${selectedBundle?._id}`)
+          }
+          className="
+            mt-6
+            flex
+            items-center
+            gap-2
+            text-sm
+            underline
+          "
+        >
+          View Details →
+        </button>
+
+      </div>
+
+    </div>
+
+    {/* RIGHT */}
+
+    <div className="flex h-[85vh] flex-col">
+
+      <div className="border-b bg-white px-8 py-6">
+
+        <h3 className="text-2xl font-bold">
+          Complete the Look
+        </h3>
+
+        <p className="mt-2 text-neutral-500">
+          Select a size for each product before adding the bundle.
+        </p>
+
+      </div>
+
+     <div className="flex-1 overflow-y-auto bg-[#fafafa] px-8 py-8"  data-lenis-prevent>
+
+  <div className="space-y-6">
+
+    {(selectedBundle?.products || []).map((p, idx) => (
+
+      <div
+        key={p._id}
+        className="
+          rounded-3xl
+          border
+          border-neutral-200
+          bg-white
+          p-5
+          shadow-sm
+          transition
+          hover:shadow-md
+        "
+      >
+
+        <div className="flex flex-col gap-5 md:flex-row">
+
+          {/* Image */}
+
+          <div className="relative w-full md:w-44">
+
+            <img
+              src={p.images?.[0] || "/images/placeholder.png"}
+              alt={p.title}
+              className="
+                h-60
+                w-full
+                rounded-2xl
+                object-cover
+              "
+            />
+
+            <div
+              className="
+                absolute
+                left-3
+                top-3
+                rounded-full
+                bg-black
+                px-3
+                py-1
+                text-[11px]
+                font-semibold
+                uppercase
+                tracking-wider
+                text-white
+              "
+            >
+              Included
             </div>
 
-            <div className="text-right text-gray-500 text-sm"></div>
           </div>
 
-          {/* Main row: product cards side-by-side with + in the middle */}
-          <div className="w-full bg-white border-t border-b py-6 px-2 mb-6 relative  ">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 items-start justify-between relative">
-              {(selectedBundle?.products || []).map((p, idx) => (
-                <div
-                  key={p._id}
-                  className="bg-white flex flex-col sm:flex-row gap-4 items-start"
-                >
-                  {/* product image */}
-                  <div className="w-full sm:w-44 flex-shrink-0">
-                    <img
-                      src={p.images?.[0] || "/images/placeholder.png"}
-                      alt={p.title}
-                      className="w-full h-44 object-cover rounded-md border"
-                    />
-                  </div>
+          {/* Right */}
 
-                  {/* product meta + select */}
-                  <div className="flex-1">
+          <div className="flex flex-1 flex-col justify-between">
 
-                    <div className="text-sm font-semibold text-black">{p.title}</div>
+            <div>
 
+              <div className="flex items-start justify-between">
 
-                    <div className="text-sm font-semibold text-gray-900">
-                      ₹{fmt(p.price)}
-                    </div>
+                <div>
 
-                    {/* size guide + size select */}
-                    <div className="mt-4">
+                  <h3 className="text-xl font-bold">
+                    {p.title}
+                  </h3>
 
+                  <p className="mt-2 text-neutral-500">
+                    Premium quality essential for your look.
+                  </p>
 
-                      {/* Hardcoded sizes Select */}
-                      <div className="mt-24 max-w-xs">
-
-                        <Select
-                          value={selectedSizes[p._id] ?? ""}
-                          onValueChange={(val) => handleSizeChange(p._id, val)}
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Select Size" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {["XS", "S", "M", "L", "XL", "XXL"].map((size) => (
-                              <SelectItem key={size} value={size}>
-                                {size}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                  </div>
                 </div>
-              ))}
 
+                <div className="text-right">
+
+                  <p className="text-2xl font-bold">
+                    ₹{fmt(p.price)}
+                  </p>
+
+                  <p className="mt-1 text-xs text-lime-600 font-semibold">
+                    Bundle Item
+                  </p>
+
+                </div>
+
+              </div>
+
+              {/* Gallery */}
+
+              {p.images?.length > 1 && (
+
+                <div className="mt-5 flex gap-2">
+
+                  {p.images.slice(0,4).map((img,i)=>(
+
+                    <img
+                      key={i}
+                      src={img}
+                      className="
+                        h-14
+                        w-14
+                        rounded-xl
+                        border
+                        object-cover
+                      "
+                    />
+
+                  ))}
+
+                </div>
+
+              )}
 
             </div>
 
-          </div>
+            {/* Bottom */}
 
-          {/* Quantity + CTA row */}
-          <div className="flex flex-col sm:flex-row items-center gap-4 justify-center">
-            {/* left: quantity control */}
+            <div className="mt-8">
 
+              <div className="mb-3 flex items-center justify-between">
 
-            {/* CTA */}
-            <div className="w-full sm:w-1/3">
-              <button
-                onClick={handleAddBundle}
-                className="w-full  text-white py-3  font-semibold bg-black transition"
+                <span className="font-medium">
+                  Choose Size
+                </span>
+
+                <button
+                  className="
+                    text-sm
+                    text-neutral-500
+                    underline
+                  "
+                >
+                  Size Guide
+                </button>
+
+              </div>
+
+              <Select
+                value={selectedSizes[p._id] ?? ""}
+                onValueChange={(val)=>
+                  handleSizeChange(p._id,val)
+                }
               >
-                Add To Cart
-              </button>
+
+                <SelectTrigger className="h-12 rounded-xl border-neutral-300">
+
+                  <SelectValue placeholder="Select Size"/>
+
+                </SelectTrigger>
+
+                <SelectContent>
+
+                  {["XS","S","M","L","XL","XXL"].map((size)=>(
+
+                    <SelectItem
+                      key={size}
+                      value={size}
+                    >
+                      {size}
+                    </SelectItem>
+
+                  ))}
+
+                </SelectContent>
+
+              </Select>
+
             </div>
+
           </div>
-        </DialogContent>
+
+        </div>
+
+      </div>
+
+    ))}
+
+  </div>
+
+</div>
+
+{/* ---------- Sticky Footer ---------- */}
+
+<div
+  className="
+    border-t
+    bg-white
+    px-8
+    py-6
+  "
+>
+
+  <div className="flex items-center justify-between">
+
+    <div>
+
+      <p className="text-sm text-neutral-500">
+        Bundle Total
+      </p>
+
+      <p className="mt-1 text-3xl font-black">
+        ₹{fmt(selectedBundle?.price || selectedBundle?.bundlePrice || 0)}
+      </p>
+
+    </div>
+
+    <button
+      onClick={handleAddBundle}
+      className="
+        flex
+        items-center
+        gap-3
+        rounded-2xl
+        bg-black
+        px-8
+        py-4
+        font-semibold
+        uppercase
+        tracking-[0.15em]
+        text-white
+        transition
+        hover:bg-neutral-900
+      "
+    >
+      ADD TO CART
+
+      <ChevronRight
+        size={18}
+        className="text-lime-400"
+      />
+
+    </button>
+
+  </div>
+
+</div>
+</div>
+</div>
+
+{/* ================= MOBILE ================= */}
+
+<div className="lg:hidden flex flex-col max-h-[92vh]">
+
+  {/* Hero */}
+
+  <div className="relative">
+
+    <img
+      src={
+        selectedBundle?.mainImages?.[0] ||
+        selectedBundle?.products?.[0]?.images?.[0] ||
+        "/images/placeholder.png"
+      }
+      className="h-64 w-full object-cover"
+      alt={selectedBundle?.title}
+    />
+
+    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent"/>
+
+    <button
+      onClick={() => setIsOpen(false)}
+      className="
+        absolute
+        right-4
+        top-4
+        flex
+        h-10
+        w-10
+        items-center
+        justify-center
+        rounded-full
+        bg-white
+      "
+    >
+      <X className="h-5 w-5"/>
+    </button>
+
+    <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+
+      <p className="text-xs uppercase tracking-[0.3em] opacity-80">
+        Bundle
+      </p>
+
+      <h2 className="mt-2 text-3xl font-black">
+        {selectedBundle?.title}
+      </h2>
+
+      <div className="mt-3 flex items-center gap-3">
+
+        <span className="text-3xl font-bold">
+          ₹{fmt(selectedBundle?.price || selectedBundle?.bundlePrice || 0)}
+        </span>
+
+        <span className="rounded-full bg-lime-400 px-3 py-1 text-xs font-semibold text-black">
+          SAVE
+        </span>
+
+      </div>
+
+    </div>
+
+  </div>
+
+  {/* Products */}
+
+  <div className="flex-1 overflow-y-auto bg-neutral-100 p-4 space-y-4"  data-lenis-prevent>
+
+    {(selectedBundle?.products || []).map((p)=>(
+      <div
+        key={p._id}
+        className="
+          rounded-3xl
+          bg-white
+          p-4
+          shadow-sm
+        "
+      >
+
+        <div className="flex gap-4">
+
+          <img
+            src={p.images?.[0]}
+            className="
+              h-28
+              w-24
+              rounded-2xl
+              object-cover
+            "
+          />
+
+          <div className="flex-1">
+
+            <div className="flex justify-between">
+
+              <div>
+
+                <h3 className="font-semibold">
+                  {p.title}
+                </h3>
+
+                <p className="mt-1 text-sm text-neutral-500">
+                  ₹{fmt(p.price)}
+                </p>
+
+              </div>
+
+              <span
+                className="
+                  rounded-full
+                  bg-lime-100
+                  px-2
+                  py-1
+                  text-[11px]
+                  font-semibold
+                  text-lime-700
+                  h-fit
+                "
+              >
+                Included
+              </span>
+
+            </div>
+
+            <div className="mt-4">
+
+              <Select
+                value={selectedSizes[p._id] ?? ""}
+                onValueChange={(v)=>
+                  handleSizeChange(p._id,v)
+                }
+              >
+
+                <SelectTrigger className="rounded-xl h-11">
+                  <SelectValue placeholder="Choose Size"/>
+                </SelectTrigger>
+
+                <SelectContent>
+
+                  {["XS","S","M","L","XL","XXL"].map(size=>(
+                    <SelectItem
+                      key={size}
+                      value={size}
+                    >
+                      {size}
+                    </SelectItem>
+                  ))}
+
+                </SelectContent>
+
+              </Select>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+    ))}
+
+  </div>
+
+  {/* Sticky Footer */}
+
+  <div
+    className="
+      border-t
+      bg-white
+      p-5
+      shadow-[0_-8px_30px_rgba(0,0,0,.08)]
+    "
+  >
+
+    <div className="mb-4 flex justify-between">
+
+      <div>
+
+        <p className="text-sm text-neutral-500">
+          Bundle Price
+        </p>
+
+        <p className="text-3xl font-black">
+          ₹{fmt(selectedBundle?.price || selectedBundle?.bundlePrice || 0)}
+        </p>
+
+      </div>
+
+      <div className="text-right">
+
+        <p className="text-sm text-neutral-500">
+          Items
+        </p>
+
+        <p className="text-xl font-bold">
+          {selectedBundle?.products?.length}
+        </p>
+
+      </div>
+
+    </div>
+
+    <button
+      onClick={handleAddBundle}
+      className="
+        flex
+        w-full
+        items-center
+        justify-center
+        gap-2
+        rounded-2xl
+        bg-black
+        py-4
+        font-semibold
+        uppercase
+        tracking-[0.2em]
+        text-white
+      "
+    >
+      ADD BUNDLE
+
+      <ChevronRight
+        size={18}
+        className="text-lime-400"
+      />
+
+    </button>
+
+  </div>
+
+</div>
+
+</DialogContent>
       </Dialog>
     </div>
   );

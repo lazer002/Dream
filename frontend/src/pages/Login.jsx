@@ -3,7 +3,7 @@ import { Link,useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 import toast from "react-hot-toast";
 import { loadGoogleScript } from "../utils/loader.js";
-
+ import api from "@/utils/config.js";
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
@@ -24,7 +24,13 @@ console.log("Login page, redirect from:", location);
     e.preventDefault();
     try {
       await login(form.email, form.password);
+      const me = await api.get("/auth/me");
+
+    if (me.data.user.role === "admin") {
+      navigate("/admin", { replace: true });
+    } else {
       navigate(from, { replace: true });
+    }
     } catch {
       setError("Invalid credentials");
     }

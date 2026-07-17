@@ -43,9 +43,19 @@ import BuildYourLookPage from "./pages/BuildYourLookPage.jsx";
 
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
-  const { user } = useAuth();
-  return user?.role === "admin" ? children : <Navigate to="/" replace />;
+  const { user, loading } = useAuth();
+
+  console.log("loading:", loading);
+  console.log("user:", user);
+  console.log("role:", user?.role);
+
+  if (loading) return <div>Loading...</div>;
+
+  return user?.role === "admin"
+    ? children
+    : <Navigate to="/" replace />;
 }
+
 
 // ✅ Main App Component
 export default function App() {

@@ -3,9 +3,11 @@ import mongoose from "mongoose";
 const OrderSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: false },
-    guestId: { type: String,  
-  required: false,
- ref: "GuestUser" },
+    guestId: {
+      type: String,
+      required: false,
+      ref: "GuestUser"
+    },
 
     // required & validated
     email: { type: String, required: true, match: /.+\@.+\..+/, index: true },
@@ -18,7 +20,11 @@ const OrderSchema = new mongoose.Schema(
       type: [
         {
           productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-          bundleId: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle", default: null },
+          bundleId: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle", required: false, },
+          customBundle: {
+            type: Boolean,
+            default: false,
+          },
           title: { type: String, required: true },
           variant: { type: String, default: "" },
           quantity: { type: Number, required: true },
@@ -28,15 +34,37 @@ const OrderSchema = new mongoose.Schema(
           bundleProducts: {
             type: [
               {
-                productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-                title: String,
-                variant: String,
-                quantity: Number,
-                price: Number,
-                mainImage: { type: String, required: true },
+                productId: {
+                  type: mongoose.Schema.Types.ObjectId,
+                  ref: "Product",
+                },
+
+                title: {
+                  type: String,
+                },
+
+                variant: {
+                  type: String,
+                },
+
+                quantity: {
+                  type: Number,
+                },
+
+                price: {
+                  type: Number,
+                },
+
+                mainImage: {
+                  type: String,
+                  required: true,
+                },
               },
             ],
-            default: [],
+
+            required: false,
+
+            default: undefined,
           },
         },
       ],
@@ -54,25 +82,86 @@ const OrderSchema = new mongoose.Schema(
     razorpayPaymentId: { type: String },
     razorpaySignature: { type: String },
 
-    orderStatus: {
-      type: String,
-      enum: [ "pending","confirmed","dispatched","shipped","out for delivery","delivered","cancelled","refunded"],
-      default: "pending",
-    },
+ orderStatus: {
+  type: String,
+  enum: [
+    "pending",
+    "confirmed",
+    "dispatched",
+    "shipped",
+    "out for delivery",
+    "delivered",
 
-    statusHistory: {
-      type: [
-        {
-          status: {
-            type: String,
-            enum: [ "pending","confirmed","dispatched","shipped","out for delivery","delivered","cancelled","refunded"],
-            required: true,
-          },
-          updatedAt: { type: Date, default: Date.now },
-        },
-      ],
-      default: [],
+    // Return flow
+    "return requested",
+    "return approved",
+    "return rejected",
+    "returned",
+    "refunded",
+
+    // Exchange flow
+    "exchange requested",
+    "exchange approved",
+    "exchange rejected",
+    "exchange processing",
+    "exchanged",
+
+    // Repair flow
+    "repair requested",
+    "repair approved",
+    "repair rejected",
+    "repair processing",
+    "repaired",
+
+    "cancelled",
+  ],
+  default: "pending",
+},
+
+statusHistory: {
+  type: [
+    {
+      status: {
+        type: String,
+        enum: [
+          "pending",
+          "confirmed",
+          "dispatched",
+          "shipped",
+          "out for delivery",
+          "delivered",
+
+          "return requested",
+          "return approved",
+          "return rejected",
+          "returned",
+          "refunded",
+
+          "exchange requested",
+          "exchange approved",
+          "exchange rejected",
+          "exchange processing",
+          "exchanged",
+
+          "repair requested",
+          "repair approved",
+          "repair rejected",
+          "repair processing",
+          "repaired",
+
+          "cancelled",
+        ],
+        required: true,
+      },
+
+      updatedAt: {
+        type: Date,
+        default: Date.now,
+      },
     },
+  ],
+  default: [],
+},
 
     shippingAddress: {
       firstName: String,
@@ -107,11 +196,11 @@ const OrderSchema = new mongoose.Schema(
     cancelReason: { type: String },
     cancelReasonDetails: { type: String },
     source: { type: String, enum: ["web", "mobile", "admin"], default: "web" },
-   invoiceNumber: {
-  type: String,
-  unique: true,
-  sparse: true, // allows null for orders without invoices yet
-}
+    invoiceNumber: {
+      type: String,
+      unique: true,
+      sparse: true, // allows null for orders without invoices yet
+    }
   },
   { timestamps: true, toJSON: { virtuals: true }, toObject: { virtuals: true } }
 );

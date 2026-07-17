@@ -163,7 +163,6 @@ export function AuthProvider({ children }) {
   };
 
   /* ================= PROVIDER ================= */
-
   return (
     <AuthContext.Provider
       value={{

@@ -17,7 +17,7 @@ const router = express.Router();
 
 router.post("/create", optionalAuth, async (req, res) => {
   try {
-    console.log("Create order request body:", req.body.items);
+    console.log("Create order request body:", JSON.stringify(req.body.items));
     // return
 
     const userId = req.user?.id || req.user?._id || null;
@@ -48,8 +48,8 @@ router.post("/create", optionalAuth, async (req, res) => {
     let calculatedSubtotal = 0;
     const validatedItems = [];
     for (const item of items) {
-  let data = null;
-  let isBundle = false;
+      let data = null;
+      let isBundle = false;
 
 
 if (item.bundleId) {
@@ -84,6 +84,7 @@ if (item.bundleId) {
   // ✅ NOW push (correct place)
   validatedItems.push({
     bundleId: bundle._id,
+    customBundle: false,
     title: bundle.title,
     quantity: item.quantity,
     price: bundle.price,
@@ -95,6 +96,109 @@ if (item.bundleId) {
 
   continue;
 }
+
+// =========================
+// 🎁 HANDLE CUSTOM BUNDLE
+// =========================
+if (item.customBundle) {
+  let originalBundlePrice = 0;
+  const bundleProductsValidated = [];
+
+  // ============================================
+  // VALIDATE ALL CUSTOM BUNDLE PRODUCTS
+  // ============================================
+
+  for (const bp of item.bundleProducts || []) {
+    const product = await Product.findById(bp.productId);
+
+    if (!product) {
+      return res.status(400).json({
+        success: false,
+        error: "Invalid bundle product",
+      });
+    }
+
+    const qty = Number(bp.quantity) || 1;
+
+    // Calculate original price from database
+    originalBundlePrice += product.price * qty;
+
+    bundleProductsValidated.push({
+      productId: product._id,
+      title: product.title,
+      variant: bp.variant || "",
+      quantity: qty,
+      price: product.price,
+      mainImage: product.images?.[0] || "",
+    });
+  }
+
+  // ============================================
+  // APPLY 10% CUSTOM BUNDLE DISCOUNT
+  // ============================================
+
+  const discountPercentage = 10;
+
+  const discountAmount =
+    originalBundlePrice *
+    (discountPercentage / 100);
+
+  // Final custom bundle selling price
+  const customBundlePrice = Math.round(
+    originalBundlePrice - discountAmount
+  );
+
+  // Quantity of complete custom bundles
+  const bundleQuantity =
+    Number(item.quantity) || 1;
+
+  const itemTotal =
+    customBundlePrice * bundleQuantity;
+
+  // Add discounted amount to order subtotal
+  calculatedSubtotal += itemTotal;
+
+  // ============================================
+  // SAVE VALIDATED CUSTOM BUNDLE
+  // ============================================
+
+  validatedItems.push({
+    customBundle: true,
+
+    title:
+      item.title || "Custom Bundle",
+
+    quantity:
+      bundleQuantity,
+
+    // Discounted selling price
+    price:
+      customBundlePrice,
+
+    // Original total product price
+    originalPrice:
+      originalBundlePrice,
+
+    discountPercentage,
+
+    discountAmount:
+      Math.round(discountAmount),
+
+    total:
+      itemTotal,
+ 
+    mainImage:
+      item.mainImage || "",
+
+    bundleProducts:
+      bundleProductsValidated,
+  });
+
+  continue;
+}
+
+
+
   // =========================
   // 🛍️ HANDLE PRODUCT
   // =========================
@@ -118,7 +222,7 @@ if (item.bundleId) {
   });
 }
 
-    const shippingFee = 100; // you can make dynamic later
+    const shippingFee = 0; // you can make dynamic later
     const finalTotal = calculatedSubtotal + shippingFee;
 
     // =========================
@@ -401,6 +505,15 @@ router.post("/payment-success", async (req, res) => {
       return res.status(404).json({ error: "Order not found" });
     }
 
+
+
+if (order.razorpayOrderId !== razorpay_order_id) {
+  return res.status(400).json({
+    success: false,
+    error: "Razorpay order mismatch",
+  });
+}
+
     // =========================
     // 🔁 3. PREVENT DOUBLE PROCESS
     // =========================
@@ -424,6 +537,8 @@ router.post("/payment-success", async (req, res) => {
       });
     }
 
+
+    
     // =========================
     // 💰 5. VERIFY WITH RAZORPAY API
     // =========================
@@ -474,6 +589,12 @@ if (paymentData.status !== "captured") {
 
     order.paymentStatus = "paid";
     order.orderStatus = "confirmed";
+
+    order.statusHistory.push({
+      status: "confirmed",
+      updatedAt: new Date(),
+    });
+
     await order.save();
 
     // =========================

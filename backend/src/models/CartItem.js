@@ -1,34 +1,78 @@
 import mongoose from "mongoose";
 
-const bundleProductSchema = new mongoose.Schema({
-  product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-  size: { type: String },
-  quantity: { type: Number, default: 1 },
-}, { _id: false });
+const bundleProductSchema = new mongoose.Schema(
+  {
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+      required: true,
+    },
+    size: {
+      type: String,
+    },
+    quantity: {
+      type: Number,
+      default: 1,
+    },
+  },
+  { _id: false }
+);
 
-const cartItemSchema = new mongoose.Schema({
-  user: { type: mongoose.Schema.Types.ObjectId, ref: "User", index: true },
-  guestId: { type: String, index: true },
+const cartItemSchema = new mongoose.Schema(
+  {
+    user: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "User",
+      index: true,
+    },
 
-  // Single product
-  product: { type: mongoose.Schema.Types.ObjectId, ref: "Product" },
-  size: { type: String },
+    guestId: {
+      type: String,
+      index: true,
+    },
 
-  // Bundle
-  bundle: { type: mongoose.Schema.Types.ObjectId, ref: "Bundle" },
-  customBundle: {
-  title: String,
-  price: Number,
-  mainImage: String,
-},
-  mainImage: { type: String },
-  bundleProducts: { type: [bundleProductSchema], default: undefined },
+    // Single product
+    product: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Product",
+    },
 
-  quantity: { type: Number, default: 1, min: 1 },
-}, { timestamps: true });
+    size: {
+      type: String,
+    },
+
+    // Bundle
+    bundle: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Bundle",
+    },
+
+    customBundle: {
+      title: String,
+      price: Number,
+      mainImage: String,
+    },
+
+    mainImage: {
+      type: String,
+    },
+
+    bundleProducts: {
+      type: [bundleProductSchema],
+      default: undefined,
+    },
+
+    quantity: {
+      type: Number,
+      default: 1,
+      min: 1,
+    },
+  },
+  { timestamps: true }
+);
 
 // Clean up fields automatically
-cartItemSchema.pre("validate", function(next) {
+cartItemSchema.pre("validate", function (next) {
   if (this.bundle || this.customBundle) {
     this.product = undefined;
     this.size = undefined;
@@ -62,7 +106,7 @@ cartItemSchema.index(
   }
 );
 
-// --- Bundles: one per user/guest ---
+// --- Bundles ---
 cartItemSchema.index(
   { user: 1, bundle: 1 },
   {
@@ -85,5 +129,7 @@ cartItemSchema.index(
   }
 );
 
-export const CartItem = mongoose.model("CartItem", cartItemSchema);
-    
+export const CartItem = mongoose.model(
+  "CartItem",
+  cartItemSchema
+);

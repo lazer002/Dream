@@ -126,7 +126,7 @@ export default function ShowBundle() {
         </Button>
       </div>
 
-      <Card>
+      <Card data-lenis-prevent>
         <CardHeader>
           <CardTitle>All Bundles</CardTitle>
         </CardHeader>

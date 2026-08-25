@@ -90,7 +90,7 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8" data-lenis-prevent>
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold tracking-tight">Admin Dashboard</h1>
         <Button

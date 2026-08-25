@@ -24,3 +24,5 @@ export default function SmoothScroll({ children, disabled }) {
 
   return children;
 }
+
+// data-lenis-prevent

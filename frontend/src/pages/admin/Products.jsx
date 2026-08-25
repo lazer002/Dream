@@ -1,544 +1,1527 @@
-import { useEffect, useState } from "react"
-import { useAuth } from "../../state/AuthContext.jsx"
+// replace ProductList.jsx with this
+
+import { useEffect, useMemo, useState } from "react";
+import {
+  Package,
+  Pencil,
+  Trash2,
+  CheckCircle2,
+  XCircle,
+  Eye,
+  Search,
+  RefreshCw,
+  AlertTriangle,
+  TrendingDown,
+  Boxes,
+  Tag,
+  Star,
+  Percent,
+} from "lucide-react";
+
+import api from "@/utils/config";
+
 import {
   Card,
   CardHeader,
   CardTitle,
   CardContent,
-} from "@/components/ui/card"
-import {
-  Table,
-  TableHeader,
-  TableRow,
-  TableHead,
-  TableBody,
-  TableCell,
-} from "@/components/ui/table"
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
+} from "@/components/ui/card";
+
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+
 import {
   Select,
   SelectTrigger,
   SelectValue,
   SelectContent,
   SelectItem,
-} from "@/components/ui/select"
-import { Button } from "@/components/ui/button"
+} from "@/components/ui/select";
+
 import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-} from "@/components/ui/tabs";
-// Lucide icons
-import {
-  Pencil,
-  Trash2,
-  CheckCircle2,
-  XCircle,
-  Eye,
-  Search
-} from "lucide-react"
-import api from "@/utils/config";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+
+const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+
+const EMPTY_STOCK = {
+  XS: 0,
+  S: 0,
+  M: 0,
+  L: 0,
+  XL: 0,
+  XXL: 0,
+};
+
 export default function ProductList() {
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [editing, setEditing] = useState(null)
-  const [open, setOpen] = useState(false)
+  const [products, setProducts] = useState([]);
+  const [inventories, setInventories] = useState([]);
   const [categories, setCategories] = useState([]);
-  const [categoryFilter, setCategoryFilter] = useState("All");
-  const [search, setSearch] = useState("")
-  const [deleteOpen, setDeleteOpen] = useState(false)
-  const [deleteId, setDeleteId] = useState(null)
+
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+
+  const [editing, setEditing] = useState(null);
+  const [open, setOpen] = useState(false);
+
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState(null);
+
+  const [saving, setSaving] = useState(false);
+  const [message, setMessage] = useState("");
 
   const [form, setForm] = useState({
     title: "",
     description: "",
     price: "",
-    inventory: 0,
-    category: "hoodies",
+    oldPrice: "",
+    category: "",
     published: true,
-    onSale: true,
-    isNewProduct: true
-  })
+    onSale: false,
+    isNewProduct: false,
+    featured: false,
+  });
 
-  // Fetch products
-  async function loadProducts() {
-    setLoading(true)
+  async function loadData() {
     try {
-      const { data } = await api.get("/products")
-      setProducts(data.items)
-    } catch (e) {
-      console.error("Failed to load products", e)
+      setLoading(true);
+
+      const [productsRes, inventoryRes, categoriesRes] =
+        await Promise.all([
+          api.get("/products"),
+          api.get("/inventory"),
+          api.get("/categories"),
+        ]);
+
+      setProducts(
+        productsRes.data?.items ||
+          productsRes.data?.products ||
+          productsRes.data ||
+          []
+      );
+
+      setInventories(
+        inventoryRes.data?.items ||
+          inventoryRes.data?.inventories ||
+          inventoryRes.data ||
+          []
+      );
+
+      setCategories(
+        categoriesRes.data?.categories ||
+          categoriesRes.data?.items ||
+          categoriesRes.data ||
+          []
+      );
+    } catch (error) {
+      console.error("LOAD PRODUCT DATA:", error);
+      setMessage(
+        error?.response?.data?.error ||
+          error?.message ||
+          "Failed to load data"
+      );
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
-
-
-  async function loadCategories() {
-    try {
-      const { data } = await api.get("/categories");
-      setCategories(data.categories || []);
-    } catch (e) {
-      console.error("Failed to load categories", e);
-    }
-  }
-
-
 
   useEffect(() => {
-    loadCategories();
-    loadProducts()
-  }, [])
+    loadData();
+  }, []);
 
-  // Open modal for editing
-  const handleEdit = (product) => {
-    setEditing(product)
-    setForm({
-      title: product.title,
-      description: product.description,
-      price: product.price,
-      inventory: product.inventory,
-      category: product.category,
-      published: product.published,
-      onSale: product.onSale,
-      isNewProduct: product.isNewProduct
-    })
-    setOpen(true)
+  const inventoryMap = useMemo(() => {
+    const map = new Map();
+
+    inventories.forEach((inventory) => {
+      const productId =
+        inventory.product?._id ||
+        inventory.product;
+
+      if (productId) {
+        map.set(String(productId), inventory);
+      }
+    });
+
+    return map;
+  }, [inventories]);
+
+  function getInventory(product) {
+    return (
+      inventoryMap.get(String(product._id)) || {
+        product: product._id,
+        sku: product.sku || "",
+        stock: EMPTY_STOCK,
+        reserved: 0,
+        lowStockThreshold: 5,
+        trackInventory: true,
+        allowBackorder: false,
+        active: false,
+      }
+    );
   }
 
-  // Update product
+  function getTotalStock(inventory) {
+    if (!inventory?.trackInventory) return Infinity;
+
+    return SIZES.reduce(
+      (total, size) =>
+        total + Number(inventory?.stock?.[size] || 0),
+      0
+    );
+  }
+
+  function getAvailableStock(inventory) {
+    if (!inventory?.trackInventory) return Infinity;
+
+    return Math.max(
+      0,
+      getTotalStock(inventory) -
+        Number(inventory?.reserved || 0)
+    );
+  }
+
+  function getDiscount(product) {
+    const price = Number(product.price || 0);
+    const oldPrice = Number(product.oldPrice || 0);
+
+    if (!oldPrice || oldPrice <= price) return 0;
+
+    return Math.round(
+      ((oldPrice - price) / oldPrice) * 100
+    );
+  }
+
+  const stats = useMemo(() => {
+    let totalStock = 0;
+    let available = 0;
+    let reserved = 0;
+    let lowStock = 0;
+    let outOfStock = 0;
+    let withoutInventory = 0;
+
+    products.forEach((product) => {
+      const inventory = inventoryMap.get(
+        String(product._id)
+      );
+
+      if (!inventory) {
+        withoutInventory++;
+        return;
+      }
+
+      const total = getTotalStock(inventory);
+      const availableStock =
+        getAvailableStock(inventory);
+
+      if (Number.isFinite(total)) {
+        totalStock += total;
+        available += availableStock;
+        reserved += Number(
+          inventory.reserved || 0
+        );
+
+        if (
+          total > 0 &&
+          total <=
+            Number(
+              inventory.lowStockThreshold ?? 5
+            )
+        ) {
+          lowStock++;
+        }
+
+        if (availableStock <= 0) {
+          outOfStock++;
+        }
+      }
+    });
+
+    return {
+      products: products.length,
+      totalStock,
+      available,
+      reserved,
+      lowStock,
+      outOfStock,
+      withoutInventory,
+    };
+  }, [products, inventoryMap]);
+
+  const filteredProducts = useMemo(() => {
+    const query = search.toLowerCase().trim();
+
+    return products.filter((product) => {
+      const inventory = getInventory(product);
+
+      const categoryName =
+        product.category?.name ||
+        categories.find(
+          (c) =>
+            String(c._id) ===
+            String(product.category)
+        )?.name ||
+        "";
+
+      const matchesSearch =
+        !query ||
+        product.title
+          ?.toLowerCase()
+          .includes(query) ||
+        product.sku
+          ?.toLowerCase()
+          .includes(query) ||
+        inventory.sku
+          ?.toLowerCase()
+          .includes(query) ||
+        categoryName
+          ?.toLowerCase()
+          .includes(query) ||
+        product.tags?.some((tag) =>
+          tag.toLowerCase().includes(query)
+        );
+
+      const matchesCategory =
+        categoryFilter === "all" ||
+        String(product.category?._id || product.category) ===
+          String(categoryFilter);
+
+      const available =
+        getAvailableStock(inventory);
+
+      const total =
+        getTotalStock(inventory);
+
+      let matchesStatus = true;
+
+      if (statusFilter === "published") {
+        matchesStatus = product.published;
+      }
+
+      if (statusFilter === "draft") {
+        matchesStatus = !product.published;
+      }
+
+      if (statusFilter === "sale") {
+        matchesStatus = product.onSale;
+      }
+
+      if (statusFilter === "new") {
+        matchesStatus = product.isNewProduct;
+      }
+
+      if (statusFilter === "featured") {
+        matchesStatus = product.featured;
+      }
+
+      if (statusFilter === "low") {
+        matchesStatus =
+          inventory?.trackInventory &&
+          total > 0 &&
+          total <=
+            Number(
+              inventory.lowStockThreshold ?? 5
+            );
+      }
+
+      if (statusFilter === "out") {
+        matchesStatus =
+          inventory?.trackInventory &&
+          available <= 0;
+      }
+
+      if (statusFilter === "missing-inventory") {
+        matchesStatus =
+          !inventoryMap.has(String(product._id));
+      }
+
+      return (
+        matchesSearch &&
+        matchesCategory &&
+        matchesStatus
+      );
+    });
+  }, [
+    products,
+    inventories,
+    categories,
+    search,
+    categoryFilter,
+    statusFilter,
+    inventoryMap,
+  ]);
+
+  function handleEdit(product) {
+    setEditing(product);
+
+    setForm({
+      title: product.title || "",
+      description: product.description || "",
+      price: product.price ?? "",
+      oldPrice: product.oldPrice ?? "",
+      category:
+        product.category?._id ||
+        product.category ||
+        "",
+      published: Boolean(product.published),
+      onSale: Boolean(product.onSale),
+      isNewProduct: Boolean(
+        product.isNewProduct
+      ),
+      featured: Boolean(product.featured),
+    });
+
+    setOpen(true);
+  }
+
   async function saveProduct() {
+    if (!editing) return;
+
     try {
-      await api.put(`/products/${editing._id}`, form)
-      setOpen(false)
-      setEditing(null)
-      loadProducts()
-    } catch (e) {
-      console.error("Failed to update", e)
+      setSaving(true);
+
+      const price = Number(form.price);
+      const oldPrice =
+        form.oldPrice === ""
+          ? undefined
+          : Number(form.oldPrice);
+
+      const discount =
+        oldPrice &&
+        oldPrice > price
+          ? Number(
+              (
+                ((oldPrice - price) /
+                  oldPrice) *
+                100
+              ).toFixed(2)
+            )
+          : 0;
+
+      await api.put(
+        `/products/${editing._id}`,
+        {
+          title: form.title.trim(),
+          description: form.description,
+          price,
+          oldPrice,
+          discount,
+          category: form.category,
+          published: Boolean(form.published),
+          onSale: Boolean(form.onSale),
+          isNewProduct: Boolean(
+            form.isNewProduct
+          ),
+          featured: Boolean(form.featured),
+        }
+      );
+
+      setMessage("Product updated");
+
+      setOpen(false);
+      setEditing(null);
+
+      await loadData();
+    } catch (error) {
+      console.error("UPDATE PRODUCT:", error);
+
+      setMessage(
+        error?.response?.data?.error ||
+          error?.response?.data?.message ||
+          error?.message ||
+          "Failed to update product"
+      );
+    } finally {
+      setSaving(false);
     }
   }
 
-  // Delete product
+  async function updateInventory(
+    productId,
+    updates
+  ) {
+    try {
+      await api.put(
+        `/inventory/product/${productId}`,
+        updates
+      );
+
+      await loadData();
+    } catch (error) {
+      console.error(
+        "UPDATE INVENTORY:",
+        error
+      );
+
+      setMessage(
+        error?.response?.data?.error ||
+          "Failed to update inventory"
+      );
+    }
+  }
+
   async function confirmDelete() {
     try {
-      await api.delete(`/products/${deleteId}`)
-      setDeleteOpen(false)
-      setDeleteId(null)
-      loadProducts()
-    } catch (e) {
-      console.error("Failed to delete", e)
+      await api.delete(
+        `/products/${deleteId}`
+      );
+
+      setDeleteOpen(false);
+      setDeleteId(null);
+
+      await loadData();
+    } catch (error) {
+      console.error(
+        "DELETE PRODUCT:",
+        error
+      );
     }
   }
-  const filteredProducts = products.filter((p) => {
-    const matchCategory = categoryFilter === "All" || p.category?.name === categoryFilter
-    const matchSearch = p.title.toLowerCase().includes(search.toLowerCase())
-    return matchCategory && matchSearch
-  })
-  const productCategories = ["All", ...Array.from(new Set(products.map((p) => p.category?.name).filter(Boolean))),];
+
+  const categoryOptions = categories;
+
   return (
-    <div className=" mx-auto">
-   
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl font-bold">Products</CardTitle>
-             <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        {/* Dynamic Category Tabs */}
-        <Tabs
-          value={categoryFilter}
-          onValueChange={setCategoryFilter}
-          className="w-full md:w-auto"
-        >
-          <TabsList className="bg-gray-100 rounded-full px-1 flex justify-center md:justify-start gap-2">
-            {productCategories.map((cat) => (
-              <TabsTrigger
-                key={cat}
-                value={cat}
-                className="data-[state=active]:bg-black data-[state=active]:text-white rounded-full px-5 py-2 text-sm font-medium transition-all duration-200"
-              >
-                {cat}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
+    <div className="w-full space-y-6">
+      {/* HEADER */}
 
-        {/* Search Bar */}
-        <div className="w-full md:w-80 flex items-center border-b border-gray-300 focus-within:border-black transition-colors duration-200">
-          <Search className="w-5 h-5 text-gray-400 mr-3" />
-          <Input
-            type="text"
-            placeholder="Search products..."
-            className="flex-1 border-none focus:ring-0 bg-transparent py-2 text-sm placeholder:text-gray-400"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold">
+            Products
+          </h1>
+
+          <p className="text-sm text-gray-500 mt-1">
+            Manage products, pricing, inventory,
+            visibility and sales status.
+          </p>
         </div>
+
+        <Button
+          variant="outline"
+          onClick={loadData}
+          className="gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Refresh
+        </Button>
       </div>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <p>Loading...</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Image</TableHead>
-                  <TableHead>Title</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Inventory</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Sale</TableHead>
-                  <TableHead>New</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filteredProducts.map((p) => (
-                  <TableRow key={p._id}>
-                    {/* Image */}
-                    <TableCell>
-                      {p.images?.[0] ? (
-                        <img
-                          src={p.images[0]}
-                          alt={p.title}
-                          className="w-12 h-12 object-cover rounded"
-                        />
-                      ) : (
-                        <div className="w-12 h-12 bg-gray-100 rounded" />
-                      )}
-                    </TableCell>
 
-                    <TableCell>{p.title}</TableCell>
-                    <TableCell>₹{p.price}</TableCell>
+      {message && (
+        <div className="border border-gray-200 bg-gray-50 rounded-lg px-4 py-3 text-sm">
+          {message}
+        </div>
+      )}
 
-                    {/* Inventory */}
-                    <TableCell>
-                      {p.inventory
-                        ? Object.entries(p.inventory).map(([size, count]) => (
-                          <span key={size} className="mr-1">
-                            {size}: {count}
-                          </span>
-                        ))
-                        : "-"}
-                    </TableCell>
+      {/* STATS */}
 
-                    {/* Category Pill */}
-                    <TableCell>
-                      {p.category?.name && (
-                        <span className="px-2 py-1 text-xs font-medium text-white bg-black rounded-full">
-                          {p.category.name}
-                        </span>
-                      )}
-                    </TableCell>
+      <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-7 gap-3">
+        <Stat
+          icon={Package}
+          label="Products"
+          value={stats.products}
+        />
 
-                    {/* Sale */}
-                    <TableCell>
-                      {p.onSale && (
-                        <span className="px-2 py-1 text-xs font-medium text-green-800 bg-green-100 rounded-full">
-                          On Sale
-                        </span>
-                      )}
-                    </TableCell>
+        <Stat
+          icon={Boxes}
+          label="Total Stock"
+          value={stats.totalStock}
+        />
 
-                    {/* New */}
-                    <TableCell>
-                      {p.isNewProduct && (
-                        <span className="px-2 py-1 text-xs font-medium text-blue-800 bg-blue-100 rounded-full">
-                          New
-                        </span>
-                      )}
-                    </TableCell>
+        <Stat
+          icon={CheckCircle2}
+          label="Available"
+          value={stats.available}
+        />
 
-                    {/* Status */}
-                    <TableCell>
-                      {p.published ? (
-                        <span className="flex items-center gap-1 text-blue-800 text-sm font-medium">
-                          <CheckCircle2 className="h-4 w-4" /> Published
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1 text-gray-500 text-sm font-medium">
-                          <XCircle className="h-4 w-4" /> Draft
-                        </span>
-                      )}
-                    </TableCell>
+        <Stat
+          icon={Package}
+          label="Reserved"
+          value={stats.reserved}
+        />
 
-                    {/* Actions */}
-                    <TableCell className="flex justify-end gap-2">
-                      <Button
-                        size="icon"
-                        variant="secondary"
-                        onClick={() => (window.location.href = `/product/${p._id}`)}
-                        className="bg-blue-50 text-blue-900 hover:bg-blue-100"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() => handleEdit(p)}
-                        className="border-blue-800 text-blue-800 hover:bg-blue-50"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        onClick={() => {
-                          setDeleteId(p._id)
-                          setDeleteOpen(true)
-                        }}
-                        className="bg-blue-800 text-white hover:bg-blue-900"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+        <Stat
+          icon={TrendingDown}
+          label="Low Stock"
+          value={stats.lowStock}
+          danger={stats.lowStock > 0}
+        />
+
+        <Stat
+          icon={XCircle}
+          label="Out of Stock"
+          value={stats.outOfStock}
+          danger={stats.outOfStock > 0}
+        />
+
+        <Stat
+          icon={AlertTriangle}
+          label="No Inventory"
+          value={stats.withoutInventory}
+          danger={stats.withoutInventory > 0}
+        />
+      </div>
+
+      {/* FILTERS */}
+
+      <Card>
+        <CardContent className="p-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+
+              <Input
+                value={search}
+                onChange={(e) =>
+                  setSearch(e.target.value)
+                }
+                placeholder="Search title, SKU, category, tags..."
+                className="pl-10 border border-gray-200"
+              />
+            </div>
+
+            <Select
+              value={categoryFilter}
+              onValueChange={setCategoryFilter}
+            >
+              <SelectTrigger className="border border-gray-200">
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="all">
+                  All Categories
+                </SelectItem>
+
+                {categoryOptions.map(
+                  (category) => (
+                    <SelectItem
+                      key={category._id}
+                      value={category._id}
+                    >
+                      {category.name}
+                    </SelectItem>
+                  )
+                )}
+              </SelectContent>
+            </Select>
+
+            <Select
+              value={statusFilter}
+              onValueChange={setStatusFilter}
+            >
+              <SelectTrigger className="border border-gray-200">
+                <SelectValue placeholder="Status" />
+              </SelectTrigger>
+
+              <SelectContent>
+                <SelectItem value="all">
+                  All Products
+                </SelectItem>
+
+                <SelectItem value="published">
+                  Published
+                </SelectItem>
+
+                <SelectItem value="draft">
+                  Draft
+                </SelectItem>
+
+                <SelectItem value="sale">
+                  On Sale
+                </SelectItem>
+
+                <SelectItem value="new">
+                  New Products
+                </SelectItem>
+
+                <SelectItem value="featured">
+                  Featured
+                </SelectItem>
+
+                <SelectItem value="low">
+                  Low Stock
+                </SelectItem>
+
+                <SelectItem value="out">
+                  Out of Stock
+                </SelectItem>
+
+                <SelectItem value="missing-inventory">
+                  Missing Inventory
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="mt-3 text-xs text-gray-500">
+            Showing {filteredProducts.length} of{" "}
+            {products.length} products
+          </div>
         </CardContent>
       </Card>
 
-      {/* EDIT MODAL */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[1100px] w-full bg-white rounded-2xl shadow-2xl border border-gray-200 edit-modal">
-          {/* Header */}
-          <DialogHeader className="px-8 py-6 border-b bg-gray-50">
-            <DialogTitle className="text-2xl font-semibold text-gray-900">
+      {/* PRODUCT TABLE */}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>
+            Product Catalog
+          </CardTitle>
+        </CardHeader>
+
+        <CardContent>
+          {loading ? (
+            <div className="py-20 flex justify-center">
+              <RefreshCw className="h-6 w-6 animate-spin" />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1500px]">
+                <thead>
+                  <tr className="border-b text-xs uppercase text-gray-500">
+                    <th className="text-left px-4 py-4">
+                      Product
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      SKU
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      Price
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      Discount
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      Inventory
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      Sizes
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      Category
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      Tags
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      Flags
+                    </th>
+
+                    <th className="text-left px-4 py-4">
+                      Status
+                    </th>
+
+                    <th className="text-right px-4 py-4">
+                      Actions
+                    </th>
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {filteredProducts.map(
+                    (product) => {
+                      const inventory =
+                        getInventory(product);
+
+                      const total =
+                        getTotalStock(
+                          inventory
+                        );
+
+                      const available =
+                        getAvailableStock(
+                          inventory
+                        );
+
+                      const discount =
+                        getDiscount(product);
+
+                      const categoryName =
+                        product.category?.name ||
+                        categories.find(
+                          (c) =>
+                            String(c._id) ===
+                            String(
+                              product.category
+                            )
+                        )?.name ||
+                        "—";
+
+                      const low =
+                        inventory?.trackInventory &&
+                        total > 0 &&
+                        total <=
+                          Number(
+                            inventory.lowStockThreshold ??
+                              5
+                          );
+
+                      const out =
+                        inventory?.trackInventory &&
+                        available <= 0;
+
+                      return (
+                        <tr
+                          key={product._id}
+                          className="border-b hover:bg-gray-50"
+                        >
+                          {/* PRODUCT */}
+
+                          <td className="px-4 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-14 w-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
+                                {product.images?.[0] ? (
+                                  <img
+                                    src={
+                                      product.images[0]
+                                    }
+                                    alt={
+                                      product.title
+                                    }
+                                    className="h-full w-full object-cover"
+                                  />
+                                ) : (
+                                  <Package className="h-5 w-5 m-auto mt-4 text-gray-300" />
+                                )}
+                              </div>
+
+                              <div className="min-w-[220px]">
+                                <p className="font-semibold">
+                                  {product.title}
+                                </p>
+
+                                <p className="text-xs text-gray-500 mt-1">
+                                  {product.slug}
+                                </p>
+
+                                <p className="text-xs text-gray-400 mt-1">
+                                  {product.currency ||
+                                    "INR"}
+                                </p>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* SKU */}
+
+                          <td className="px-4 py-4">
+                            <code className="text-xs bg-gray-100 px-2 py-1 rounded">
+                              {inventory.sku ||
+                                product.sku ||
+                                "—"}
+                            </code>
+                          </td>
+
+                          {/* PRICE */}
+
+                          <td className="px-4 py-4">
+                            <div>
+                              <p className="font-semibold">
+                                ₹
+                                {Number(
+                                  product.price
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </p>
+
+                              {product.oldPrice && (
+                                <p className="text-xs text-gray-400 line-through">
+                                  ₹
+                                  {Number(
+                                    product.oldPrice
+                                  ).toLocaleString(
+                                    "en-IN"
+                                  )}
+                                </p>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* DISCOUNT */}
+
+                          <td className="px-4 py-4">
+                            {discount > 0 ? (
+                              <span className="inline-flex items-center gap-1 rounded-full bg-green-50 text-green-700 px-2 py-1 text-xs font-semibold">
+                                <Percent className="h-3 w-3" />
+                                {discount}%
+                              </span>
+                            ) : (
+                              <span className="text-xs text-gray-400">
+                                0%
+                              </span>
+                            )}
+                          </td>
+
+                          {/* INVENTORY */}
+
+                          <td className="px-4 py-4">
+                            <div className="space-y-1">
+                              <div className="flex gap-2">
+                                <span className="text-xs text-gray-500">
+                                  Total
+                                </span>
+
+                                <span className="text-sm font-semibold">
+                                  {Number.isFinite(
+                                    total
+                                  )
+                                    ? total
+                                    : "∞"}
+                                </span>
+                              </div>
+
+                              <div className="flex gap-2">
+                                <span className="text-xs text-gray-500">
+                                  Available
+                                </span>
+
+                                <span
+                                  className={`text-sm font-semibold ${
+                                    out
+                                      ? "text-red-600"
+                                      : low
+                                      ? "text-orange-600"
+                                      : "text-green-600"
+                                  }`}
+                                >
+                                  {Number.isFinite(
+                                    available
+                                  )
+                                    ? available
+                                    : "∞"}
+                                </span>
+                              </div>
+
+                              <div className="text-xs text-gray-500">
+                                Reserved:{" "}
+                                {inventory.reserved ||
+                                  0}
+                              </div>
+
+                              {low && (
+                                <span className="text-[11px] text-orange-600 font-medium">
+                                  Low stock
+                                </span>
+                              )}
+
+                              {out && (
+                                <span className="text-[11px] text-red-600 font-medium">
+                                  Out of stock
+                                </span>
+                              )}
+
+                              {!inventoryMap.has(
+                                String(
+                                  product._id
+                                )
+                              ) && (
+                                <span className="text-[11px] text-red-600 font-medium">
+                                  Inventory missing
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* SIZES */}
+
+                          <td className="px-4 py-4">
+                            <div className="flex flex-wrap gap-1 max-w-[180px]">
+                              {SIZES.map(
+                                (size) => {
+                                  const count =
+                                    Number(
+                                      inventory
+                                        ?.stock?.[
+                                        size
+                                      ] || 0
+                                    );
+
+                                  return (
+                                    <span
+                                      key={size}
+                                      className={`px-1.5 py-1 rounded text-[10px] font-medium ${
+                                        count > 0
+                                          ? "bg-black text-white"
+                                          : "bg-gray-100 text-gray-400"
+                                      }`}
+                                    >
+                                      {size}{" "}
+                                      {count}
+                                    </span>
+                                  );
+                                }
+                              )}
+                            </div>
+                          </td>
+
+                          {/* CATEGORY */}
+
+                          <td className="px-4 py-4">
+                            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-xs font-medium">
+                              <Tag className="h-3 w-3" />
+                              {categoryName}
+                            </span>
+                          </td>
+
+                          {/* TAGS */}
+
+                          <td className="px-4 py-4">
+                            <div className="flex flex-wrap gap-1 max-w-[180px]">
+                              {product.tags?.length ? (
+                                product.tags.map(
+                                  (tag) => (
+                                    <span
+                                      key={tag}
+                                      className="px-2 py-1 bg-gray-100 rounded text-[10px]"
+                                    >
+                                      #{tag}
+                                    </span>
+                                  )
+                                )
+                              ) : (
+                                <span className="text-xs text-gray-400">
+                                  No tags
+                                </span>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* FLAGS */}
+
+                          <td className="px-4 py-4">
+                            <div className="flex flex-wrap gap-1 max-w-[180px]">
+                              {product.onSale && (
+                                <Badge>
+                                  Sale
+                                </Badge>
+                              )}
+
+                              {product.isNewProduct && (
+                                <Badge>
+                                  New
+                                </Badge>
+                              )}
+
+                              {product.featured && (
+                                <Badge>
+                                  <Star className="h-3 w-3" />
+                                  Featured
+                                </Badge>
+                              )}
+                            </div>
+                          </td>
+
+                          {/* STATUS */}
+
+                          <td className="px-4 py-4">
+                            {product.published ? (
+                              <span className="flex items-center gap-1 text-green-600 text-xs font-medium">
+                                <CheckCircle2 className="h-4 w-4" />
+                                Published
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1 text-gray-500 text-xs font-medium">
+                                <XCircle className="h-4 w-4" />
+                                Draft
+                              </span>
+                            )}
+
+                            <p className="text-[10px] text-gray-400 mt-1">
+                              {new Date(
+                                product.createdAt
+                              ).toLocaleDateString(
+                                "en-IN"
+                              )}
+                            </p>
+                          </td>
+
+                          {/* ACTIONS */}
+
+                          <td className="px-4 py-4">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                onClick={() =>
+                                  (window.location.href =
+                                    `/product/${product._id}`)
+                                }
+                              >
+                                <Eye className="h-4 w-4" />
+                              </Button>
+
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                onClick={() =>
+                                  handleEdit(
+                                    product
+                                  )
+                                }
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+
+                              <Button
+                                size="icon"
+                                onClick={() => {
+                                  setDeleteId(
+                                    product._id
+                                  );
+                                  setDeleteOpen(
+                                    true
+                                  );
+                                }}
+                                className="bg-black text-white hover:bg-gray-800"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    }
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {!loading &&
+            filteredProducts.length === 0 && (
+              <div className="py-16 text-center">
+                <Package className="mx-auto h-10 w-10 text-gray-300" />
+
+                <p className="font-medium mt-3">
+                  No products found
+                </p>
+
+                <p className="text-sm text-gray-500">
+                  Try changing your search or
+                  filters.
+                </p>
+              </div>
+            )}
+        </CardContent>
+      </Card>
+
+      {/* EDIT */}
+
+      <Dialog
+        open={open}
+        onOpenChange={setOpen}
+      >
+        <DialogContent className="max-w-[1100px] w-full max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
               Edit Product
             </DialogTitle>
           </DialogHeader>
 
-          {/* Body */}
-          <div className="px-10 py-8 overflow-y-auto max-h-[75vh]">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-              {/* LEFT COLUMN */}
-              <div className="space-y-10">
-                {/* Basic Info */}
-                <section className="space-y-6">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                    Basic Information
-                  </h3>
-                  <div className="space-y-5">
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Product Title
-                      </Label>
-                      <Input
-                        value={form.title}
-                        onChange={(e) =>
-                          setForm({ ...form, title: e.target.value })
-                        }
-                        placeholder="Enter product title"
-                        className="h-11 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-4">
+            <div className="space-y-6">
+              <section className="space-y-4">
+                <h3 className="font-semibold">
+                  Basic Information
+                </h3>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Price (₹)
-                      </Label>
-                      <Input
-                        type="number"
-                        value={form.price}
-                        onChange={(e) =>
-                          setForm({
-                            ...form,
-                            price: Number(e.target.value),
-                          })
-                        }
-                        placeholder="Enter price"
-                        className="h-11 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
+                <div className="space-y-2">
+                  <Label>Title</Label>
 
-                    <div className="space-y-2">
-                      <Label className="text-sm font-medium text-gray-700">
-                        Description
-                      </Label>
-                      <Textarea
-                        value={form.description}
-                        onChange={(e) =>
-                          setForm({ ...form, description: e.target.value })
-                        }
-                        placeholder="Describe the product..."
-                        className="min-h-[220px] bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                      />
-                    </div>
-                  </div>
-                </section>
-
-                {/* Category */}
-                <section className="space-y-6">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                    Category
-                  </h3>
-                  <Select
-                    value={form.category?._id || ""}
-                    onValueChange={(v) =>
+                  <Input
+                    value={form.title}
+                    onChange={(e) =>
                       setForm({
                         ...form,
-                        category:
-                          categories.find((c) => c._id === v) || null,
+                        title: e.target.value,
                       })
                     }
-                  >
-                    <SelectTrigger className="h-11 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((c) => (
-                        <SelectItem key={c._id} value={c._id}>
-                          {c.name}
+                    className="border border-gray-300"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>
+                      Price (₹)
+                    </Label>
+
+                    <Input
+                      type="number"
+                      value={form.price}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          price: e.target.value,
+                        })
+                      }
+                      className="border border-gray-300"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>
+                      Old Price (₹)
+                    </Label>
+
+                    <Input
+                      type="number"
+                      value={form.oldPrice}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          oldPrice:
+                            e.target.value,
+                        })
+                      }
+                      className="border border-gray-300"
+                    />
+                  </div>
+                </div>
+
+                <div className="rounded-lg bg-gray-50 border p-4">
+                  <p className="text-xs text-gray-500">
+                    Calculated Discount
+                  </p>
+
+                  <p className="text-2xl font-bold mt-1">
+                    {getDiscount({
+                      price: form.price,
+                      oldPrice:
+                        form.oldPrice,
+                    })}
+                    %
+                  </p>
+                </div>
+
+                <div className="space-y-2">
+                  <Label>
+                    Description
+                  </Label>
+
+                  <Textarea
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        description:
+                          e.target.value,
+                      })
+                    }
+                    className="min-h-[220px] border border-gray-300"
+                  />
+                </div>
+              </section>
+
+              <section className="space-y-4">
+                <h3 className="font-semibold">
+                  Category
+                </h3>
+
+                <Select
+                  value={form.category}
+                  onValueChange={(value) =>
+                    setForm({
+                      ...form,
+                      category: value,
+                    })
+                  }
+                >
+                  <SelectTrigger className="border border-gray-300">
+                    <SelectValue placeholder="Select category" />
+                  </SelectTrigger>
+
+                  <SelectContent>
+                    {categories.map(
+                      (category) => (
+                        <SelectItem
+                          key={category._id}
+                          value={category._id}
+                        >
+                          {category.name}
                         </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </section>
-              </div>
+                      )
+                    )}
+                  </SelectContent>
+                </Select>
+              </section>
+            </div>
 
-              {/* RIGHT COLUMN */}
-              <div className="space-y-10">
-                {/* Inventory */}
-                <section className="space-y-6">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                    Inventory per Size
-                  </h3>
-                  <div className="overflow-hidden border border-gray-200 rounded-lg">
-                    <div className="grid grid-cols-2 md:grid-cols-4 bg-gray-50 text-sm font-semibold text-gray-700 py-3 px-5">
-                      <span>Size</span>
-                      <span className="md:col-span-3">Available Quantity</span>
-                    </div>
+            <div className="space-y-6">
+              {/* INVENTORY */}
 
-                    {form.inventory &&
-                      Object.entries(form.inventory).map(([size, count], i) => (
-                        <div
-                          key={size}
-                          className={`grid grid-cols-2 md:grid-cols-4 items-center px-5 py-3 ${i % 2 === 0 ? "bg-white" : "bg-gray-50"
-                            }`}
-                        >
-                          <span className="font-medium text-gray-800">
-                            {size.toUpperCase()}
-                          </span>
-                          <div className="md:col-span-3 flex items-center gap-3">
-                            <Input
-                              type="number"
-                              value={count}
-                              onChange={(e) =>
-                                setForm({
-                                  ...form,
-                                  inventory: {
-                                    ...form.inventory,
-                                    [size]: Number(e.target.value),
-                                  },
-                                })
-                              }
-                              className="w-28 h-10 bg-white border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                            />
-                            <span className="text-gray-500 text-xs">
-                              units
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                  </div>
-                </section>
-
-                {/* Status */}
-                {/* Status Section */}
-                <section className="space-y-6">
-                  <h3 className="text-lg font-semibold text-gray-900 border-b border-gray-200 pb-2">
-                    Product Status
+              <section className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-semibold">
+                    Inventory
                   </h3>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-                    {[
-                      { key: "published", label: "Published" },
-                      { key: "onSale", label: "On Sale" },
-                      { key: "isNewProduct", label: "New" },
-                    ].map(({ key, label }) => (
+                  {editing && (
+                    <span className="text-sm text-gray-500">
+                      Available:{" "}
+                      {getAvailableStock(
+                        getInventory(
+                          editing
+                        )
+                      )}
+                    </span>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {SIZES.map((size) => {
+                    const inventory =
+                      editing
+                        ? getInventory(
+                            editing
+                          )
+                        : null;
+
+                    const value =
+                      Number(
+                        inventory?.stock?.[
+                          size
+                        ] || 0
+                      );
+
+                    return (
                       <div
-                        key={key}
-                        className="flex items-center justify-between bg-gray-50 p-4 rounded-lg border border-gray-200 hover:bg-gray-100 transition"
+                        key={size}
+                        className="border rounded-lg p-3"
                       >
-                        <Label className="font-medium text-gray-800">{label}</Label>
-                        <button
-                          onClick={() => setForm({ ...form, [key]: !form[key] })}
-                          className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors duration-300 ${form[key] ? "bg-blue-700" : "bg-gray-300"
-                            }`}
-                        >
-                          <span
-                            className={`h-4 w-4 bg-white rounded-full shadow transform transition-transform duration-300 ${form[key] ? "translate-x-6" : "translate-x-0"
-                              }`}
-                          />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                </section>
+                        <div className="flex justify-between mb-2">
+                          <span className="font-medium">
+                            {size}
+                          </span>
 
-              </div>
+                          <span className="text-xs text-gray-400">
+                            units
+                          </span>
+                        </div>
+
+                        <Input
+                          type="number"
+                          min="0"
+                          value={value}
+                          onChange={(e) => {
+                            if (!editing)
+                              return;
+
+                            const next =
+                              Math.max(
+                                0,
+                                Number(
+                                  e.target
+                                    .value
+                                ) || 0
+                              );
+
+                            setInventories(
+                              (current) =>
+                                current.map(
+                                  (item) =>
+                                    String(
+                                      item.product?._id ||
+                                        item.product
+                                    ) ===
+                                    String(
+                                      editing._id
+                                    )
+                                      ? {
+                                          ...item,
+                                          stock: {
+                                            ...item.stock,
+                                            [size]:
+                                              next,
+                                          },
+                                        }
+                                      : item
+                                )
+                            );
+                          }}
+                          onBlur={async (e) => {
+                            if (!editing)
+                              return;
+
+                            const inventory =
+                              getInventory(
+                                editing
+                              );
+
+                            await updateInventory(
+                              editing._id,
+                              {
+                                stock: {
+                                  ...inventory.stock,
+                                  [size]:
+                                    Math.max(
+                                      0,
+                                      Number(
+                                        e.target
+                                          .value
+                                      ) || 0
+                                    ),
+                                },
+                              }
+                            );
+                          }}
+                          className="border border-gray-300"
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {editing && (
+                  <div className="grid grid-cols-3 gap-3">
+                    <InfoBox
+                      label="Total"
+                      value={getTotalStock(
+                        getInventory(
+                          editing
+                        )
+                      )}
+                    />
+
+                    <InfoBox
+                      label="Reserved"
+                      value={
+                        getInventory(
+                          editing
+                        ).reserved || 0
+                      }
+                    />
+
+                    <InfoBox
+                      label="Available"
+                      value={getAvailableStock(
+                        getInventory(
+                          editing
+                        )
+                      )}
+                    />
+                  </div>
+                )}
+              </section>
+
+              {/* STATUS */}
+
+              <section className="space-y-3">
+                <h3 className="font-semibold">
+                  Product Flags
+                </h3>
+
+                {[
+                  ["published", "Published"],
+                  ["onSale", "On Sale"],
+                  [
+                    "isNewProduct",
+                    "New Product",
+                  ],
+                  ["featured", "Featured"],
+                ].map(([key, label]) => (
+                  <div
+                    key={key}
+                    className="flex items-center justify-between border rounded-lg p-4"
+                  >
+                    <Label>{label}</Label>
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setForm({
+                          ...form,
+                          [key]: !form[key],
+                        })
+                      }
+                      className={`w-11 h-6 rounded-full p-1 ${
+                        form[key]
+                          ? "bg-black"
+                          : "bg-gray-300"
+                      }`}
+                    >
+                      <span
+                        className={`block h-4 w-4 bg-white rounded-full transition ${
+                          form[key]
+                            ? "translate-x-5"
+                            : ""
+                        }`}
+                      />
+                    </button>
+                  </div>
+                ))}
+              </section>
             </div>
           </div>
 
-          {/* Footer */}
-          <DialogFooter className="border-t bg-gray-50 px-8 py-6 flex justify-end gap-4">
+          <DialogFooter>
             <Button
               variant="outline"
               onClick={() => setOpen(false)}
-              className="border-gray-300 text-gray-700 hover:bg-gray-100 rounded-lg"
             >
               Cancel
             </Button>
+
             <Button
-              className="bg-blue-700 text-white hover:bg-blue-800 px-6 py-2 rounded-lg"
+              disabled={saving}
               onClick={saveProduct}
+              className="bg-black text-white hover:bg-gray-800"
             >
-              Save Changes
+              {saving
+                ? "Saving..."
+                : "Save Changes"}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
+      {/* DELETE */}
 
-
-
-
-
-
-
-      {/* DELETE CONFIRM MODAL */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-sm rounded-xl bg-white shadow-lg">
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={setDeleteOpen}
+      >
+        <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-lg font-semibold text-gray-900">
-              Confirm Deletion
+            <DialogTitle>
+              Delete Product
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600 p-3">
-            Are you sure you want to delete this product? This action
-            cannot be undone.
+
+          <p className="text-sm text-gray-500">
+            This will permanently delete the
+            product. Continue?
           </p>
-          <DialogFooter className="flex justify-end gap-3 pt-4">
+
+          <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setDeleteOpen(false)}
-              className="border-blue-800 text-blue-800 hover:bg-blue-50"
+              onClick={() =>
+                setDeleteOpen(false)
+              }
             >
               Cancel
             </Button>
+
             <Button
               onClick={confirmDelete}
-              className="bg-blue-800 text-white hover:bg-blue-900"
+              className="bg-black text-white"
             >
               Delete
             </Button>
@@ -546,5 +1529,72 @@ export default function ProductList() {
         </DialogContent>
       </Dialog>
     </div>
-  )
+  );
+}
+
+function Stat({
+  icon: Icon,
+  label,
+  value,
+  danger,
+}) {
+  return (
+    <Card
+      className={
+        danger
+          ? "border-red-200"
+          : "border-gray-200"
+      }
+    >
+      <CardContent className="p-4">
+        <div className="flex justify-between gap-2">
+          <div>
+            <p className="text-xs text-gray-500">
+              {label}
+            </p>
+
+            <p
+              className={`text-xl font-bold mt-1 ${
+                danger
+                  ? "text-red-600"
+                  : ""
+              }`}
+            >
+              {value}
+            </p>
+          </div>
+
+          <Icon
+            className={`h-5 w-5 ${
+              danger
+                ? "text-red-500"
+                : "text-gray-400"
+            }`}
+          />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function InfoBox({ label, value }) {
+  return (
+    <div className="border rounded-lg p-4 bg-gray-50">
+      <p className="text-xs text-gray-500">
+        {label}
+      </p>
+
+      <p className="text-xl font-bold mt-1">
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function Badge({ children }) {
+  return (
+    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-full bg-gray-100 text-[10px] font-medium">
+      {children}
+    </span>
+  );
 }

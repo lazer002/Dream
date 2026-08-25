@@ -11,6 +11,7 @@ import Register from "./pages/Register.jsx";
 import AdminDashboard from "./pages/admin/Dashboard.jsx";
 import AdminUsers from "./pages/admin/Users.jsx";
 import AdminProducts from "./pages/admin/Products.jsx";
+import AdminInventory from "./pages/admin/inventory.jsx";
 import AdminLayout from "./pages/admin/Layout.jsx";
 import AdminAddProduct from "./pages/admin/AddProduct.jsx";
 import CategoriesAdmin from "./pages/admin/Category.jsx";
@@ -82,7 +83,7 @@ export default function App() {
             {/* 🏠 Public Routes */}
             <Route path="/" element={<Home />} />
             <Route path="/products" element={<Products />} />
-            <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/product/:publicId" element={<ProductDetail />} />
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/cart" element={<Cart />} />
@@ -117,6 +118,7 @@ export default function App() {
             >
               <Route index element={<AdminDashboard />} />
               <Route path="products" element={<AdminProducts />} />
+              <Route path="inventory" element={<AdminInventory />} />
               <Route path="new/bundles" element={<Bundle />} />
               <Route path="bundles" element={<ShowBundle />} />
               <Route path="new/products" element={<AdminAddProduct />} />

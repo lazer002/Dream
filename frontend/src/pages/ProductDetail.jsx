@@ -13,25 +13,25 @@ import api from "@/utils/config"
 import toast from "react-hot-toast"
 import { useWishlist } from "../state/WishlistContext.jsx";
 export default function ProductDetail() {
-    const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
-  const { id } = useParams()
+  const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const { publicId } = useParams()
   const navigate = useNavigate()
   const { add } = useCart()
   const [product, setProduct] = useState(null)
   const [selectedSize, setSelectedSize] = useState("")
   const [recommendedProducts, setRecommendedProducts] = useState([])
   const [activeImage, setActiveImage] = useState(0)
-  const [openZoom, setOpenZoom] = useState(false)  
+  const [openZoom, setOpenZoom] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showMagnifier, setShowMagnifier] =
     useState(false)
   const [showRequest, setShowRequest] = useState(false);
-const [request, setRequest] = useState({
-  email: "",
-  size: "",
-});
-const touchStartX = useRef(null);
-const touchEndX = useRef(null);
+  const [request, setRequest] = useState({
+    email: "",
+    size: "",
+  });
+  const touchStartX = useRef(null);
+  const touchEndX = useRef(null);
 
   const [zoomPosition, setZoomPosition] =
     useState({ x: 50, y: 50 })
@@ -41,28 +41,28 @@ const touchEndX = useRef(null);
 
 
   const handleRequestSubmit = async () => {
-  if (!request.email || !request.size) {
-    toast.error("Please fill all fields");
-    return;
-  }
+    if (!request.email || !request.size) {
+      toast.error("Please fill all fields");
+      return;
+    }
 
-  try {
-    await api.post("/product-request", {
-      productId: product._id,
-      email: request.email,
-      size: request.size,
-    });
+    try {
+      await api.post("/product-request", {
+        productId: product.publicId,
+        email: request.email,
+        size: request.size,
+      });
 
-    toast.success("We’ll notify you when available 🚀");
+      toast.success("We’ll notify you when available 🚀");
 
-    setShowRequest(false);
-    setRequest({ email: "", size: "" });
+      setShowRequest(false);
+      setRequest({ email: "", size: "" });
 
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to send request");
-  }
-};
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to send request");
+    }
+  };
 
 
 
@@ -70,7 +70,10 @@ const touchEndX = useRef(null);
     const getProduct = async () => {
       setLoading(true)
       try {
-        const { data } = await api.get(`/products/${id}`)
+        console.log("hitttttttttttttt")
+        const { data } = await api.get(`/products/${publicId}`)
+                console.log("fff",data)
+
         setProduct(data)
         setActiveImage(0) // reset image index when product changes
       } catch (error) {
@@ -80,8 +83,8 @@ const touchEndX = useRef(null);
       }
     }
 
-    if (id) getProduct()
-  }, [id])
+    if (publicId) getProduct()
+  }, [publicId])
 
   useEffect(() => {
     if (!product?.category) return
@@ -105,7 +108,9 @@ const touchEndX = useRef(null);
 
         // filter out the same product
         const items = res.data?.items || []
-        const filtered = items.filter((p) => p._id !== product._id)
+        const filtered = items.filter(
+          (p) => p.publicId !== product.publicId
+        )
         setRecommendedProducts(filtered)
       } catch (error) {
         console.error("Failed to fetch related products:", error)
@@ -115,32 +120,32 @@ const touchEndX = useRef(null);
     fetchRecommended()
   }, [product])
 
-if (loading) {
-  return (
-    <div className="px-4 py-4 md:p-6">
-      <div className="flex flex-col md:flex-row gap-6 md:gap-12 animate-pulse">
+  if (loading) {
+    return (
+      <div className="px-4 py-4 md:p-6">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-12 animate-pulse">
 
-        {/* Images */}
-        <div className="w-full md:w-1/2 flex flex-col-reverse md:flex-row gap-4">
+          {/* Images */}
+          <div className="w-full md:w-1/2 flex flex-col-reverse md:flex-row gap-4">
 
-          {/* Thumbnails */}
-          <div className="flex md:flex-col gap-3">
-            {[1, 2, 3, 4].map((i) => (
-              <div
-                key={i}
-                className="
+            {/* Thumbnails */}
+            <div className="flex md:flex-col gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="
                   w-16 h-20
                   md:w-20 md:h-24
                   rounded-lg
                   bg-gray-200
                 "
-              />
-            ))}
-          </div>
+                />
+              ))}
+            </div>
 
-          {/* Main Image */}
-          <div
-            className="
+            {/* Main Image */}
+            <div
+              className="
               flex-1
               rounded-2xl
               bg-gray-200
@@ -148,103 +153,103 @@ if (loading) {
               h-[55vh]
               md:h-[82vh]
             "
-          />
-        </div>
-
-        {/* Product Info */}
-        <div className="w-full md:w-1/2 flex flex-col gap-5">
-
-          {/* Title */}
-          <div className="space-y-3">
-            <div className="h-10 w-4/5 bg-gray-200 rounded-lg" />
-            <div className="h-10 w-2/3 bg-gray-200 rounded-lg" />
+            />
           </div>
 
-          {/* Description */}
-          <div className="space-y-2">
-            <div className="h-4 w-full bg-gray-200 rounded" />
-            <div className="h-4 w-[95%] bg-gray-200 rounded" />
-            <div className="h-4 w-[80%] bg-gray-200 rounded" />
-          </div>
+          {/* Product Info */}
+          <div className="w-full md:w-1/2 flex flex-col gap-5">
 
-          {/* Price */}
-          <div className="flex gap-3 items-center">
-            <div className="h-8 w-28 bg-gray-200 rounded" />
-            <div className="h-6 w-20 bg-gray-200 rounded" />
-            <div className="h-6 w-16 bg-gray-200 rounded" />
-          </div>
+            {/* Title */}
+            <div className="space-y-3">
+              <div className="h-10 w-4/5 bg-gray-200 rounded-lg" />
+              <div className="h-10 w-2/3 bg-gray-200 rounded-lg" />
+            </div>
 
-          <div className="h-5 w-40 bg-gray-200 rounded" />
+            {/* Description */}
+            <div className="space-y-2">
+              <div className="h-4 w-full bg-gray-200 rounded" />
+              <div className="h-4 w-[95%] bg-gray-200 rounded" />
+              <div className="h-4 w-[80%] bg-gray-200 rounded" />
+            </div>
 
-          {/* Sizes */}
-          <div>
-            <div className="h-6 w-24 bg-gray-200 rounded mb-4" />
+            {/* Price */}
+            <div className="flex gap-3 items-center">
+              <div className="h-8 w-28 bg-gray-200 rounded" />
+              <div className="h-6 w-20 bg-gray-200 rounded" />
+              <div className="h-6 w-16 bg-gray-200 rounded" />
+            </div>
 
-            <div className="flex gap-3 flex-wrap">
-              {[1, 2, 3, 4, 5, 6].map((i) => (
-                <div
-                  key={i}
-                  className="
+            <div className="h-5 w-40 bg-gray-200 rounded" />
+
+            {/* Sizes */}
+            <div>
+              <div className="h-6 w-24 bg-gray-200 rounded mb-4" />
+
+              <div className="flex gap-3 flex-wrap">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="
                     w-12 h-12
                     md:w-14 md:h-14
                     rounded-full
                     bg-gray-200
                   "
-                />
-              ))}
+                  />
+                ))}
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="space-y-3 mt-2">
+              <div className="h-14 rounded-xl bg-gray-200" />
+              <div className="h-14 rounded-xl bg-gray-200" />
+              <div className="h-14 rounded-xl bg-gray-200" />
+            </div>
+
+            {/* Offer Cards */}
+            <div className="space-y-3 mt-4">
+              <div className="h-20 rounded-xl bg-gray-200" />
+              <div className="h-20 rounded-xl bg-gray-200" />
+            </div>
+
+            {/* Accordion */}
+            <div className="space-y-3 mt-4">
+              <div className="h-14 rounded-xl bg-gray-200" />
+              <div className="h-14 rounded-xl bg-gray-200" />
+              <div className="h-14 rounded-xl bg-gray-200" />
             </div>
           </div>
-
-          {/* Buttons */}
-          <div className="space-y-3 mt-2">
-            <div className="h-14 rounded-xl bg-gray-200" />
-            <div className="h-14 rounded-xl bg-gray-200" />
-            <div className="h-14 rounded-xl bg-gray-200" />
-          </div>
-
-          {/* Offer Cards */}
-          <div className="space-y-3 mt-4">
-            <div className="h-20 rounded-xl bg-gray-200" />
-            <div className="h-20 rounded-xl bg-gray-200" />
-          </div>
-
-          {/* Accordion */}
-          <div className="space-y-3 mt-4">
-            <div className="h-14 rounded-xl bg-gray-200" />
-            <div className="h-14 rounded-xl bg-gray-200" />
-            <div className="h-14 rounded-xl bg-gray-200" />
-          </div>
         </div>
-      </div>
 
-      {/* Recommended Products Skeleton */}
-      <section className="mt-20">
-        <div className="h-10 w-72 bg-gray-200 rounded mb-8 animate-pulse" />
+        {/* Recommended Products Skeleton */}
+        <section className="mt-20">
+          <div className="h-10 w-72 bg-gray-200 rounded mb-8 animate-pulse" />
 
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="
+          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+            {[1, 2, 3].map((i) => (
+              <div
+                key={i}
+                className="
                 aspect-[3/4]
                 rounded-2xl
                 bg-gray-200
                 animate-pulse
               "
-            />
-          ))}
-        </div>
-      </section>
-    </div>
-  );
-}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
+    );
+  }
 
-if (!product) {
-  return (
-    <div className="min-h-[70vh] flex items-center justify-center px-4">
-      <div className="max-w-md text-center">
-        <div
-          className="
+  if (!product) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center px-4">
+        <div className="max-w-md text-center">
+          <div
+            className="
             mx-auto mb-6
 
             w-24 h-24
@@ -255,23 +260,23 @@ if (!product) {
 
             flex items-center justify-center
           "
-        >
-          <span className="text-4xl">📦</span>
-        </div>
+          >
+            <span className="text-4xl">📦</span>
+          </div>
 
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
-          Product Not Found
-        </h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
+            Product Not Found
+          </h1>
 
-        <p className="text-gray-500 mb-8">
-          The product you're looking for may have been removed,
-          renamed, or is temporarily unavailable.
-        </p>
+          <p className="text-gray-500 mb-8">
+            The product you're looking for may have been removed,
+            renamed, or is temporarily unavailable.
+          </p>
 
-        <div className="flex flex-col sm:flex-row gap-3 justify-center">
-          <button
-            onClick={() => navigate(-1)}
-            className="
+          <div className="flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              onClick={() => navigate(-1)}
+              className="
               px-6 py-3
 
               border border-gray-300
@@ -281,13 +286,13 @@ if (!product) {
               hover:bg-gray-50
               transition
             "
-          >
-            Go Back
-          </button>
+            >
+              Go Back
+            </button>
 
-          <button
-            onClick={() => navigate('/products')}
-            className="
+            <button
+              onClick={() => navigate('/products')}
+              className="
               px-6 py-3
 
               bg-black
@@ -298,47 +303,47 @@ if (!product) {
               hover:bg-neutral-800
               transition
             "
-          >
-            Browse Products
-          </button>
+            >
+              Browse Products
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
-}
-
-
-const minSwipeDistance = 50;
-
-const onTouchStart = (e) => {
-  touchEndX.current = null;
-  touchStartX.current = e.targetTouches[0].clientX;
-};
-
-const onTouchMove = (e) => {
-  touchEndX.current = e.targetTouches[0].clientX;
-};
-
-const onTouchEnd = () => {
-  if (!touchStartX.current || !touchEndX.current) return;
-
-  const distance =
-    touchStartX.current - touchEndX.current;
-
-  const isLeftSwipe =
-    distance > minSwipeDistance;
-
-  const isRightSwipe =
-    distance < -minSwipeDistance;
-
-  if (isLeftSwipe) {
-    nextImage();
+    );
   }
 
-  if (isRightSwipe) {
-    prevImage();
-  }
-};
+
+  const minSwipeDistance = 50;
+
+  const onTouchStart = (e) => {
+    touchEndX.current = null;
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchMove = (e) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const onTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+
+    const distance =
+      touchStartX.current - touchEndX.current;
+
+    const isLeftSwipe =
+      distance > minSwipeDistance;
+
+    const isRightSwipe =
+      distance < -minSwipeDistance;
+
+    if (isLeftSwipe) {
+      nextImage();
+    }
+
+    if (isRightSwipe) {
+      prevImage();
+    }
+  };
 
 
 
@@ -360,50 +365,75 @@ const onTouchEnd = () => {
   const mrp = (price * 1.2)
 
   const handleAddToCart = () => {
-    // If inventory exists and has multiple sizes, require a selection
-    if (product.inventory && Object.keys(product.inventory).length > 0) {
-      // check if there is at least one available size
-      const availableSizes = ["XS", "S", "M", "L", "XL", "XXL"].filter((s) => (product.inventory?.[s] || 0) > 0)
-      if (availableSizes.length && !selectedSize) {
-        toast.error("Please select a size before adding to cart.")
-        return
-      }
+    const activeSizes =
+      product.sizes?.filter(
+        (size) => size.active !== false
+      ) || [];
+
+    const availableSizes = activeSizes.filter(
+      ({ name }) =>
+        Number(product.inventory?.[name] || 0) > 0
+    );
+
+    if (availableSizes.length > 0 && !selectedSize) {
+      toast.error(
+        "Please select a size before adding to cart."
+      );
+      return;
     }
-    add(product._id, selectedSize || null)
-  }
+
+    add(product._id, selectedSize || null);
+  };
 
 
   // inside the component
   const handleBuyNow = () => {
-    // Check size requirement first (same logic as handleAddToCart)
-    if (product.inventory && Object.keys(product.inventory).length > 0) {
-      const availableSizes = ["XS", "S", "M", "L", "XL", "XXL"].filter(s => (product.inventory?.[s] || 0) > 0)
-      if (availableSizes.length && !selectedSize) {
-        toast.error("Please select a size before buying.")
-        return
-      }
+    const activeSizes =
+      product.sizes?.filter(
+        (size) => size.active !== false
+      ) || [];
+
+    const availableSizes = activeSizes.filter(
+      ({ name }) =>
+        Number(product.inventory?.[name] || 0) > 0
+    );
+
+    if (availableSizes.length > 0 && !selectedSize) {
+      toast.error(
+        "Please select a size before buying."
+      );
+      return;
     }
 
-    // add to cart then navigate
-    add(product._id, selectedSize || null)
-    navigate("/checkout")
-  }
+    add(product._id, selectedSize || null);
+    navigate("/checkout");
+  };
 
-  const isOutOfStock = Object.values(product.inventory || {}).every(q => q === 0);
+  const activeSizes =
+    product.sizes?.filter(
+      (size) => size.active !== false
+    ) || [];
 
-const handleWishlist = (e) => {
-  e.preventDefault();
-  e.stopPropagation();
+  const isOutOfStock =
+    activeSizes.length > 0 &&
+    activeSizes.every(
+      ({ name }) =>
+        Number(product.inventory?.[name] || 0) <= 0
+    );
 
-  wishlisted
-    ? removeFromWishlist(product._id)
-    : addToWishlist(product._id);
-};
-const wishlisted = wishlist.includes(product._id);
+  const handleWishlist = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    wishlisted
+      ? removeFromWishlist(product._id)
+      : addToWishlist(product._id);
+  };
+  const wishlisted = wishlist.includes(product._id);
   return (
     <>
-<div
-  className="
+      <div
+        className="
     flex flex-col
     md:flex-row
 
@@ -414,30 +444,28 @@ const wishlisted = wishlist.includes(product._id);
     relative
     items-start
   "
->
+      >
         {/* Left: Images */}
-<div
-  className="
-    w-full
+        <div
+          className="
+   w-full
     md:w-1/2
-
     flex
     flex-col-reverse
     md:flex-row
-
     gap-4
-
     md:sticky
     md:top-24
-
     self-start
     h-fit
+    relative
+    z-[100]
   "
->
+        >
 
           {/* THUMBNAILS */}
           <div
-  className="
+            className="
     flex
     md:flex-col
 
@@ -448,7 +476,7 @@ const wishlisted = wishlist.includes(product._id);
 
     pb-2
   "
->
+          >
             {images.map((img, idx) => (
               <img
                 key={idx}
@@ -507,19 +535,19 @@ flex-shrink-0
 
         cursor-crosshair
       "
-        onMouseEnter={() => {
-    if (window.innerWidth < 1024) return;
-    setShowMagnifier(true);
-  }}
-  onMouseLeave={() => {
-    setShowMagnifier(false);
-  }}
+              onMouseEnter={() => {
+                if (window.innerWidth < 1024) return;
+                setShowMagnifier(true);
+              }}
+              onMouseLeave={() => {
+                setShowMagnifier(false);
+              }}
 
- onTouchStart={onTouchStart}
-  onTouchMove={onTouchMove}
-  onTouchEnd={onTouchEnd}
+              onTouchStart={onTouchStart}
+              onTouchMove={onTouchMove}
+              onTouchEnd={onTouchEnd}
               onMouseMove={(e) => {
-if (window.innerWidth < 1024) return;
+                if (window.innerWidth < 1024) return;
                 const {
                   left,
                   top,
@@ -539,18 +567,18 @@ if (window.innerWidth < 1024) return;
               }}
             >
 
- <div
-  className="flex h-full transition-transform duration-500 ease-in-out"
-  style={{
-    transform: `translateX(-${activeImage * 100}%)`,
-  }}
->
-  {images.map((img, idx) => (
-    <img
-      key={idx}
-      src={img}
-      alt={`${product.title}-${idx}`}
-      className="
+              <div
+                className="flex h-full transition-transform duration-500 ease-in-out"
+                style={{
+                  transform: `translateX(-${activeImage * 100}%)`,
+                }}
+              >
+                {images.map((img, idx) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`${product.title}-${idx}`}
+                    className="
         w-full
         shrink-0
 
@@ -559,11 +587,11 @@ if (window.innerWidth < 1024) return;
 
         object-cover
       "
-    />
-  ))}
-</div>
-<div
-  className="
+                  />
+                ))}
+              </div>
+              <div
+                className="
     absolute
     bottom-3
     right-3
@@ -581,29 +609,28 @@ if (window.innerWidth < 1024) return;
 
     md:hidden
   "
->
-  {activeImage + 1}/{images.length}
-</div>
+              >
+                {activeImage + 1}/{images.length}
+              </div>
               {/* MAGNIFIER LENS */}
-<div className="flex justify-center gap-2 mt-3 md:hidden">
-  {images.map((_, idx) => (
-    <button
-      key={idx}
-      onClick={() => setActiveImage(idx)}
-      className={`
+              <div className="flex justify-center gap-2 mt-3 md:hidden">
+                {images.map((_, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveImage(idx)}
+                    className={`
         h-2 rounded-full transition-all
-        ${
-          activeImage === idx
-            ? "w-6 bg-black"
-            : "w-2 bg-gray-300"
-        }
+        ${activeImage === idx
+                        ? "w-6 bg-black"
+                        : "w-2 bg-gray-300"
+                      }
       `}
-    />
-  ))}
-</div>
-        {showMagnifier && (
-  <div
-    className="
+                  />
+                ))}
+              </div>
+              {showMagnifier && (
+                <div
+                  className="
       absolute
       z-[999]
 
@@ -617,15 +644,15 @@ if (window.innerWidth < 1024) return;
 
       shadow-lg
     "
- style={{
-  left: `${Math.min(Math.max(zoomPosition.x, 12), 88)}%`,
-  top: `${Math.min(Math.max(zoomPosition.y, 12), 88)}%`,
-  transform: "translate(-50%, -50%)",
-}}
-  />
-)}
+                  style={{
+                    left: `${Math.min(Math.max(zoomPosition.x, 12), 88)}%`,
+                    top: `${Math.min(Math.max(zoomPosition.y, 12), 88)}%`,
+                    transform: "translate(-50%, -50%)",
+                  }}
+                />
+              )}
             </Card>
-            
+
 
 
             {/* ZOOM PREVIEW */}
@@ -660,9 +687,9 @@ if (window.innerWidth < 1024) return;
                   : "opacity-0 translate-y-3 pointer-events-none"
                 }
       `}
-        onMouseEnter={() => {
-    setShowMagnifier(false);
-  }}
+              onMouseEnter={() => {
+                setShowMagnifier(false);
+              }}
             >
 
               <div
@@ -692,7 +719,7 @@ if (window.innerWidth < 1024) return;
 
         {/* Right: Info */}
         <div className="md:w-1/2 flex flex-col gap-4 " >
-        <h1 className="text-[30px] md:text-[44px] leading-tight font-bold text-gray-900">{product.title}</h1>
+          <h1 className="text-[30px] md:text-[44px] leading-tight font-bold text-gray-900">{product.title}</h1>
 
           <p className="text-base md:text-[19px] text-gray-700 leading-relaxed">
             Elevate your style with the <strong>{product.title}</strong>. Crafted from premium 100% cotton, this piece ensures unmatched comfort while maintaining a breathable, relaxed fit.
@@ -700,12 +727,12 @@ if (window.innerWidth < 1024) return;
 
           <div className="flex flex-wrap items-baseline gap-2 md:gap-3">
             {/* Discounted / Current Price */}
-           <span className="text-2xl md:text-[30px] font-bold">
+            <span className="text-2xl md:text-[30px] font-bold">
               ₹ {price.toFixed(2)}
             </span>
 
             {/* Original MRP — 20% higher, crossed out */}
-         <span className="text-gray-500 text-sm md:text-lg font-medium flex items-baseline gap-1">
+            <span className="text-gray-500 text-sm md:text-lg font-medium flex items-baseline gap-1">
               MRP
               <span className="text-base md:text-xl line-through text-gray-500">
                 ₹ {mrp.toFixed(2)}
@@ -713,140 +740,109 @@ if (window.innerWidth < 1024) return;
             </span>
 
             {/* Optional Discount Label */}
-           <span className="text-sm md:text-[21px] font-semibold text-red-600">
+            <span className="text-sm md:text-[21px] font-semibold text-red-600">
               (20% OFF)
             </span>
           </div>
 
-         <span className="text-green-700 text-base md:text-[19px]">Inclusive of all taxes</span>
-           {isOutOfStock && (
-            <div  className="px-3 text-lg font-semibold text-white bg-red-600 rounded-full w-max">
+          <span className="text-green-700 text-base md:text-[19px]">Inclusive of all taxes</span>
+          {isOutOfStock && (
+            <div className="px-3 text-lg font-semibold text-white bg-red-600 rounded-full w-max">
               Out of Stock
             </div>
           )}
           <Separator className="my-4" />
 
           {/* Size Selection */}
-          {product.inventory && (
+          {/* Size Selection */}
+          {product.sizes?.length > 0 && (
             <div className="flex flex-col gap-4">
-              <label className="font-medium text-lg md:text-xl text-black">Select Size</label>
+              <label className="font-medium text-lg md:text-xl text-black">
+                Select Size
+              </label>
 
-              <div className="flex gap-3 px-2 flex-wrap" >
-                {["XS", "S", "M", "L", "XL", "XXL"].map((size) => {
-                  const count = product.inventory[size] || 0
-                  const isAvailable = count > 0
+              <div className="flex flex-wrap gap-3 px-2">
+                {product.sizes
+                  .filter((size) => size.active !== false)
+                  .map(({ name }) => {
+                    const count = Number(product.inventory?.[name] || 0);
+                    const isAvailable = count > 0;
+                    const isSelected = selectedSize === name;
 
-                  return (
-                    <button
-                      key={size}
-                      onClick={() =>
-                        isAvailable &&
-                        setSelectedSize(size)
-                      }
+                    return (
+                      <button
+                        key={name}
+                        type="button"
+                        disabled={!isAvailable}
+                        onClick={() => {
+                          if (isAvailable) {
+                            setSelectedSize(name);
+                          }
+                        }}
+                        className={`
+                relative
+                w-12 h-12 md:w-14 md:h-14
+                flex items-center justify-center
+                rounded-full
+                border
+                text-sm md:text-base
+                font-semibold
+                transition-all duration-300 ease-out
 
-                      className={`
-   w-12 h-12
-md:w-14 md:h-14
+                ${isSelected
+                            ? "bg-black text-white border-black shadow-lg"
+                            : isAvailable
+                              ? "bg-white text-gray-700 border-gray-300 hover:border-black hover:-translate-y-[2px] hover:shadow-md"
+                              : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50"
+                          }
+              `}
+                        aria-pressed={isSelected}
+                        aria-label={`Size ${name} ${isAvailable ? "available" : "out of stock"
+                          }`}
+                      >
+                        {name}
 
-      flex items-center
-      justify-center
-
-      rounded-full
-
-      border
-
-     text-sm md:text-base
-      font-semibold
-
-      transition-all
-      duration-300
-      ease-out
-
-      ${selectedSize === size
-                          ? `
-            bg-black
-            text-white
-            border-black
-
-            shadow-lg
-          `
-                          : `
-            bg-white
-            text-gray-700
-            border-gray-300
-
-            hover:border-black
-            hover:-translate-y-[2px]
-            hover:shadow-md
-          `
-                        }
-
-      ${!isAvailable
-                          ? `
-            bg-gray-100
-            text-gray-400
-            border-gray-200
-
-            cursor-not-allowed
-            opacity-50
-
-            hover:translate-y-0
-            hover:shadow-none
-          `
-                          : ""
-                        }
-    `}
-
-                      disabled={!isAvailable}
-
-                      aria-pressed={
-                        selectedSize === size
-                      }
-
-                      aria-label={`
-      Size ${size}
-      ${isAvailable
-                          ? "available"
-                          : "out of stock"
-                        }
-    `}
-                    >
-                      {size}
-                    </button>
-                  )
-                })}
+                        {!isAvailable && (
+                          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] text-red-500">
+                            Out of stock
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
               </div>
 
               {selectedSize && (
-               <p className="text-xs md:text-sm text-gray-700 mt-2">
-                  Selected Size: <span className="font-semibold">{selectedSize}</span>
+                <p className="text-xs md:text-sm text-gray-700 mt-2">
+                  Selected Size:{" "}
+                  <span className="font-semibold">{selectedSize}</span>
                 </p>
               )}
             </div>
           )}
 
           {/* Action Buttons */}
-         <div className="mt-4 flex flex-col gap-3">
-          {!isOutOfStock ? (
           <div className="mt-4 flex flex-col gap-3">
-            {/* Row 1: Cart + Wishlist */}
-           <div className="flex flex-col sm:flex-row gap-3">
-              <Button
-              className="
-  w-full sm:w-1/2
-  flex items-center justify-center gap-2
-  text-base sm:text-xl
-  py-5 sm:py-6
-"
-                onClick={handleAddToCart}
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Add to Cart
-              </Button>
+            {!isOutOfStock ? (
+              <div className="mt-4 flex flex-col gap-3">
+                {/* Row 1: Cart + Wishlist */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <Button
+                    className="
+                          w-full sm:w-1/2
+                          flex items-center justify-center gap-2
+                          text-base sm:text-xl
+                          py-5 sm:py-6
+                        "
+                    onClick={handleAddToCart}
+                  >
+                    <ShoppingCart className="w-5 h-5" />
+                    Add to Cart
+                  </Button>
 
-            <Button
-  variant="outline"
-className={`
+                  <Button
+                    variant="outline"
+                    className={`
   w-full sm:w-1/2
   flex items-center justify-center gap-2
   border-black text-black
@@ -855,27 +851,27 @@ className={`
   py-5 sm:py-6
   transition-all duration-200
 `}
-  onClick={handleWishlist}
-  aria-pressed={wishlisted}
->
-  <Heart
-    className={`
+                    onClick={handleWishlist}
+                    aria-pressed={wishlisted}
+                  >
+                    <Heart
+                      className={`
       w-5 h-5 transition-all
       ${wishlisted
-        ? "fill-black text-black"
-        : "text-black"
-      }
+                          ? "fill-black text-black"
+                          : "text-black"
+                        }
     `}
-  />
+                    />
 
-  {wishlisted ? "Wishlisted" : "Add to Wishlist"}
-</Button>
-            </div>
+                    {wishlisted ? "Wishlisted" : "Add to Wishlist"}
+                  </Button>
+                </div>
 
-            {/* Row 2: Buy Now */}
-            <Button
-              variant="outline"
-             className="
+                {/* Row 2: Buy Now */}
+                <Button
+                  variant="outline"
+                  className="
   w-full
   flex items-center justify-center gap-2
   border-brand-600 text-brand-600
@@ -883,31 +879,31 @@ className={`
   text-base sm:text-xl
   py-5 sm:py-6
 "
-              onClick={handleBuyNow}
-            >
-              <CreditCard className="w-5 h-5" />
-              Buy Now
-            </Button>
-          </div>
-  ) : (
-     <div className="mt-4 flex flex-col gap-3">
-<div className="flex  gap-3">
+                  onClick={handleBuyNow}
+                >
+                  <CreditCard className="w-5 h-5" />
+                  Buy Now
+                </Button>
+              </div>
+            ) : (
+              <div className="mt-4 flex flex-col gap-3">
+                <div className="flex  gap-3">
 
-  {/* DISABLED */}
-    <Button
-                className="w-1/2 flex items-center justify-center gap-2 text-xl py-6 bg-gray-100 text-gray-400 cursor-not-allowed hover:bg-gray-100"
-                
-              >
-                <ShoppingCart className="w-5 h-5" />
-                Add to Cart
-              </Button>
+                  {/* DISABLED */}
+                  <Button
+                    className="w-1/2 flex items-center justify-center gap-2 text-xl py-6 bg-gray-100 text-gray-400 cursor-not-allowed hover:bg-gray-100"
 
-  {/* REQUEST */}
-  <Button
-    onClick={() =>
-      setShowRequest(true)
-    }
-    className="
+                  >
+                    <ShoppingCart className="w-5 h-5" />
+                    Add to Cart
+                  </Button>
+
+                  {/* REQUEST */}
+                  <Button
+                    onClick={() =>
+                      setShowRequest(true)
+                    }
+                    className="
       flex-1
 
       py-6
@@ -920,27 +916,27 @@ className={`
       hover:bg-neutral-800
 
     "
-  >
-    Request Product
-  </Button>
+                  >
+                    Request Product
+                  </Button>
 
-</div>
-</div>
-  )}
-</div>
+                </div>
+              </div>
+            )}
+          </div>
 
           <Separator className="my-4" />
 
           <div className=" flex flex-col gap-3">
-           <p className="text-xl md:text-2xl font-semibold text-black">Offers For You</p>
+            <p className="text-xl md:text-2xl font-semibold text-black">Offers For You</p>
 
             {/* Offer 1 */}
-           <div className="border rounded-lg p-3 md:p-4 flex items-center gap-2 md:gap-3 hover:bg-gray-50 transition hover:-translate-y-[2px] hover:shadow-md">
+            <div className="border rounded-lg p-3 md:p-4 flex items-center gap-2 md:gap-3 hover:bg-gray-50 transition hover:-translate-y-[2px] hover:shadow-md">
               <div className="p-1.5 md:p-2 bg-brand-100 rounded-full">
                 <Gift className="w-6 h-6 text-brand-600" />
               </div>
               <div className="flex flex-col">
-              <p className="text-sm md:text-[16px] font-medium text-gray-800">
+                <p className="text-sm md:text-[16px] font-medium text-gray-800">
                   EXTRA 10% OFF ON PURCHASE OF ₹ 2999
                 </p>
                 <p className="text-xs md:text-[14px] text-gray-600">NORETURN</p>
@@ -949,18 +945,18 @@ className={`
 
             {/* Offer 2 */}
             <div className="border rounded-lg p-3 md:p-4 flex items-center gap-2 md:gap-3 hover:bg-gray-50 transition">
-             <div className="p-1.5 md:p-2 bg-brand-100 rounded-full">
+              <div className="p-1.5 md:p-2 bg-brand-100 rounded-full">
                 <Gift className="w-6 h-6 text-brand-600" />
               </div>
               <div className="flex flex-col">
-              <p className="text-sm md:text-[16px] font-medium text-gray-800">EXTRA 10% OFF ON PURCHASE OF ₹ 3299</p>
+                <p className="text-sm md:text-[16px] font-medium text-gray-800">EXTRA 10% OFF ON PURCHASE OF ₹ 3299</p>
                 <p className="text-xs md:text-[14px] text-gray-600">LEVI10</p>
               </div>
             </div>
           </div>
 
           {/* Accordion */}
-          <Accordion type="single" collapsible   className="text-base md:text-xl w-full">
+          <Accordion type="single" collapsible className="text-base md:text-xl w-full">
             <AccordionItem value="wash-care">
               <AccordionTrigger>Wash Care</AccordionTrigger>
               <AccordionContent>
@@ -975,7 +971,7 @@ className={`
             <AccordionItem value="delivery">
               <AccordionTrigger>Delivery / Shipping</AccordionTrigger>
               <AccordionContent>
-               <p className="text-sm md:text-base text-gray-700">
+                <p className="text-sm md:text-base text-gray-700">
                   <strong>Metros:</strong> 2–4 days • <strong>Rest of India:</strong> 3–6 days
                 </p>
               </AccordionContent>
@@ -984,7 +980,7 @@ className={`
             <AccordionItem value="returns">
               <AccordionTrigger>Returns & Exchange</AccordionTrigger>
               <AccordionContent>
-               <p className="text-xs md:text-sm text-gray-700">
+                <p className="text-xs md:text-sm text-gray-700">
                   Returns accepted for defective/incorrect items. Exchange fee: ₹399. Contact{" "}
                   <strong>garrib@gmail.com</strong>.
                 </p>
@@ -1003,11 +999,11 @@ className={`
         </div>
 
         {/* Fullscreen Image Zoom Modal */}
-    {showRequest && (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-    
-    {/* Modal box */}
-    <div className="
+        {showRequest && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+
+            {/* Modal box */}
+            <div className="
   bg-white
 
   w-[95vw]
@@ -1021,34 +1017,34 @@ className={`
   relative
 ">
 
-      {/* Close button */}
-      <button
-       className="
+              {/* Close button */}
+              <button
+                className="
   absolute
   top-2 md:top-3
   right-2 md:right-3
 
   text-lg md:text-xl
 "
-        onClick={() => setShowRequest(false)}
-      >
-        ✕
-      </button>
+                onClick={() => setShowRequest(false)}
+              >
+                ✕
+              </button>
 
-     <h2 className="text-lg md:text-xl font-bold mb-4">
-        Get Notified
-      </h2>
+              <h2 className="text-lg md:text-xl font-bold mb-4">
+                Get Notified
+              </h2>
 
-      {/* Email */}
-      <div className=" border-b py-3">
-      <input
-        type="email"
-        placeholder="Enter your email"
-        value={request.email}
-        onChange={(e) =>
-          setRequest({ ...request, email: e.target.value })
-        }
-       className="
+              {/* Email */}
+              <div className=" border-b py-3">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  value={request.email}
+                  onChange={(e) =>
+                    setRequest({ ...request, email: e.target.value })
+                  }
+                  className="
   w-full
 
   border
@@ -1059,24 +1055,24 @@ className={`
 
   rounded-md
 "
-      />
-</div>
-      {/* Size */}
-<div className="border-b py-4">
-  <p className="text-sm font-semibold mb-3 tracking-wide uppercase">
-    Select Size
-  </p>
+                />
+              </div>
+              {/* Size */}
+              <div className="border-b py-4">
+                <p className="text-sm font-semibold mb-3 tracking-wide uppercase">
+                  Select Size
+                </p>
 
- <div className="flex flex-wrap gap-2 md:gap-3">
-    {Object.keys(product.inventory || {}).map((size) => {
-      const isSelected = request.size === size;
+                <div className="flex flex-wrap gap-2 md:gap-3">
+                  {Object.keys(product.inventory || {}).map((size) => {
+                    const isSelected = request.size === size;
 
-      return (
-        <button
-          key={size}
-          type="button"
-          onClick={() => setRequest({ ...request, size })}
-          className={`  px-3 md:px-4
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() => setRequest({ ...request, size })}
+                        className={`  px-3 md:px-4
   py-2
 
   border
@@ -1085,23 +1081,22 @@ className={`
   font-medium
 
   transition-all duration-200
-            ${
-              isSelected
-                ? "bg-black text-white border-black"
-                : "bg-white text-black border-gray-300 hover:border-black"
-            }
+            ${isSelected
+                            ? "bg-black text-white border-black"
+                            : "bg-white text-black border-gray-300 hover:border-black"
+                          }
           `}
-        >
-          {size}
-        </button>
-      );
-    })}
-  </div>
-</div>
-      {/* Submit */}
-      <button
-        onClick={handleRequestSubmit}
-        className="
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              {/* Submit */}
+              <button
+                onClick={handleRequestSubmit}
+                className="
   w-full
 
   bg-black
@@ -1113,33 +1108,33 @@ className={`
 
   font-bold
 "
-      >
-        Notify Me
-      </button>
-    </div>
-  </div>
-)}
+              >
+                Notify Me
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* You Might Be Interested Section */}
-    <section className="mt-16 md:mt-24 px-4 md:px-6 pb-16">
-  <div className="max-w-[1600px] mx-auto">
+      <section className="mt-16 md:mt-24 px-4 md:px-6 pb-16">
+        <div className="max-w-[1600px] mx-auto">
 
-    {/* Header */}
-    <div className="flex items-end justify-between mb-8 md:mb-10">
-      <div>
-        <p className="text-sm uppercase tracking-[0.3em] text-neutral-500 mb-2">
-          Discover More
-        </p>
+          {/* Header */}
+          <div className="flex items-end justify-between mb-8 md:mb-10">
+            <div>
+              <p className="text-sm uppercase tracking-[0.3em] text-neutral-500 mb-2">
+                Discover More
+              </p>
 
-        <h2 className="text-2xl md:text-5xl font-bold tracking-tight text-black">
-          You Might Also Like
-        </h2>
-      </div>
+              <h2 className="text-2xl md:text-5xl font-bold tracking-tight text-black">
+                You Might Also Like
+              </h2>
+            </div>
 
-      <button
-        onClick={() => navigate("/shop")}
-        className="
+            <button
+              onClick={() => navigate("/shop")}
+              className="
           hidden md:flex
           items-center
           text-sm
@@ -1148,42 +1143,42 @@ className={`
           hover:text-black
           transition
         "
-      >
-        View All →
-      </button>
-    </div>
+            >
+              View All →
+            </button>
+          </div>
 
-    {recommendedProducts.length ? (
-      <div
-        className="
+          {recommendedProducts.length ? (
+            <div
+              className="
           grid
           grid-cols-2
           lg:grid-cols-3
           gap-4
           md:gap-8
         "
-      >
-        {recommendedProducts.map((prod) => (
-          <article
-            key={prod._id}
-            role="button"
-            tabIndex={0}
-            onClick={() =>
-              navigate(`/product/${prod.slug || prod._id}`)
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                navigate(`/product/${prod.slug || prod._id}`);
-              }
-            }}
-            className="
+            >
+              {recommendedProducts.map((prod) => (
+                <article
+                  key={prod._id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() =>
+                   navigate(`/product/${prod.publicId}`)
+                  }
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      navigate(`/product/${prod.publicId}`)
+                    }
+                  }}
+                  className="
               group
               cursor-pointer
             "
-          >
-            {/* IMAGE */}
-            <div
-              className="
+                >
+                  {/* IMAGE */}
+                  <div
+                    className="
                 relative
                 overflow-hidden
                 rounded-2xl
@@ -1197,14 +1192,14 @@ className={`
 
                 group-hover:shadow-2xl
               "
-            >
-              <img
-                src={
-                  prod.images?.[0] ||
-                  "/images/placeholder.png"
-                }
-                alt={prod.title}
-                className="
+                  >
+                    <img
+                      src={
+                        prod.images?.[0] ||
+                        "/images/placeholder.png"
+                      }
+                      alt={prod.title}
+                      className="
                   w-full
                   h-full
                   object-cover
@@ -1214,11 +1209,11 @@ className={`
 
                   group-hover:scale-110
                 "
-              />
+                    />
 
-              {/* Gradient */}
-              <div
-                className="
+                    {/* Gradient */}
+                    <div
+                      className="
                   absolute
                   inset-0
                   bg-gradient-to-t
@@ -1226,11 +1221,11 @@ className={`
                   via-black/20
                   to-transparent
                 "
-              />
+                    />
 
-              {/* Price Badge */}
-              <div
-                className="
+                    {/* Price Badge */}
+                    <div
+                      className="
                   absolute
                   top-3
                   right-3
@@ -1247,13 +1242,13 @@ className={`
                   md:text-sm
                   font-semibold
                 "
-              >
-                ₹{Number(prod.price ?? 0).toLocaleString()}
-              </div>
+                    >
+                      ₹{Number(prod.price ?? 0).toLocaleString()}
+                    </div>
 
-              {/* Bottom Content */}
-              <div
-                className="
+                    {/* Bottom Content */}
+                    <div
+                      className="
                   absolute
                   bottom-0
                   left-0
@@ -1264,9 +1259,9 @@ className={`
 
                   text-white
                 "
-              >
-                <h3
-                  className="
+                    >
+                      <h3
+                        className="
                     text-sm
                     md:text-xl
 
@@ -1274,12 +1269,12 @@ className={`
 
                     line-clamp-2
                   "
-                >
-                  {prod.title}
-                </h3>
+                      >
+                        {prod.title}
+                      </h3>
 
-                <p
-                  className="
+                      <p
+                        className="
                     mt-1
 
                     text-xs
@@ -1287,31 +1282,31 @@ className={`
 
                     text-white/80
                   "
-                >
-                  Premium Collection
-                </p>
+                      >
+                        Premium Collection
+                      </p>
 
-                <div
-                  className="
+                      <div
+                        className="
                     mt-3
 
                     flex
                     items-center
                     justify-between
                   "
-                >
-                  <span
-                    className="
+                      >
+                        <span
+                          className="
                       text-xs
                       md:text-sm
                       text-white/90
                     "
-                  >
-                    Inclusive of taxes
-                  </span>
+                        >
+                          Inclusive of taxes
+                        </span>
 
-                  <span
-                    className="
+                        <span
+                          className="
                       opacity-0
                       translate-x-3
 
@@ -1324,18 +1319,18 @@ className={`
                       text-sm
                       font-medium
                     "
-                  >
-                    View →
-                  </span>
-                </div>
-              </div>
+                        >
+                          View →
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
             </div>
-          </article>
-        ))}
-      </div>
-    ) : (
-      <div
-        className="
+          ) : (
+            <div
+              className="
           rounded-2xl
           border
           border-dashed
@@ -1345,14 +1340,14 @@ className={`
 
           text-center
         "
-      >
-        <p className="text-neutral-500">
-          No recommendations available right now.
-        </p>
-      </div>
-    )}
-  </div>
-</section>
+            >
+              <p className="text-neutral-500">
+                No recommendations available right now.
+              </p>
+            </div>
+          )}
+        </div>
+      </section>
     </>
   )
 }

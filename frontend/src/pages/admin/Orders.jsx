@@ -370,7 +370,7 @@ const exportCsv = () => {
 
 
       {/* Table */}
-      <div className="bg-white border border-gray-100 rounded-lg overflow-hidden">
+      <div className="bg-white border border-gray-100 rounded-lg overflow-hidden" data-lenis-prevent>
         {loading ? (
           <div className="p-8 flex justify-center">
             <Loader2 className="w-6 h-6 animate-spin" />

@@ -240,7 +240,7 @@ const handleFilterChange = (type, value) => {
           // console.log("[ProductCard] render", { _id: p._id, isWished: wishlist.includes(String(p._id)), wishlistSample: wishlist.slice(0, 6) });
             const id = String(p._id);
           return (
-            <Link key={p._id} to={`/product/${p._id}`} className="cursor-pointer">
+            <Link key={p.publicId} to={`/product/${p.publicId}`} className="cursor-pointer">
               <div className="bg-white transition border border-gray-100 overflow-hidden relative rounded-2xl">
                 <div className="relative w-full h-[50vh] overflow-hidden">
                   <img

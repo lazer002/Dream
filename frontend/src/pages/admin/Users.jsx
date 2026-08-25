@@ -76,7 +76,7 @@ export default function Users() {
       </div>
 
       {/* Filter Bar */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8" >
         {/* Tabs Section */}
         <Tabs
           value={roleFilter}
@@ -120,10 +120,10 @@ export default function Users() {
 
 
       {/* Table Card */}
-      <Card className="border-none shadow-sm bg-white rounded-2xl overflow-hidden">
+      <Card className="border-none shadow-sm bg-white rounded-2xl overflow-hidden" data-lenis-prevent>
 
 
-        <CardContent className="p-0">
+        <CardContent className="p-0" >
           {loading ? (
             <div className="flex justify-center py-12">
               <Loader2 className="animate-spin w-6 h-6 text-gray-500" />

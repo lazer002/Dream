@@ -95,7 +95,7 @@ export default function Bundle() {
   };
 
   return (
-    <div className="container mx-auto px-6 py-12">
+    <div className="container mx-auto px-6 py-12"data-lenis-prevent>
       <h1 className="text-3xl font-bold mb-10 text-black">Admin: Bundles</h1>
 
       <form

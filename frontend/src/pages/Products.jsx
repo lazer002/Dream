@@ -5,28 +5,28 @@ import { Heart, ShoppingBag, Filter, ArrowUpDown, Heart as HeartOutline } from "
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useCart } from "../state/CartContext.jsx"
 import { useWishlist } from "../state/WishlistContext.jsx"
-import api  from "@/utils/config";
+import api from "@/utils/config";
 import { useLocation } from "react-router-dom";
-import { Dialog,DialogContent,DialogHeader ,DialogTitle ,DialogClose   } from "@/components/ui/dialog.jsx";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog.jsx";
 import FilterDrawer from "@/components/filterDrawer";
 
 export default function Products() {
   const { add } = useCart()
   const [products, setProducts] = useState([]);
-  const { wishlist ,addToWishlist,removeFromWishlist} = useWishlist();
+  const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const [sort, setSort] = useState("newest");
   const [isFilterOpen, setIsFilterOpen] = useState(false);
-const [selectedFilters, setSelectedFilters] = useState({
-  categories: [],
-  priceRange: "",
-  color: [],
-  size: [],
-  fabric: [],
-  fit: [],
-  inStock: false,
-  isNew: false,
-  onSale: false,
-});
+  const [selectedFilters, setSelectedFilters] = useState({
+    categories: [],
+    priceRange: "",
+    color: [],
+    size: [],
+    fabric: [],
+    fit: [],
+    inStock: false,
+    isNew: false,
+    onSale: false,
+  });
   const [categories, setCategories] = useState([]);
 
   const [showTopBtn, setShowTopBtn] = useState(false);
@@ -35,28 +35,28 @@ const [selectedFilters, setSelectedFilters] = useState({
   const [loading, setLoading] = useState(false);
   const location = useLocation();
 
-const [selectedProduct, setSelectedProduct] = useState(null);
-const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-const openModal = (product) => {
-  setSelectedProduct(product);
-  setIsModalOpen(true);
-};
+  const openModal = (product) => {
+    setSelectedProduct(product);
+    setIsModalOpen(true);
+  };
 
-const handleSelectSize = (sizeKey) => {
-  if (!selectedProduct) return;
-  const qty = Number(selectedProduct.inventory?.[sizeKey] ?? 0);
-  if (qty <= 0) return; // disabled anyway
+  const handleSelectSize = (sizeKey) => {
+    if (!selectedProduct) return;
+    const qty = Number(selectedProduct.inventory?.[sizeKey] ?? 0);
+    if (qty <= 0) return; // disabled anyway
 
-  add(selectedProduct._id, sizeKey); // 👈 always with size
-  setIsModalOpen(false);
-  setSelectedProduct(null);
-};
+    add(selectedProduct._id, sizeKey); // 👈 always with size
+    setIsModalOpen(false);
+    setSelectedProduct(null);
+  };
 
   const fetchProducts = async (reset = false, categoryFromQueryParam = null) => {
     if (!reset && (loading || !hasMore)) return; // only block when NOT resetting
 
-     const currentPage = reset ? 1 : page; 
+    const currentPage = reset ? 1 : page;
 
     try {
       setLoading(true);
@@ -75,33 +75,33 @@ const handleSelectSize = (sizeKey) => {
 
       if (selectedFilters.priceRange)
         params.append("priceRange", selectedFilters.priceRange);
- // 🔥 TAG FILTERS
-let tags = [];
+      // 🔥 TAG FILTERS
+      let tags = [];
 
-if (selectedFilters.color.length)
-  tags.push(...selectedFilters.color);
+      if (selectedFilters.color.length)
+        tags.push(...selectedFilters.color);
 
-if (selectedFilters.size.length)
-  tags.push(...selectedFilters.size);
+      if (selectedFilters.size.length)
+        tags.push(...selectedFilters.size);
 
-if (selectedFilters.fabric.length)
-  tags.push(...selectedFilters.fabric);
+      if (selectedFilters.fabric.length)
+        tags.push(...selectedFilters.fabric);
 
-if (selectedFilters.fit.length)
-  tags.push(...selectedFilters.fit);
+      if (selectedFilters.fit.length)
+        tags.push(...selectedFilters.fit);
 
-if (tags.length)
-  params.append("tags", tags.join(","));
+      if (tags.length)
+        params.append("tags", tags.join(","));
 
-// 🔥 BOOLEAN FILTERS
-if (selectedFilters.inStock)
-  params.append("inStock", "true");
+      // 🔥 BOOLEAN FILTERS
+      if (selectedFilters.inStock)
+        params.append("inStock", "true");
 
-if (selectedFilters.isNew)
-  params.append("isNew", "true");
+      if (selectedFilters.isNew)
+        params.append("isNew", "true");
 
-if (selectedFilters.onSale)
-  params.append("onSale", "true");
+      if (selectedFilters.onSale)
+        params.append("onSale", "true");
 
       const res = await api.get("/products", {
         params: Object.fromEntries(params.entries()),
@@ -181,16 +181,16 @@ if (selectedFilters.onSale)
 
 
 
-const handleFilterChange = (type, value) => {
-  setSelectedFilters(prev => {
-    if (Array.isArray(prev[type])) {
-      return prev[type].includes(value)
-        ? { ...prev, [type]: prev[type].filter(v => v !== value) }
-        : { ...prev, [type]: [...prev[type], value] };
-    }
-    return { ...prev, [type]: value };
-  });
-};
+  const handleFilterChange = (type, value) => {
+    setSelectedFilters(prev => {
+      if (Array.isArray(prev[type])) {
+        return prev[type].includes(value)
+          ? { ...prev, [type]: prev[type].filter(v => v !== value) }
+          : { ...prev, [type]: [...prev[type], value] };
+      }
+      return { ...prev, [type]: value };
+    });
+  };
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
@@ -215,7 +215,7 @@ const handleFilterChange = (type, value) => {
           className="flex items-center gap-2 px-4 py-2 bg-black text-white font-bold uppercase hover:bg-black transition"
         >
           <Filter className="w-5 h-5" />
-         <span className="max-[500]:hidden"> Filter</span>
+          <span className="max-[500]:hidden"> Filter</span>
         </button>
 
         <div className="w-48">
@@ -238,7 +238,7 @@ const handleFilterChange = (type, value) => {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-4 pb-10">
         {products.map((p) => {
           // console.log("[ProductCard] render", { _id: p._id, isWished: wishlist.includes(String(p._id)), wishlistSample: wishlist.slice(0, 6) });
-            const id = String(p._id);
+          const id = String(p._id);
           return (
             <Link key={p.publicId} to={`/product/${p.publicId}`} className="cursor-pointer">
               <div className="bg-white transition border border-gray-100 overflow-hidden relative rounded-2xl">
@@ -259,9 +259,9 @@ const handleFilterChange = (type, value) => {
                       NEW
                     </span>
                   )}
-                  {p.onSale && (
-                <span
-  className="
+                  {p.discount && (
+                    <span
+                      className="
     absolute
     top-3
     right-3
@@ -284,11 +284,11 @@ const handleFilterChange = (type, value) => {
     shadow-lg
     shadow-red-500/30
   "
->
-  30% OFF
-</span>
+                    >
+                      {Math.round(p.discount)}% OFF
+                    </span>
                   )}
-                    <button
+                  <button
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -296,89 +296,122 @@ const handleFilterChange = (type, value) => {
                         ? removeFromWishlist(id)
                         : addToWishlist(id);
                     }}
-                      aria-label={wishlist.includes(id) ? "Remove from wishlist" : "Add to wishlist"}
-                      className="absolute bottom-2 right-2  flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
-                    >
-                      {wishlist.includes(id)? (
-                        <Heart className="h-10 w-10 text-black fill-black" />
-                      ) : (
-                        <HeartOutline className="h-10 w-10 text-black" />
-                      )}
-                    </button>
+                    aria-label={wishlist.includes(id) ? "Remove from wishlist" : "Add to wishlist"}
+                    className="absolute bottom-2 right-2  flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
+                  >
+                    {wishlist.includes(id) ? (
+                      <Heart className="h-10 w-10 text-black fill-black" />
+                    ) : (
+                      <HeartOutline className="h-10 w-10 text-black" />
+                    )}
+                  </button>
 
 
                 </div>
 
-              <div className="p-3 flex flex-col gap-1">
-{Object.values(p.inventory || {}).every(qty => qty === 0) && (
-  <div
-    className="
-      absolute
-      top-3
-      left-3
+                <div className="p-3 flex flex-col gap-1">
 
-      z-20
-
-      bg-black/80
-      backdrop-blur-md
-
-      text-white
-
-      text-[11px]
-      font-bold
-      tracking-[0.15em]
-      uppercase
-
-      px-3 py-2
-
-      rounded-full
-    "
-  >
-    Sold Out
-  </div>
-)}
-  <div className="flex items-center justify-between">
-    
-    <h3 className="text-sm font-bold text-black uppercase truncate">{p.title}</h3>
-    <button
-      onClick={(e) => {
-        e.preventDefault();
-        openModal(p);
-      }}
-      className="p-1 w-7 h-7 flex items-center justify-center transition"
-      title="Add to Cart"
+<div className="absolute top-3 left-3 z-20 flex flex-col items-start gap-2">
+  {p.isOutOfStock ? (
+    <div
+      className="
+        bg-black/80
+        backdrop-blur-md
+        text-white
+        text-[11px]
+        font-bold
+        tracking-[0.15em]
+        uppercase
+        px-3 py-2
+        rounded-full
+      "
     >
-      <ShoppingBag className="w-10 h-10" />
-    </button>
-  </div>
+      Sold Out
+    </div>
+  ) : (
+    <>
+      {p.onSale && (
+        <div
+          className="
+            bg-black/80
+            backdrop-blur-md
+            text-white
+            text-[11px]
+            font-bold
+            tracking-[0.15em]
+            uppercase
+            px-3 py-2
+            rounded-full
+          "
+        >
+          Sale
+        </div>
+      )}
 
-  {/* 💰 Price Section */}
-  <div className="mt-1 flex items-center gap-2 flex-wrap">
-  
-    {/* If on sale — show a mock original price and discount */}
-    {p.onSale && (
-      <>
-        {/* Fake original price (e.g. 30% higher) */}
-        <span className="text-xs text-gray-500 line-through">
-          ₹ {Math.round(Number(p.price) / 0.7).toLocaleString()}.00
-        </span>
+      {p.isNewProduct && (
+        <div
+          className="
+            bg-black/80
+            backdrop-blur-md
+            text-white
+            text-[11px]
+            font-bold
+            tracking-[0.15em]
+            uppercase
+            px-3 py-2
+            rounded-full
+          "
+        >
+          NEW
+        </div>
+      )}
+    </>
+  )}
+</div>
 
-   
-      </>
-    )}
 
-      {/* Actual Price */}
-    <span className="text-md font-bold text-red-600">
-      ₹ {Number(p.price).toLocaleString()}.00
-    </span>
-     {/* Discount label */}
-        {/* <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
+                  <div className="flex items-center justify-between">
+
+                    <h3 className="text-sm font-bold text-black uppercase truncate">{p.title}</h3>
+                    <button
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openModal(p);
+                      }}
+                      className="p-1 w-7 h-7 flex items-center justify-center transition"
+                      title="Add to Cart"
+                    >
+                      <ShoppingBag className="w-10 h-10" />
+                    </button>
+                  </div>
+
+                  {/* 💰 Price Section */}
+                  <div className="flex items-center gap-2 flex-wrap">
+
+                    {/* If on sale — show a mock original price and discount */}
+                    {p.oldPrice && (
+                      <>
+                        {/* Fake original price (e.g. 30% higher) */}
+                        <span className="text-xs text-gray-500 line-through">
+                          ₹ {p.oldPrice}.00
+                        </span>
+
+
+                      </>
+                    )}
+
+                    {/* Actual Price */}
+                    <span className="text-md font-bold text-red-600">
+                      ₹ {Number(p.price).toLocaleString()}.00
+                    </span>
+                    {/* Discount label */}
+                    {/* <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
           30% OFF
         </span> */}
-  </div>
-  
-              
-</div>
+                  </div>
+
+
+                </div>
 
               </div>
             </Link>
@@ -403,51 +436,135 @@ const handleFilterChange = (type, value) => {
       {/* Filter Offcanvas */}
 
 <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-  <DialogContent className="max-w-sm w-[90%]">
-    <DialogHeader>
-      <DialogTitle>Select Size</DialogTitle>
-      <DialogClose />
+  <DialogContent className="w-[calc(100%-32px)] max-w-md rounded-2xl p-0 overflow-hidden">
+    <DialogHeader className="px-6 pt-6 pb-4 border-b">
+      <DialogTitle className="text-xl font-semibold">
+        Select Size
+      </DialogTitle>
+      <p className="text-sm text-muted-foreground">
+        Choose your preferred size
+      </p>
     </DialogHeader>
 
-    <div className="p-4 flex flex-col gap-4">
-      {selectedProduct && (
-        <>
-       
+    {selectedProduct && (
+      <div className="px-6 py-5">
+        {selectedProduct.sizes?.length ? (
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {selectedProduct.sizes.map((size) => {
+              const name = size.name;
 
-          <div>
-            <div className="text-sm text-gray-600 mb-2">Choose Size</div>
-            <div className="flex flex-wrap gap-2">
-              {Object.entries(selectedProduct.inventory || {}).map(([size, qty]) => (
+              const qty = Number(
+                selectedProduct.inventory?.[name] || 0
+              );
+
+              const isAvailable =
+                size.active !== false && qty > 0;
+
+              return (
                 <button
-                  key={size}
-                  onClick={() => handleSelectSize(size)}
-                  disabled={qty <= 0}
-                  className={`px-4 py-2 rounded-full border text-sm font-medium transition
-                    ${
-                      qty <= 0
-                        ? "bg-gray-100 text-gray-400 cursor-not-allowed border-gray-200"
-                        : "hover:bg-black hover:text-white"
-                    }`}
-                  title={qty <= 0 ? "Out of stock" : `Add ${size} to cart`}
-                >
-                  <div className="flex flex-col items-center">
-                    <span>{size}</span>
-                    <small className="text-xs">{qty > 0 ? `${qty} left` : "Out"}</small>
-                  </div>
-                </button>
-              ))}
-            </div>
+                  key={name}
+                  type="button"
+                  disabled={!isAvailable}
+                  onClick={() => {
+                    if (isAvailable) {
+                      handleSelectSize(name);
+                    }
+                  }}
+                  className={`
+                    group
+                    relative
+                    min-h-[72px]
+                    rounded-xl
+                    border
+                    px-4
+                    py-3
+                    text-left
+                    transition-all
+                    duration-200
 
-            {Object.values(selectedProduct.inventory || {}).every((q) => q <= 0) && (
-              <div className="mt-3 text-sm text-red-500 font-medium">Out of Stock</div>
-            )}
+                    ${
+                      isAvailable
+                        ? `
+                          border-gray-200
+                          bg-white
+                          hover:border-black
+                          hover:shadow-sm
+                          active:scale-[0.98]
+                        `
+                        : `
+                          border-gray-100
+                          bg-gray-50
+                          text-gray-400
+                          cursor-not-allowed
+                        `
+                    }
+                  `}
+                >
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`
+                        text-base font-semibold
+                        ${
+                          isAvailable
+                            ? "text-gray-900"
+                            : "text-gray-400"
+                        }
+                      `}
+                    >
+                      {name}
+                    </span>
+
+                    <span
+                      className={`
+                        h-2 w-2 rounded-full
+                        ${
+                          isAvailable
+                            ? "bg-green-500"
+                            : "bg-gray-300"
+                        }
+                      `}
+                    />
+                  </div>
+
+                  <span
+                    className={`
+                      mt-1 block text-xs
+                      ${
+                        isAvailable
+                          ? "text-gray-500"
+                          : "text-gray-400"
+                      }
+                    `}
+                  >
+                    {isAvailable
+                      ? qty <= 5
+                        ? `Only ${qty} left`
+                        : "Available"
+                      : "Out of stock"}
+                  </span>
+                </button>
+              );
+            })}
           </div>
-        </>
-      )}
-    </div>
+        ) : (
+          <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
+            <p className="text-sm text-gray-500">
+              No sizes available for this product.
+            </p>
+          </div>
+        )}
+
+        {selectedProduct.isOutOfStock && (
+          <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+            <p className="text-sm font-medium text-red-600">
+              This product is currently out of stock.
+            </p>
+          </div>
+        )}
+      </div>
+    )}
   </DialogContent>
 </Dialog>
-
 
 
       {/* Overlay */}
@@ -469,17 +586,17 @@ const handleFilterChange = (type, value) => {
 
 
       <FilterDrawer
-  isOpen={isFilterOpen}
-  onClose={() => setIsFilterOpen(false)}
-  selectedFilters={selectedFilters}
-  onChange={handleFilterChange}
- onApply={() => {
-  setPage(1);        // 🔥 reset pagination
-  setHasMore(true);  // 🔥 allow new fetch
-  setIsFilterOpen(false);
-}}
-   categories={categories}
-/>
+        isOpen={isFilterOpen}
+        onClose={() => setIsFilterOpen(false)}
+        selectedFilters={selectedFilters}
+        onChange={handleFilterChange}
+        onApply={() => {
+          setPage(1);        // 🔥 reset pagination
+          setHasMore(true);  // 🔥 allow new fetch
+          setIsFilterOpen(false);
+        }}
+        categories={categories}
+      />
 
     </div>
 

@@ -570,7 +570,7 @@ export default function ProductList() {
 
       {/* FILTERS */}
 
-      <Card>
+      <Card >
         <CardContent className="p-4">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
             <div className="relative">
@@ -669,7 +669,7 @@ export default function ProductList() {
 
       {/* PRODUCT TABLE */}
 
-      <Card>
+      <Card  data-lenis-prevent>
         <CardHeader>
           <CardTitle>
             Product Catalog
@@ -1060,7 +1060,7 @@ export default function ProductList() {
                                 variant="outline"
                                 onClick={() =>
                                   (window.location.href =
-                                    `/product/${product._id}`)
+                                    `/product/${product.publicId}`)
                                 }
                               >
                                 <Eye className="h-4 w-4" />
@@ -1127,7 +1127,7 @@ export default function ProductList() {
         open={open}
         onOpenChange={setOpen}
       >
-        <DialogContent className="max-w-[1100px] w-full max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-fit w-full max-h-[90vh] overflow-y-auto px-4">
           <DialogHeader>
             <DialogTitle>
               Edit Product

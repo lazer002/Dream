@@ -1,6 +1,4 @@
-import { useEffect, useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useEffect, useMemo, useState } from "react";
 import {
   Table,
   TableBody,
@@ -8,377 +6,1404 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
+} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogFooter,
-} from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
-import { Textarea } from "@/components/ui/textarea"
-import { Pencil, Trash2 } from "lucide-react"
-import api  from "@/utils/config"
-import { Link } from "react-router-dom"
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
+import api from "@/utils/config";
+import { Link } from "react-router-dom";
+import {
+  Pencil,
+  Trash2,
+  Search,
+  Package,
+  ImagePlus,
+  X,
+  Check,
+  Eye,
+  EyeOff,
+  Star,
+  Sparkles,
+  Tag,
+} from "lucide-react";
+import toast from "react-hot-toast";
 
 export default function ShowBundle() {
-  const [bundles, setBundles] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [editBundle, setEditBundle] = useState(null)
-  const [allProducts, setAllProducts] = useState([])
-  const [selectedProducts, setSelectedProducts] = useState([])
-  const [images, setImages] = useState([])
+  const [bundles, setBundles] = useState([]);
+  const [allProducts, setAllProducts] = useState([]);
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  const [editBundle, setEditBundle] = useState(null);
+
+  const [selectedProducts, setSelectedProducts] = useState([]);
+  const [images, setImages] = useState([]);
+
+  const [productSearch, setProductSearch] = useState("");
+  const [bundleSearch, setBundleSearch] = useState("");
 
   const fetchBundles = async () => {
     try {
-      const res = await api.get("/bundles")
-      console.log(res.data, 'fetched bundles')
-      setBundles(res.data.items || [])
+      setLoading(true);
+
+      const res = await api.get("/bundles");
+
+      setBundles(res.data.items || []);
     } catch (err) {
-      console.error("Error fetching bundles:", err)
+      console.error("Error fetching bundles:", err);
+      toast.error("Failed to load bundles");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const fetchProducts = async () => {
     try {
-      const res = await api.get("/products")
-      setAllProducts(res.data.items || [])
+      const res = await api.get("/products", {
+        params: {
+          limit: 100,
+        },
+      });
+
+      setAllProducts(res.data.items || []);
     } catch (err) {
-      console.error("Error fetching products:", err)
+      console.error("Error fetching products:", err);
+      toast.error("Failed to load products");
     }
-  }
+  };
 
   useEffect(() => {
-    fetchBundles()
-    fetchProducts()
-  }, [])
+    fetchBundles();
+    fetchProducts();
+  }, []);
+
+  const filteredBundles = useMemo(() => {
+    const query = bundleSearch.trim().toLowerCase();
+
+    if (!query) return bundles;
+
+    return bundles.filter((bundle) =>
+      bundle.title?.toLowerCase().includes(query)
+    );
+  }, [bundles, bundleSearch]);
+
+  const filteredProducts = useMemo(() => {
+    const query = productSearch.trim().toLowerCase();
+
+    const products = [...allProducts].sort((a, b) => {
+      const aSelected = selectedProducts.includes(a._id);
+      const bSelected = selectedProducts.includes(b._id);
+
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+
+      return 0;
+    });
+
+    if (!query) return products;
+
+    return products.filter((product) =>
+      product.title?.toLowerCase().includes(query)
+    );
+  }, [
+    allProducts,
+    productSearch,
+    selectedProducts,
+  ]);
 
   const deleteBundle = async (id) => {
-    if (!confirm("Are you sure you want to delete this bundle?")) return
-    try {
-      await api.delete(`/bundles/${id}`)
-      setBundles(bundles.filter((b) => b._id !== id))
-    } catch (err) {
-      console.error("Failed to delete:", err)
+    if (!confirm("Are you sure you want to delete this bundle?")) {
+      return;
     }
-  }
+
+    try {
+      await api.delete(`/bundles/${id}`);
+
+      setBundles((prev) =>
+        prev.filter((bundle) => bundle._id !== id)
+      );
+
+      toast.success("Bundle deleted");
+    } catch (err) {
+      console.error("Failed to delete:", err);
+
+      toast.error(
+        err?.response?.data?.error ||
+          "Failed to delete bundle"
+      );
+    }
+  };
+
+  const openEdit = (bundle) => {
+    setEditBundle({
+      ...bundle,
+
+      title: bundle.title || "",
+      description: bundle.description || "",
+      price: bundle.price ?? "",
+      oldPrice: bundle.oldPrice ?? "",
+      discount: bundle.discount ?? 0,
+
+      category:
+        typeof bundle.category === "object"
+          ? bundle.category?._id || ""
+          : bundle.category || "",
+
+      tags: Array.isArray(bundle.tags)
+        ? bundle.tags.join(", ")
+        : "",
+
+      active:
+        bundle.active !== false,
+
+      published:
+        bundle.published !== false,
+
+      featured:
+        bundle.featured === true,
+
+      isNewBundle:
+        bundle.isNewBundle === true,
+
+      onSale:
+        bundle.onSale === true,
+    });
+
+    setSelectedProducts(
+      (bundle.products || []).map((product) =>
+        typeof product === "object"
+          ? product._id
+          : product
+      )
+    );
+
+    setImages(
+      (bundle.mainImages || []).map((url) => ({
+        preview: url,
+        existing: true,
+      }))
+    );
+
+    setProductSearch("");
+  };
+
+  const closeEdit = () => {
+    if (saving) return;
+
+    setEditBundle(null);
+    setSelectedProducts([]);
+    setImages([]);
+    setProductSearch("");
+  };
 
   const handleProductToggle = (id) => {
     setSelectedProducts((prev) =>
-      prev.includes(id) ? prev.filter((pid) => pid !== id) : [...prev, id]
-    )
-  }
+      prev.includes(id)
+        ? prev.filter((pid) => pid !== id)
+        : [...prev, id]
+    );
+  };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files)
+    const files = Array.from(e.target.files || []);
+
+    if (!files.length) return;
+
     const newImages = files.map((file) => ({
       file,
       preview: URL.createObjectURL(file),
-    }))
-    setImages([...images, ...newImages])
-  }
+      existing: false,
+    }));
+
+    setImages((prev) => [
+      ...prev,
+      ...newImages,
+    ]);
+
+    e.target.value = "";
+  };
+
+  const removeImage = (index) => {
+    setImages((prev) =>
+      prev.filter((_, i) => i !== index)
+    );
+  };
+
+  const calculateProductTotal = () => {
+    return selectedProducts.reduce(
+      (total, id) => {
+        const product = allProducts.find(
+          (p) => p._id === id
+        );
+
+        return (
+          total + Number(product?.price || 0)
+        );
+      },
+      0
+    );
+  };
+
+  const calculatedOldPrice = useMemo(() => {
+    if (!editBundle) return 0;
+
+    if (
+      editBundle.oldPrice !== "" &&
+      editBundle.oldPrice !== null &&
+      editBundle.oldPrice !== undefined
+    ) {
+      return Number(editBundle.oldPrice) || 0;
+    }
+
+    return calculateProductTotal();
+  }, [
+    editBundle,
+    selectedProducts,
+    allProducts,
+  ]);
+
+  const calculatedDiscount = useMemo(() => {
+    if (!editBundle) return 0;
+
+    const oldPrice =
+      Number(calculatedOldPrice) || 0;
+
+    const price =
+      Number(editBundle.price) || 0;
+
+    if (oldPrice <= 0 || price >= oldPrice) {
+      return 0;
+    }
+
+    return Math.round(
+      ((oldPrice - price) / oldPrice) * 100
+    );
+  }, [
+    editBundle,
+    calculatedOldPrice,
+  ]);
 
   const handleSave = async () => {
-    try {
-      const imageUrls = []
+    if (!editBundle) return;
 
-      for (const img of images) {
-        if (img.file) {
-          const formData = new FormData()
-          formData.append("file", img.file)
-          const res = await api.post("/admin/upload/image", formData, {
-            headers: { "Content-Type": "multipart/form-data" },
-          })
-          imageUrls.push(res.data.url)
-        } else {
-          imageUrls.push(img.preview)
-        }
+    if (!editBundle.title?.trim()) {
+      toast.error("Bundle title is required");
+      return;
+    }
+
+    if (!selectedProducts.length) {
+      toast.error(
+        "Select at least one product"
+      );
+      return;
+    }
+
+    try {
+      setSaving(true);
+
+      const imageUrls = [];
+
+      const existingImages = images
+        .filter(
+          (image) =>
+            image.existing && !image.file
+        )
+        .map((image) => image.preview);
+
+      imageUrls.push(...existingImages);
+
+      const newFiles = images.filter(
+        (image) => image.file
+      );
+
+      if (newFiles.length) {
+        const formData = new FormData();
+
+        newFiles.forEach((image) => {
+          formData.append("files", image.file);
+        });
+
+        const uploadResponse =
+          await api.post(
+            "/admin/upload/images",
+            formData
+          );
+
+        imageUrls.push(
+          ...(uploadResponse.data.images || []).map(
+            (image) => image.url
+          )
+        );
       }
 
-      await api.put(`/bundles/${editBundle._id}`, {
-        title: editBundle.title,
-        description: editBundle.description,
-        products: selectedProducts,
-        mainImages: imageUrls,
-        price: editBundle.price, // or computedPrice
-      })
+      const oldPrice =
+        Number(calculatedOldPrice) || 0;
 
-      setEditBundle(null)
-      fetchBundles()
+      const price =
+        Number(editBundle.price) || 0;
+
+      const discount =
+        oldPrice > price && oldPrice > 0
+          ? Math.round(
+              ((oldPrice - price) /
+                oldPrice) *
+                100
+            )
+          : 0;
+
+      const tags = String(
+        editBundle.tags || ""
+      )
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean);
+
+      await api.put(
+        `/bundles/${editBundle._id}`,
+        {
+          title:
+            editBundle.title.trim(),
+
+          description:
+            editBundle.description || "",
+
+          products:
+            selectedProducts,
+
+          category:
+            editBundle.category || "",
+
+          tags,
+
+          mainImages:
+            imageUrls,
+
+          price,
+
+          oldPrice,
+
+          discount,
+
+          onSale:
+            oldPrice > price,
+
+          active:
+            editBundle.active !== false,
+
+          published:
+            editBundle.published !== false,
+
+          featured:
+            editBundle.featured === true,
+
+          isNewBundle:
+            editBundle.isNewBundle === true,
+        }
+      );
+
+      toast.success(
+        "Bundle updated successfully"
+      );
+
+      closeEdit();
+
+      await fetchBundles();
     } catch (err) {
-      console.error("Failed to update bundle:", err)
+      console.error(
+        "Failed to update bundle:",
+        err
+      );
+
+      toast.error(
+        err?.response?.data?.error ||
+          err?.response?.data?.message ||
+          "Failed to update bundle"
+      );
+    } finally {
+      setSaving(false);
     }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#f7f7f5] p-6">
+        <div className="mx-auto max-w-7xl">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 w-48 rounded bg-gray-200" />
+            <div className="h-12 rounded-xl bg-gray-200" />
+            <div className="h-96 rounded-2xl bg-gray-200" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
-
-  if (loading)
-    return <p className="text-center text-gray-500 mt-10">Loading bundles...</p>
-
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Product Bundles</h1>
-        <Button asChild className="bg-black text-white">
-          <Link to="/admin/new/bundles">+ Create Bundle</Link>
-        </Button>
-      </div>
-
-      <Card data-lenis-prevent>
-        <CardHeader>
-          <CardTitle>All Bundles</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Image</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Products</TableHead>
-                <TableHead>Price</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {bundles.length > 0 ? (
-                bundles.map((b) => (
-                  <TableRow key={b._id}>
-                    <TableCell>
-                      {b.mainImages?.[0] ? (
-                        <img
-                          src={b.mainImages[0]}
-                          alt={b.title}
-                          className="w-16 h-16 object-cover rounded-md"
-                        />
-                      ) : (
-                        <div className="w-16 h-16 bg-gray-200 rounded-md" />
-                      )}
-                    </TableCell>
-                    <TableCell className="font-medium">{b.title}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap gap-2">
-                        {b.products?.map((p) => (
-                          <div
-                            key={p._id}
-                            className="w-16 text-center border rounded-md p-1"
-                          >
-                            <img
-                              src={p.images?.[0]}
-                              alt={p.title}
-                              className="w-full h-12 object-cover rounded-md"
-                            />
-                            <p className="text-[10px] mt-1">{p.title}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </TableCell>
-                    <TableCell>₹{b.price}</TableCell>
-                    <TableCell className="flex gap-2">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setEditBundle(b)
-                          setSelectedProducts(b.products.map((p) => p._id))
-                          setImages(
-                            b.mainImages?.map((url) => ({ preview: url })) || []
-                          )
-                        }}
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => deleteBundle(b._id)}
-                        className="border-red-300"
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="text-center py-6">
-                    No bundles created yet
-                  </TableCell>
-                </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-
-      {/* ====== Edit Modal ====== */}
-      <Dialog open={!!editBundle} onOpenChange={() => setEditBundle(null)}>
-        <DialogContent className="max-w-5xl p-6 max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-semibold tracking-tight text-gray-900">
-              ✏️ Edit Bundle
-            </DialogTitle>
-            <p className="text-sm text-gray-500">
-              Update bundle details, images, and included products.
-            </p>
-          </DialogHeader>
-
-          {editBundle && (
-            <div className="flex-1 overflow-y-auto mt-4 space-y-6 pr-2">
-              {/* Basic Info */}
-              <div className="grid md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Bundle Title
-                  </label>
-                  <Input
-                    value={editBundle.title}
-                    onChange={(e) =>
-                      setEditBundle({ ...editBundle, title: e.target.value })
-                    }
-                    placeholder="Enter bundle title"
-                    className="mt-2"
-                  />
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-700">
-                    Bundle Price (₹)
-                  </label>
-                  <Input
-                    type="number"
-                    value={editBundle.price}
-                    onChange={(e) =>
-                      setEditBundle({ ...editBundle, price: e.target.value })
-                    }
-                    placeholder="Enter price"
-                    className="mt-2"
-                  />
-                </div>
+    <div
+      className="min-h-screen bg-[#f7f7f5]"
+      data-lenis-prevent
+    >
+      <div className="mx-auto max-w-auto space-y-6 p-4 md:p-6">
+        {/* HEADER */}
+        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-black text-white">
+                <Package className="h-5 w-5" />
               </div>
 
               <div>
-                <label className="text-sm font-medium text-gray-700">
-                  Description
-                </label>
-                <Textarea
-                  value={editBundle.description}
-                  onChange={(e) =>
-                    setEditBundle({
-                      ...editBundle,
-                      description: e.target.value,
-                    })
-                  }
-                  placeholder="Write a short bundle description..."
-                  className="mt-2 min-h-[100px]"
-                />
-              </div>
+                <h1 className="text-2xl font-bold tracking-tight text-black">
+                  Product Bundles
+                </h1>
 
-              {/* Images Section */}
-              <div className="border-t pt-4">
-                <label className="text-sm font-medium text-gray-700">
-                  Bundle Images
-                </label>
-                <div className="mt-2 flex items-center justify-between">
-                  <input
-                    type="file"
-                    multiple
-                    onChange={handleImageUpload}
-                    className="block w-full text-sm text-gray-600 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-black file:text-white hover:file:bg-gray-800"
-                  />
-                </div>
-
-                <div className="flex flex-wrap gap-3 mt-4">
-                  {images.length > 0 ? (
-                    images.map((img, i) => (
-                      <div key={i} className="relative group">
-                        <img
-                          src={img.preview}
-                          alt="preview"
-                          className="w-24 h-24 object-cover rounded-lg border border-gray-200 shadow-sm"
-                        />
-                        <button
-                          className="absolute -top-2 -right-2 bg-black text-white text-xs rounded-full px-1 opacity-0 group-hover:opacity-100 transition"
-                          onClick={() =>
-                            setImages(images.filter((_, idx) => idx !== i))
-                          }
-                        >
-                          ✕
-                        </button>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="text-sm text-gray-400">No images uploaded yet</p>
-                  )}
-                </div>
-              </div>
-
-              {/* Products Section */}
-              <div className="border-t pt-4">
-                <label className="text-sm font-medium text-gray-700">
-                  Included Products
-                </label>
-                <div className="mt-3 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 max-h-[400px] overflow-y-auto pr-1">
-                  {allProducts
-                    .slice() // create a copy so we don't mutate the original
-                    .sort((a, b) => {
-                      const aSelected = selectedProducts.includes(a._id)
-                      const bSelected = selectedProducts.includes(b._id)
-                      // if a is selected and b is not, a goes first
-                      if (aSelected && !bSelected) return -1
-                      if (!aSelected && bSelected) return 1
-                      return 0
-                    })
-                    .map((product) => {
-                      const isSelected = selectedProducts.includes(product._id)
-                      return (
-                        <div
-                          key={product._id}
-                          onClick={() => handleProductToggle(product._id)}
-                          className={`relative border rounded-lg cursor-pointer transition-all hover:shadow-md ${isSelected
-                              ? "border-black bg-gray-50 ring-1 ring-black/20"
-                              : "border-gray-200"
-                            }`}
-                        >
-                          <img
-                            src={product.images?.[0]}
-                            alt={product.title}
-                            className="w-full h-28 object-cover rounded-t-lg"
-                          />
-                          <div className="p-2">
-                            <p className="text-sm font-medium truncate">{product.title}</p>
-                            <p className="text-xs text-gray-500">₹{product.price}</p>
-                          </div>
-
-                          {isSelected && (
-                            <div className="absolute top-2 right-2 bg-black text-white text-xs px-2 py-1 rounded-full">
-                              ✓
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-
-                </div>
+                <p className="text-sm text-gray-500">
+                  Manage your product bundles
+                </p>
               </div>
             </div>
-          )}
+          </div>
 
-          <DialogFooter className="mt-4 flex justify-end gap-3 border-t pt-4">
-            <Button variant="outline" onClick={() => setEditBundle(null)}>
-              Cancel
-            </Button>
-            <Button
-              className="bg-black text-white hover:bg-gray-900"
-              onClick={handleSave}
-            >
-              Save Changes
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          <Button
+            asChild
+            className="h-11 rounded-xl bg-black px-5 text-white hover:bg-gray-800"
+          >
+            <Link to="/admin/new/bundles">
+              + Create Bundle
+            </Link>
+          </Button>
+        </div>
 
+        {/* SEARCH */}
+        <div className="relative max-w-md">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
+          <Input
+            value={bundleSearch}
+            onChange={(e) =>
+              setBundleSearch(e.target.value)
+            }
+            placeholder="Search bundles..."
+            className="h-11 border-gray-300 bg-white pl-10"
+          />
+        </div>
+
+        {/* TABLE */}
+        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+          <div className="overflow-x-auto">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gray-50">
+                  <TableHead className="w-[90px]">
+                    Image
+                  </TableHead>
+
+                  <TableHead>
+                    Bundle
+                  </TableHead>
+
+                  <TableHead>
+                    Products
+                  </TableHead>
+
+                  <TableHead>
+                    Pricing
+                  </TableHead>
+
+                  <TableHead>
+                    Status
+                  </TableHead>
+
+                  <TableHead className="text-right">
+                    Actions
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+
+              <TableBody>
+                {filteredBundles.length > 0 ? (
+                  filteredBundles.map(
+                    (bundle) => {
+                      const oldPrice =
+                        Number(
+                          bundle.oldPrice || 0
+                        );
+
+                      const price =
+                        Number(
+                          bundle.price || 0
+                        );
+
+                      const discount =
+                        bundle.discount ??
+                        (oldPrice > price &&
+                        oldPrice > 0
+                          ? Math.round(
+                              ((oldPrice -
+                                price) /
+                                oldPrice) *
+                                100
+                            )
+                          : 0);
+
+                      return (
+                        <TableRow
+                          key={bundle._id}
+                          className="hover:bg-gray-50"
+                        >
+                          {/* IMAGE */}
+                          <TableCell>
+                            {bundle.mainImages?.[0] ? (
+                              <img
+                                src={
+                                  bundle
+                                    .mainImages[0]
+                                }
+                                alt={
+                                  bundle.title
+                                }
+                                className="h-16 w-16 rounded-xl object-cover"
+                              />
+                            ) : (
+                              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-100">
+                                <Package className="h-6 w-6 text-gray-300" />
+                              </div>
+                            )}
+                          </TableCell>
+
+                          {/* BUNDLE */}
+                          <TableCell>
+                            <div className="min-w-[180px]">
+                              <p className="font-semibold text-black">
+                                {bundle.title}
+                              </p>
+
+                              {bundle.category && (
+                                <p className="mt-1 text-xs text-gray-500">
+                                  {typeof bundle.category ===
+                                  "object"
+                                    ? bundle
+                                        .category
+                                        ?.name
+                                    : bundle.category}
+                                </p>
+                              )}
+
+                              <div className="mt-2 flex flex-wrap gap-1">
+                                {bundle.featured && (
+                                  <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-semibold text-white">
+                                    Featured
+                                  </span>
+                                )}
+
+                                {bundle.isNewBundle && (
+                                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                                    New
+                                  </span>
+                                )}
+
+                                {bundle.onSale && (
+                                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                                    Sale
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </TableCell>
+
+                          {/* PRODUCTS */}
+                          <TableCell>
+                            <div className="flex min-w-[220px] flex-wrap gap-2">
+                              {bundle.products
+                                ?.slice(0, 4)
+                                .map((product) => (
+                                  <div
+                                    key={
+                                      product._id
+                                    }
+                                    className="group relative"
+                                    title={
+                                      product.title
+                                    }
+                                  >
+                                    <img
+                                      src={
+                                        product
+                                          .images?.[0]
+                                      }
+                                      alt={
+                                        product.title
+                                      }
+                                      className="h-12 w-12 rounded-lg border border-gray-200 object-cover"
+                                    />
+                                  </div>
+                                ))}
+
+                              {bundle.products
+                                ?.length > 4 && (
+                                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xs font-semibold text-gray-500">
+                                  +
+                                  {bundle
+                                    .products
+                                    .length -
+                                    4}
+                                </div>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* PRICE */}
+                          <TableCell>
+                            <div className="min-w-[120px]">
+                              <div className="flex items-center gap-2">
+                                <span className="font-semibold text-black">
+                                  ₹
+                                  {price.toLocaleString(
+                                    "en-IN"
+                                  )}
+                                </span>
+
+                                {oldPrice >
+                                  price && (
+                                  <span className="text-xs text-gray-400 line-through">
+                                    ₹
+                                    {oldPrice.toLocaleString(
+                                      "en-IN"
+                                    )}
+                                  </span>
+                                )}
+                              </div>
+
+                              {discount > 0 && (
+                                <span className="mt-1 inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
+                                  {Math.round(
+                                    discount
+                                  )}
+                                  % OFF
+                                </span>
+                              )}
+                            </div>
+                          </TableCell>
+
+                          {/* STATUS */}
+                          <TableCell>
+                            <div className="flex flex-col gap-1">
+                              <span
+                                className={`
+                                  inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium
+                                  ${
+                                    bundle.active !==
+                                    false
+                                      ? "bg-green-50 text-green-700"
+                                      : "bg-gray-100 text-gray-500"
+                                  }
+                                `}
+                              >
+                                {bundle.active !==
+                                false ? (
+                                  <>
+                                    <Eye className="h-3 w-3" />
+                                    Active
+                                  </>
+                                ) : (
+                                  <>
+                                    <EyeOff className="h-3 w-3" />
+                                    Inactive
+                                  </>
+                                )}
+                              </span>
+
+                              <span
+                                className={`
+                                  text-[11px]
+                                  ${
+                                    bundle.published !==
+                                    false
+                                      ? "text-green-600"
+                                      : "text-gray-400"
+                                  }
+                                `}
+                              >
+                                {bundle.published !==
+                                false
+                                  ? "Published"
+                                  : "Draft"}
+                              </span>
+                            </div>
+                          </TableCell>
+
+                          {/* ACTIONS */}
+                          <TableCell>
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  openEdit(
+                                    bundle
+                                  )
+                                }
+                                className="h-9 w-9 rounded-lg p-0"
+                              >
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  deleteBundle(
+                                    bundle._id
+                                  )
+                                }
+                                className="h-9 w-9 rounded-lg border-red-200 p-0 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    }
+                  )
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={6}
+                      className="py-16 text-center"
+                    >
+                      <Package className="mx-auto mb-3 h-8 w-8 text-gray-300" />
+
+                      <p className="font-medium text-gray-600">
+                        No bundles found
+                      </p>
+
+                      <p className="mt-1 text-sm text-gray-400">
+                        Create your first bundle
+                        to get started.
+                      </p>
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+        </div>
+
+        {/* EDIT MODAL */}
+        <Dialog
+          open={!!editBundle}
+          onOpenChange={(open) => {
+            if (!open) closeEdit();
+          }}
+        >
+          <DialogContent className="flex max-h-[92vh] w-[96vw] max-w-6xl flex-col overflow-hidden rounded-2xl p-0">
+            <DialogHeader className="border-b px-6 py-5">
+              <DialogTitle className="flex items-center gap-2 text-xl font-semibold">
+                <Pencil className="h-5 w-5" />
+                Edit Bundle
+              </DialogTitle>
+
+              <p className="text-sm text-gray-500">
+                Update pricing, products, images and
+                bundle visibility.
+              </p>
+            </DialogHeader>
+
+            {editBundle && (
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
+                  {/* LEFT */}
+                  <div className="space-y-6">
+                    {/* BASIC */}
+                    <section className="rounded-2xl border border-gray-200 p-5">
+                      <div className="mb-5">
+                        <h3 className="font-semibold text-black">
+                          Bundle Information
+                        </h3>
+                      </div>
+
+                      <div className="space-y-5">
+                        <div>
+                          <label className="mb-2 block text-sm font-medium">
+                            Title
+                          </label>
+
+                          <Input
+                            value={
+                              editBundle.title
+                            }
+                            onChange={(e) =>
+                              setEditBundle(
+                                (prev) => ({
+                                  ...prev,
+                                  title:
+                                    e.target
+                                      .value,
+                                })
+                              )
+                            }
+                            className="h-11"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm font-medium">
+                            Description
+                          </label>
+
+                          <Textarea
+                            value={
+                              editBundle.description ||
+                              ""
+                            }
+                            onChange={(e) =>
+                              setEditBundle(
+                                (prev) => ({
+                                  ...prev,
+                                  description:
+                                    e.target
+                                      .value,
+                                })
+                              )
+                            }
+                            rows={4}
+                            className="resize-none"
+                          />
+                        </div>
+
+                        <div className="grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-2 block text-sm font-medium">
+                              Category
+                            </label>
+
+                            <Input
+                              value={
+                                editBundle.category ||
+                                ""
+                              }
+                              onChange={(e) =>
+                                setEditBundle(
+                                  (prev) => ({
+                                    ...prev,
+                                    category:
+                                      e.target
+                                        .value,
+                                  })
+                                )
+                              }
+                              placeholder="hoodie"
+                              className="h-11"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="mb-2 block text-sm font-medium">
+                              Tags
+                            </label>
+
+                            <Input
+                              value={
+                                editBundle.tags ||
+                                ""
+                              }
+                              onChange={(e) =>
+                                setEditBundle(
+                                  (prev) => ({
+                                    ...prev,
+                                    tags:
+                                      e.target
+                                        .value,
+                                  })
+                                )
+                              }
+                              placeholder="combo, streetwear, sale"
+                              className="h-11"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* IMAGES */}
+                    <section className="rounded-2xl border border-gray-200 p-5">
+                      <div className="mb-5 flex items-center justify-between">
+                        <div>
+                          <h3 className="font-semibold">
+                            Bundle Images
+                          </h3>
+
+                          <p className="text-sm text-gray-500">
+                            Add or remove bundle images.
+                          </p>
+                        </div>
+
+                        <label className="flex cursor-pointer items-center gap-2 rounded-lg bg-black px-3 py-2 text-xs font-semibold text-white hover:bg-gray-800">
+                          <ImagePlus className="h-4 w-4" />
+                          Add Images
+
+                          <input
+                            type="file"
+                            multiple
+                            accept="image/*"
+                            onChange={
+                              handleImageUpload
+                            }
+                            className="hidden"
+                          />
+                        </label>
+                      </div>
+
+                      {images.length ? (
+                        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 md:grid-cols-5">
+                          {images.map(
+                            (image, index) => (
+                              <div
+                                key={`${image.preview}-${index}`}
+                                className="group relative aspect-square overflow-hidden rounded-xl border border-gray-200"
+                              >
+                                <img
+                                  src={
+                                    image.preview
+                                  }
+                                  alt={`Bundle ${index + 1}`}
+                                  className="h-full w-full object-cover"
+                                />
+
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    removeImage(
+                                      index
+                                    )
+                                  }
+                                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/80 text-white opacity-0 transition group-hover:opacity-100"
+                                >
+                                  <X className="h-4 w-4" />
+                                </button>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      ) : (
+                        <div className="rounded-xl border border-dashed border-gray-300 py-10 text-center">
+                          <ImagePlus className="mx-auto mb-2 h-7 w-7 text-gray-300" />
+
+                          <p className="text-sm text-gray-500">
+                            No images
+                          </p>
+                        </div>
+                      )}
+                    </section>
+
+                    {/* PRODUCTS */}
+                    <section className="rounded-2xl border border-gray-200 p-5">
+                      <div className="mb-5">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h3 className="font-semibold">
+                              Included Products
+                            </h3>
+
+                            <p className="text-sm text-gray-500">
+                              Select products included in
+                              this bundle.
+                            </p>
+                          </div>
+
+                          <span className="rounded-full bg-black px-3 py-1 text-xs font-semibold text-white">
+                            {
+                              selectedProducts.length
+                            }{" "}
+                            selected
+                          </span>
+                        </div>
+
+                        <div className="relative mt-4">
+                          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+
+                          <Input
+                            value={
+                              productSearch
+                            }
+                            onChange={(e) =>
+                              setProductSearch(
+                                e.target
+                                  .value
+                              )
+                            }
+                            placeholder="Search products..."
+                            className="h-11 pl-10"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid max-h-[440px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">
+                        {filteredProducts.map(
+                          (product) => {
+                            const isSelected =
+                              selectedProducts.includes(
+                                product._id
+                              );
+
+                            return (
+                              <button
+                                key={
+                                  product._id
+                                }
+                                type="button"
+                                onClick={() =>
+                                  handleProductToggle(
+                                    product._id
+                                  )
+                                }
+                                className={`
+                                  relative overflow-hidden rounded-xl border text-left transition
+                                  ${
+                                    isSelected
+                                      ? "border-black ring-1 ring-black"
+                                      : "border-gray-200 hover:border-gray-400"
+                                  }
+                                `}
+                              >
+                                <div className="aspect-square bg-gray-100">
+                                  <img
+                                    src={
+                                      product
+                                        .images?.[0]
+                                    }
+                                    alt={
+                                      product.title
+                                    }
+                                    className="h-full w-full object-cover"
+                                  />
+                                </div>
+
+                                {isSelected && (
+                                  <div className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white">
+                                    <Check className="h-4 w-4" />
+                                  </div>
+                                )}
+
+                                <div className="p-3">
+                                  <p className="truncate text-sm font-semibold">
+                                    {
+                                      product.title
+                                    }
+                                  </p>
+
+                                  <p className="mt-1 text-xs text-gray-500">
+                                    ₹
+                                    {Number(
+                                      product.price ||
+                                        0
+                                    ).toLocaleString(
+                                      "en-IN"
+                                    )}
+                                  </p>
+                                </div>
+                              </button>
+                            );
+                          }
+                        )}
+                      </div>
+                    </section>
+                  </div>
+
+                  {/* RIGHT */}
+                  <aside className="space-y-6">
+                    {/* PRICING */}
+                    <section className="rounded-2xl border border-gray-200 p-5">
+                      <h3 className="mb-5 font-semibold">
+                        Pricing
+                      </h3>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="mb-2 block text-sm font-medium">
+                            Original Price
+                          </label>
+
+                          <Input
+                            type="number"
+                            min="0"
+                            value={
+                              editBundle.oldPrice
+                            }
+                            onChange={(e) =>
+                              setEditBundle(
+                                (prev) => ({
+                                  ...prev,
+                                  oldPrice:
+                                    e.target
+                                      .value,
+                                })
+                              )
+                            }
+                            placeholder={String(
+                              calculateProductTotal()
+                            )}
+                            className="h-11"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="mb-2 block text-sm font-medium">
+                            Bundle Price
+                          </label>
+
+                          <Input
+                            type="number"
+                            min="0"
+                            value={
+                              editBundle.price
+                            }
+                            onChange={(e) =>
+                              setEditBundle(
+                                (prev) => ({
+                                  ...prev,
+                                  price:
+                                    e.target
+                                      .value,
+                                })
+                              )
+                            }
+                            className="h-11"
+                          />
+                        </div>
+
+                        <div className="rounded-xl bg-gray-50 p-4">
+                          <div className="flex justify-between">
+                            <span className="text-sm text-gray-500">
+                              Products total
+                            </span>
+
+                            <span className="font-semibold">
+                              ₹
+                              {calculateProductTotal().toLocaleString(
+                                "en-IN"
+                              )}
+                            </span>
+                          </div>
+
+                          <div className="mt-3 flex justify-between">
+                            <span className="text-sm text-gray-500">
+                              Discount
+                            </span>
+
+                            <span className="font-semibold text-green-600">
+                              {Math.round(
+                                calculatedDiscount
+                              )}
+                              % OFF
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </section>
+
+                    {/* STATUS */}
+                    <section className="rounded-2xl border border-gray-200 p-5">
+                      <h3 className="mb-4 font-semibold">
+                        Visibility & Status
+                      </h3>
+
+                      <div className="space-y-2">
+                        {[
+                          {
+                            key: "active",
+                            label: "Active",
+                            icon:
+                              editBundle.active ? (
+                                <Eye className="h-4 w-4" />
+                              ) : (
+                                <EyeOff className="h-4 w-4" />
+                              ),
+                          },
+                          {
+                            key: "published",
+                            label: "Published",
+                            icon: (
+                              <Eye className="h-4 w-4" />
+                            ),
+                          },
+                          {
+                            key: "featured",
+                            label: "Featured",
+                            icon: (
+                              <Star className="h-4 w-4" />
+                            ),
+                          },
+                          {
+                            key: "isNewBundle",
+                            label: "New Bundle",
+                            icon: (
+                              <Sparkles className="h-4 w-4" />
+                            ),
+                          },
+                        ].map(
+                          ({
+                            key,
+                            label,
+                            icon,
+                          }) => {
+                            const value =
+                              !!editBundle[key];
+
+                            return (
+                              <button
+                                key={key}
+                                type="button"
+                                onClick={() =>
+                                  setEditBundle(
+                                    (prev) => ({
+                                      ...prev,
+                                      [key]:
+                                        !prev[key],
+                                    })
+                                  )
+                                }
+                                className="flex w-full items-center justify-between rounded-xl border border-gray-200 px-4 py-3 transition hover:bg-gray-50"
+                              >
+                                <span className="flex items-center gap-2 text-sm font-medium">
+                                  {icon}
+                                  {label}
+                                </span>
+
+                                <span
+                                  className={`
+                                    relative h-6 w-11 rounded-full transition
+                                    ${
+                                      value
+                                        ? "bg-black"
+                                        : "bg-gray-200"
+                                    }
+                                  `}
+                                >
+                                  <span
+                                    className={`
+                                      absolute top-1 h-4 w-4 rounded-full bg-white shadow transition
+                                      ${
+                                        value
+                                          ? "left-6"
+                                          : "left-1"
+                                      }
+                                    `}
+                                  />
+                                </span>
+                              </button>
+                            );
+                          }
+                        )}
+                      </div>
+                    </section>
+
+                    {/* SELECTED */}
+                    <section className="rounded-2xl border border-gray-200 p-5">
+                      <h3 className="mb-4 font-semibold">
+                        Selected Products
+                      </h3>
+
+                      <div className="space-y-2">
+                        {selectedProducts
+                          .map((id) =>
+                            allProducts.find(
+                              (product) =>
+                                product._id ===
+                                id
+                            )
+                          )
+                          .filter(Boolean)
+                          .map((product) => (
+                            <div
+                              key={
+                                product._id
+                              }
+                              className="flex items-center gap-3 rounded-xl border border-gray-100 p-2"
+                            >
+                              <img
+                                src={
+                                  product
+                                    .images?.[0]
+                                }
+                                alt={
+                                  product.title
+                                }
+                                className="h-11 w-11 rounded-lg object-cover"
+                              />
+
+                              <div className="min-w-0 flex-1">
+                                <p className="truncate text-sm font-medium">
+                                  {
+                                    product.title
+                                  }
+                                </p>
+
+                                <p className="text-xs text-gray-500">
+                                  ₹
+                                  {Number(
+                                    product.price ||
+                                      0
+                                  ).toLocaleString(
+                                    "en-IN"
+                                  )}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  handleProductToggle(
+                                    product._id
+                                  )
+                                }
+                                className="flex h-8 w-8 items-center justify-center rounded-full hover:bg-gray-100"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+                          ))}
+                      </div>
+                    </section>
+                  </aside>
+                </div>
+              </div>
+            )}
+
+            <DialogFooter className="border-t px-6 py-4">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={closeEdit}
+                disabled={saving}
+                className="rounded-xl"
+              >
+                Cancel
+              </Button>
+
+              <Button
+                type="button"
+                onClick={handleSave}
+                disabled={saving}
+                className="rounded-xl bg-black px-6 text-white hover:bg-gray-800"
+              >
+                {saving
+                  ? "Saving..."
+                  : "Save Changes"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
     </div>
-  )
+  );
 }

@@ -91,7 +91,7 @@ export default function App() {
             <Route path="/collections" element={<Collections />} />
             <Route path="/login" element={<Login />} />
             <Route path="/register" element={<Register />} />
-            <Route path="/collections/:id" element={<BundlePDP />} />
+            <Route path="/collections/:publicId" element={<BundlePDP />} />
             <Route path="/trackorder" element={<TrackOrder />} />
             <Route path="/newarrivals" element={<NewArrivals />} />
             <Route path="/wishlist" element={<WishlistPage />} />

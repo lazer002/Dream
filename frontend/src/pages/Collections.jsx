@@ -252,7 +252,7 @@ const BundlesPage = () => {
               return (
              <Link
   key={bundle._id}
-  to={`/collections/${bundle._id}`}
+  to={`/collections/${bundle.publicId}`}
   className="group block"
 >
   <article

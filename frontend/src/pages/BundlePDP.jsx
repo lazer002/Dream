@@ -172,14 +172,14 @@ export default function BundlePDP() {
       : 0);
 
   return (
-    <div className="flex flex-col md:flex-row gap-12 p-6 relative mb-40">
+   <div className="flex flex-col md:flex-row gap-12 p-6 relative mb-40 isolate">
 
       {/* ========================= */}
       {/* IMAGE SECTION */}
       {/* ========================= */}
 
-      <div className="md:w-[60%] md:sticky md:top-0 h-[100vh] flex flex-col justify-center">
-        <div className="flex flex-col gap-3 h-full justify-between">
+<div className="md:w-[60%] md:sticky md:top-0 h-[100vh] flex flex-col justify-center relative z-10">
+          <div className="flex flex-col gap-3 h-full justify-between">
 
           <div className="flex-1 flex gap-6 relative">
 
@@ -281,7 +281,7 @@ export default function BundlePDP() {
                 <div
                   className="
                     absolute
-                    z-[999]
+                    z-10
                     w-60 h-60
                     border-2 border-black/20
                     bg-white/20
@@ -297,27 +297,28 @@ export default function BundlePDP() {
             </Card>
 
             {/* Zoom */}
-            <div
-              className={`
-                hidden xl:block
-                absolute
-                left-[calc(100%+24px)]
-                top-0
-                w-[620px]
-                h-[620px]
-                overflow-hidden
-                bg-[#f5f5f3]
-                border border-gray-200
-                shadow-2xl
-                z-50
-                transition-all duration-300
-                ${
-                  showMagnifier
-                    ? "opacity-100"
-                    : "opacity-0 pointer-events-none"
-                }
-              `}
-            >
+          <div
+  className={`
+    hidden xl:block
+    absolute
+    left-[calc(100%+24px)]
+    top-0
+    w-[620px]
+    h-[620px]
+    overflow-hidden
+    bg-[#f5f5f3]
+    border border-gray-200
+    shadow-2xl
+    z-20
+    pointer-events-none
+    transition-all duration-300
+    ${
+      showMagnifier
+        ? "opacity-100"
+        : "opacity-0"
+    }
+  `}
+>
               <div
                 className="w-full h-full bg-no-repeat"
                 style={{
@@ -431,128 +432,199 @@ export default function BundlePDP() {
         {/* PRODUCTS */}
         {/* ========================= */}
 
-        <div className="flex flex-col gap-4 mt-6">
+      {/* ========================= */}
+{/* PRODUCTS / SIZE SELECTION */}
+{/* ========================= */}
 
-          {bundle.products.map((product) => {
+<div className="mt-8">
+  <div className="flex items-center justify-between mb-4">
+    <div>
+      <h2 className="text-lg font-semibold text-gray-900">
+        Choose your sizes
+      </h2>
 
-            const sizes =
-              getAvailableSizes(product);
+      <p className="text-sm text-gray-500 mt-1">
+        Select a size for each item in this bundle
+      </p>
+    </div>
 
-            const outOfStock =
-              isProductOutOfStock(product);
+    <span className="text-xs text-gray-400">
+      {
+        Object.keys(selectedSizes).filter(
+          (id) => selectedSizes[id]
+        ).length
+      }{" "}
+      / {bundle.products.length} selected
+    </span>
+  </div>
 
-            return (
-              <div
-                key={product._id}
+  <div className="space-y-4">
+    {bundle.products.map((product, index) => {
+      const sizes = getAvailableSizes(product);
+      const outOfStock = isProductOutOfStock(product);
+      const selectedSize = selectedSizes[product._id];
+
+      return (
+        <div
+          key={product._id}
+          className={`
+            rounded-2xl
+            border
+            overflow-hidden
+            transition-all
+            duration-200
+            ${
+              outOfStock
+                ? "border-gray-200 bg-gray-50"
+                : selectedSize
+                ? "border-black bg-white shadow-sm"
+                : "border-gray-200 bg-white"
+            }
+          `}
+        >
+          {/* PRODUCT HEADER */}
+          <div className="flex items-center gap-4 p-4">
+            <div className="relative w-20 h-20 shrink-0 overflow-hidden rounded-xl bg-gray-100">
+              <img
+                src={
+                  product.images?.[0] ||
+                  "/images/placeholder.png"
+                }
+                alt={product.title}
                 className={`
-                  flex
-                  items-center
-                  justify-between
-                  gap-4
-                  border
-                  rounded-xl
-                  p-3
-                  bg-white
-                  transition-all
-                  ${
-                    outOfStock
-                      ? "opacity-60 bg-gray-50"
-                      : "hover:shadow-md"
-                  }
+                  w-full h-full object-cover
+                  ${outOfStock ? "grayscale opacity-60" : ""}
                 `}
-              >
+              />
 
-                {/* Product */}
-                <div className="flex items-center gap-3 flex-1 min-w-0">
-
-                  <div className="w-20 h-20 flex-shrink-0 rounded-lg overflow-hidden">
-                    <img
-                      src={
-                        product.images?.[0] ||
-                        "/images/placeholder.png"
-                      }
-                      alt={product.title}
-                      className="w-full h-full object-cover"
-                    />
-                  </div>
-
-                  <div className="flex flex-col justify-center min-w-0">
-
-                    <p className="font-medium text-black text-sm truncate">
-                      {product.title}
-                    </p>
-
-                    <p className="text-xs text-gray-500">
-                      ₹{product.price}
-                    </p>
-
-                    {outOfStock && (
-                      <span className="text-xs text-red-600 font-medium mt-1">
-                        Out of stock
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Size */}
-                <div className="flex-shrink-0 w-36">
-
-                  <Select
-                    value={
-                      selectedSizes[product._id] ??
-                      ""
-                    }
-                    onValueChange={(value) =>
-                      handleSizeChange(
-                        product._id,
-                        value
-                      )
-                    }
-                    disabled={
-                      outOfStock ||
-                      sizes.length === 0
-                    }
-                  >
-                    <SelectTrigger className="w-full border-gray-300 rounded-lg focus:ring-1 focus:ring-black text-sm">
-                      <SelectValue
-                        placeholder={
-                          outOfStock
-                            ? "Sold Out"
-                            : "Select Size"
-                        }
-                      />
-                    </SelectTrigger>
-
-                    <SelectContent>
-
-                      {sizes.map((size) => {
-                        const sizeName =
-                          getSizeName(size);
-
-                        const sizeId =
-                          getSizeId(size);
-
-                        return (
-                          <SelectItem
-                            key={
-                              sizeId ||
-                              sizeName
-                            }
-                            value={sizeName}
-                          >
-                            {sizeName}
-                          </SelectItem>
-                        );
-                      })}
-
-                    </SelectContent>
-                  </Select>
-
-                </div>
+              <div className="absolute top-1.5 left-1.5">
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-black text-white text-xs font-semibold">
+                  {index + 1}
+                </span>
               </div>
-            );
-          })}
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-gray-900 truncate">
+                {product.title}
+              </h3>
+
+              <p className="text-sm text-gray-500 mt-1">
+                ₹{Number(product.price || 0).toLocaleString("en-IN")}
+              </p>
+
+              {outOfStock ? (
+                <span className="inline-flex mt-2 px-2.5 py-1 rounded-full bg-red-50 text-red-600 text-xs font-medium">
+                  Out of stock
+                </span>
+              ) : selectedSize ? (
+                <span className="inline-flex mt-2 px-2.5 py-1 rounded-full bg-black text-white text-xs font-medium">
+                  Size {selectedSize}
+                </span>
+              ) : (
+                <span className="inline-flex mt-2 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 text-xs font-medium">
+                  Size required
+                </span>
+              )}
+            </div>
+          </div>
+
+          {/* SIZE AREA */}
+          {!outOfStock && (
+            <div className="border-t border-gray-100 px-4 py-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-medium text-gray-900">
+                  Select size
+                </span>
+
+                {selectedSize && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSizeChange(product._id, "")
+                    }
+                    className="text-xs text-gray-500 hover:text-black underline underline-offset-2"
+                  >
+                    Clear
+                  </button>
+                )}
+              </div>
+
+              {sizes.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                  {sizes.map((size) => {
+                    const sizeName = getSizeName(size);
+                    const sizeId = getSizeId(size);
+
+                    const active =
+                      selectedSize === sizeName;
+
+                    return (
+                      <button
+                        key={sizeId || sizeName}
+                        type="button"
+                        onClick={() =>
+                          handleSizeChange(
+                            product._id,
+                            sizeName
+                          )
+                        }
+                        className={`
+                          relative
+                          min-w-[58px]
+                          h-11
+                          px-4
+                          rounded-xl
+                          border
+                          text-sm
+                          font-semibold
+                          transition-all
+                          duration-200
+                          ${
+                            active
+                              ? "border-black bg-black text-white shadow-md scale-[1.02]"
+                              : "border-gray-200 bg-white text-gray-800 hover:border-black hover:bg-gray-50"
+                          }
+                        `}
+                      >
+                        {sizeName}
+
+                        {active && (
+                          <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black border-2 border-white">
+                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-sm text-gray-500">
+                  No sizes available for this product.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SOLD OUT */}
+          {outOfStock && (
+            <div className="border-t border-gray-200 px-4 py-3">
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-red-600 font-medium">
+                  This item is currently unavailable
+                </span>
+
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                  Sold Out
+                </span>
+              </div>
+            </div>
+          )}
         </div>
+      );
+    })}
+  </div>
+</div>
 
         <Separator className="my-6" />
 

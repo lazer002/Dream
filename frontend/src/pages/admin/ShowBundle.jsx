@@ -497,306 +497,464 @@ export default function ShowBundle() {
         </div>
 
         {/* TABLE */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-gray-50">
-                  <TableHead className="w-[90px]">
-                    Image
-                  </TableHead>
+      {/* TABLE */}
+<div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+  <div className="overflow-x-auto">
+    <Table className="min-w-[1400px]">
+      <TableHeader>
+        <TableRow className="bg-gray-50">
+          <TableHead className="w-[90px]">
+            Image
+          </TableHead>
 
-                  <TableHead>
-                    Bundle
-                  </TableHead>
+          <TableHead>
+            Bundle
+          </TableHead>
 
-                  <TableHead>
-                    Products
-                  </TableHead>
+          <TableHead>
+            Products
+          </TableHead>
 
-                  <TableHead>
-                    Pricing
-                  </TableHead>
+          <TableHead>
+            Pricing
+          </TableHead>
 
-                  <TableHead>
-                    Status
-                  </TableHead>
+          <TableHead>
+            Discount
+          </TableHead>
 
-                  <TableHead className="text-right">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
+          <TableHead>
+            Tags
+          </TableHead>
 
-              <TableBody>
-                {filteredBundles.length > 0 ? (
-                  filteredBundles.map(
-                    (bundle) => {
-                      const oldPrice =
-                        Number(
-                          bundle.oldPrice || 0
-                        );
+          <TableHead>
+            Status
+          </TableHead>
 
-                      const price =
-                        Number(
-                          bundle.price || 0
-                        );
+          <TableHead>
+            Visibility
+          </TableHead>
 
-                      const discount =
-                        bundle.discount ??
-                        (oldPrice > price &&
-                        oldPrice > 0
-                          ? Math.round(
-                              ((oldPrice -
-                                price) /
-                                oldPrice) *
-                                100
-                            )
-                          : 0);
+          <TableHead>
+            Created
+          </TableHead>
 
-                      return (
-                        <TableRow
-                          key={bundle._id}
-                          className="hover:bg-gray-50"
-                        >
-                          {/* IMAGE */}
-                          <TableCell>
-                            {bundle.mainImages?.[0] ? (
+          <TableHead className="text-right">
+            Actions
+          </TableHead>
+        </TableRow>
+      </TableHeader>
+
+      <TableBody>
+        {filteredBundles.length > 0 ? (
+          filteredBundles.map((bundle) => {
+            const oldPrice =
+              Number(bundle.oldPrice || 0);
+
+            const price =
+              Number(bundle.price || 0);
+
+            const calculatedDiscount =
+              oldPrice > price && oldPrice > 0
+                ? Math.round(
+                    ((oldPrice - price) /
+                      oldPrice) *
+                      100
+                  )
+                : 0;
+
+            const discount =
+              bundle.discount ??
+              calculatedDiscount;
+
+            const productCount =
+              bundle.products?.length || 0;
+
+            const imageCount =
+              bundle.mainImages?.length || 0;
+
+            const category =
+              typeof bundle.category ===
+              "object"
+                ? bundle.category?.name
+                : bundle.category;
+
+            return (
+              <TableRow
+                key={bundle._id}
+                className="align-top hover:bg-gray-50"
+              >
+                {/* IMAGE */}
+                <TableCell>
+                  <div className="relative">
+                    {bundle.mainImages?.[0] ? (
+                      <img
+                        src={bundle.mainImages[0]}
+                        alt={bundle.title}
+                        className="h-16 w-16 rounded-xl border object-cover"
+                      />
+                    ) : (
+                      <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-100">
+                        <Package className="h-6 w-6 text-gray-300" />
+                      </div>
+                    )}
+
+                    {imageCount > 1 && (
+                      <span className="absolute -bottom-1 -right-1 rounded-full bg-black px-1.5 py-0.5 text-[9px] font-semibold text-white">
+                        +{imageCount - 1}
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+
+                {/* BUNDLE */}
+                <TableCell>
+                  <div className="w-[240px]">
+                    <p className="font-semibold text-black">
+                      {bundle.title || "Untitled Bundle"}
+                    </p>
+
+                    {category && (
+                      <p className="mt-1 text-xs font-medium capitalize text-gray-500">
+                        {category}
+                      </p>
+                    )}
+
+                    {bundle.description && (
+                      <p className="mt-2 line-clamp-2 text-xs leading-5 text-gray-400">
+                        {bundle.description}
+                      </p>
+                    )}
+
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {bundle.featured && (
+                        <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-semibold text-white">
+                          Featured
+                        </span>
+                      )}
+
+                      {bundle.isNewBundle && (
+                        <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
+                          New
+                        </span>
+                      )}
+
+                      {bundle.onSale && (
+                        <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
+                          Sale
+                        </span>
+                      )}
+
+                      {bundle.isOutOfStock && (
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
+                          Out of Stock
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
+
+                {/* PRODUCTS */}
+                <TableCell>
+                  <div className="w-[280px]">
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
+                        {productCount}{" "}
+                        {productCount === 1
+                          ? "Product"
+                          : "Products"}
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      {bundle.products
+                        ?.slice(0, 5)
+                        .map((product) => (
+                          <div
+                            key={product._id}
+                            className="flex items-center gap-2"
+                          >
+                            {product.images?.[0] ? (
                               <img
-                                src={
-                                  bundle
-                                    .mainImages[0]
-                                }
-                                alt={
-                                  bundle.title
-                                }
-                                className="h-16 w-16 rounded-xl object-cover"
+                                src={product.images[0]}
+                                alt={product.title}
+                                className="h-9 w-9 rounded-lg border object-cover"
                               />
                             ) : (
-                              <div className="flex h-16 w-16 items-center justify-center rounded-xl bg-gray-100">
-                                <Package className="h-6 w-6 text-gray-300" />
+                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+                                <Package className="h-4 w-4 text-gray-300" />
                               </div>
                             )}
-                          </TableCell>
 
-                          {/* BUNDLE */}
-                          <TableCell>
-                            <div className="min-w-[180px]">
-                              <p className="font-semibold text-black">
-                                {bundle.title}
+                            <div className="min-w-0">
+                              <p className="truncate text-xs font-medium text-gray-800">
+                                {product.title}
                               </p>
 
-                              {bundle.category && (
-                                <p className="mt-1 text-xs text-gray-500">
-                                  {typeof bundle.category ===
-                                  "object"
-                                    ? bundle
-                                        .category
-                                        ?.name
-                                    : bundle.category}
-                                </p>
-                              )}
-
-                              <div className="mt-2 flex flex-wrap gap-1">
-                                {bundle.featured && (
-                                  <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-semibold text-white">
-                                    Featured
-                                  </span>
-                                )}
-
-                                {bundle.isNewBundle && (
-                                  <span className="rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-700">
-                                    New
-                                  </span>
-                                )}
-
-                                {bundle.onSale && (
-                                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-semibold text-green-700">
-                                    Sale
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </TableCell>
-
-                          {/* PRODUCTS */}
-                          <TableCell>
-                            <div className="flex min-w-[220px] flex-wrap gap-2">
-                              {bundle.products
-                                ?.slice(0, 4)
-                                .map((product) => (
-                                  <div
-                                    key={
-                                      product._id
-                                    }
-                                    className="group relative"
-                                    title={
-                                      product.title
-                                    }
-                                  >
-                                    <img
-                                      src={
-                                        product
-                                          .images?.[0]
-                                      }
-                                      alt={
-                                        product.title
-                                      }
-                                      className="h-12 w-12 rounded-lg border border-gray-200 object-cover"
-                                    />
-                                  </div>
-                                ))}
-
-                              {bundle.products
-                                ?.length > 4 && (
-                                <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-gray-200 bg-gray-50 text-xs font-semibold text-gray-500">
-                                  +
-                                  {bundle
-                                    .products
-                                    .length -
-                                    4}
-                                </div>
-                              )}
-                            </div>
-                          </TableCell>
-
-                          {/* PRICE */}
-                          <TableCell>
-                            <div className="min-w-[120px]">
                               <div className="flex items-center gap-2">
-                                <span className="font-semibold text-black">
+                                <span className="text-[11px] text-gray-500">
                                   ₹
-                                  {price.toLocaleString(
+                                  {Number(
+                                    product.price || 0
+                                  ).toLocaleString(
                                     "en-IN"
                                   )}
                                 </span>
 
-                                {oldPrice >
-                                  price && (
-                                  <span className="text-xs text-gray-400 line-through">
-                                    ₹
-                                    {oldPrice.toLocaleString(
-                                      "en-IN"
-                                    )}
+                                {product.isOutOfStock && (
+                                  <span className="text-[10px] font-medium text-red-500">
+                                    Out of stock
                                   </span>
                                 )}
                               </div>
-
-                              {discount > 0 && (
-                                <span className="mt-1 inline-flex rounded-full bg-green-50 px-2 py-0.5 text-xs font-semibold text-green-700">
-                                  {Math.round(
-                                    discount
-                                  )}
-                                  % OFF
-                                </span>
-                              )}
                             </div>
-                          </TableCell>
+                          </div>
+                        ))}
 
-                          {/* STATUS */}
-                          <TableCell>
-                            <div className="flex flex-col gap-1">
-                              <span
-                                className={`
-                                  inline-flex w-fit items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium
-                                  ${
-                                    bundle.active !==
-                                    false
-                                      ? "bg-green-50 text-green-700"
-                                      : "bg-gray-100 text-gray-500"
-                                  }
-                                `}
-                              >
-                                {bundle.active !==
-                                false ? (
-                                  <>
-                                    <Eye className="h-3 w-3" />
-                                    Active
-                                  </>
-                                ) : (
-                                  <>
-                                    <EyeOff className="h-3 w-3" />
-                                    Inactive
-                                  </>
-                                )}
-                              </span>
+                      {productCount > 5 && (
+                        <span className="text-xs font-medium text-gray-400">
+                          +{productCount - 5} more products
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </TableCell>
 
-                              <span
-                                className={`
-                                  text-[11px]
-                                  ${
-                                    bundle.published !==
-                                    false
-                                      ? "text-green-600"
-                                      : "text-gray-400"
-                                  }
-                                `}
-                              >
-                                {bundle.published !==
-                                false
-                                  ? "Published"
-                                  : "Draft"}
-                              </span>
-                            </div>
-                          </TableCell>
+                {/* PRICING */}
+                <TableCell>
+                  <div className="min-w-[130px]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-base font-bold text-black">
+                        ₹
+                        {price.toLocaleString(
+                          "en-IN"
+                        )}
+                      </span>
+                    </div>
 
-                          {/* ACTIONS */}
-                          <TableCell>
-                            <div className="flex justify-end gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  openEdit(
-                                    bundle
-                                  )
-                                }
-                                className="h-9 w-9 rounded-lg p-0"
-                              >
-                                <Pencil className="h-4 w-4" />
-                              </Button>
+                    {oldPrice > price && (
+                      <span className="text-xs text-gray-400 line-through">
+                        ₹
+                        {oldPrice.toLocaleString(
+                          "en-IN"
+                        )}
+                      </span>
+                    )}
 
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  deleteBundle(
-                                    bundle._id
-                                  )
-                                }
-                                className="h-9 w-9 rounded-lg border-red-200 p-0 hover:bg-red-50"
-                              >
-                                <Trash2 className="h-4 w-4 text-red-600" />
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      );
-                    }
-                  )
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={6}
-                      className="py-16 text-center"
+                    <p className="mt-1 text-[11px] text-gray-400">
+                      {bundle.currency || "INR"}
+                    </p>
+                  </div>
+                </TableCell>
+
+                {/* DISCOUNT */}
+                <TableCell>
+                  <div className="min-w-[100px]">
+                    {discount > 0 ? (
+                      <>
+                        <span className="inline-flex rounded-full bg-green-50 px-2.5 py-1 text-xs font-bold text-green-700">
+                          {discount}% OFF
+                        </span>
+
+                        <p className="mt-1 text-[11px] text-gray-400">
+                          Save ₹
+                          {Math.max(
+                            0,
+                            oldPrice - price
+                          ).toLocaleString(
+                            "en-IN"
+                          )}
+                        </p>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">
+                        No discount
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+
+                {/* TAGS */}
+                <TableCell>
+                  <div className="flex w-[180px] flex-wrap gap-1">
+                    {bundle.tags?.length ? (
+                      bundle.tags
+                        .slice(0, 6)
+                        .map((tag, index) => (
+                          <span
+                            key={`${tag}-${index}`}
+                            className="rounded-full border border-gray-200 bg-gray-50 px-2 py-1 text-[10px] font-medium text-gray-600"
+                          >
+                            #{tag}
+                          </span>
+                        ))
+                    ) : (
+                      <span className="text-xs text-gray-400">
+                        No tags
+                      </span>
+                    )}
+
+                    {bundle.tags?.length > 6 && (
+                      <span className="text-[10px] text-gray-400">
+                        +{bundle.tags.length - 6}
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+
+                {/* ACTIVE STATUS */}
+                <TableCell>
+                  <div className="flex flex-col gap-2">
+                    <span
+                      className={`
+                        inline-flex w-fit items-center gap-1.5
+                        rounded-full px-2.5 py-1
+                        text-xs font-medium
+                        ${
+                          bundle.active !== false
+                            ? "bg-green-50 text-green-700"
+                            : "bg-gray-100 text-gray-500"
+                        }
+                      `}
                     >
-                      <Package className="mx-auto mb-3 h-8 w-8 text-gray-300" />
+                      {bundle.active !== false ? (
+                        <>
+                          <Eye className="h-3 w-3" />
+                          Active
+                        </>
+                      ) : (
+                        <>
+                          <EyeOff className="h-3 w-3" />
+                          Inactive
+                        </>
+                      )}
+                    </span>
 
-                      <p className="font-medium text-gray-600">
-                        No bundles found
-                      </p>
+                    {bundle.isOutOfStock ? (
+                      <span className="text-[10px] font-medium text-red-500">
+                        Out of Stock
+                      </span>
+                    ) : (
+                      <span className="text-[10px] font-medium text-green-600">
+                        In Stock
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
 
-                      <p className="mt-1 text-sm text-gray-400">
-                        Create your first bundle
-                        to get started.
-                      </p>
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
+                {/* VISIBILITY */}
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <span
+                      className={`text-xs font-medium ${
+                        bundle.published !== false
+                          ? "text-green-600"
+                          : "text-gray-400"
+                      }`}
+                    >
+                      {bundle.published !== false
+                        ? "Published"
+                        : "Draft"}
+                    </span>
+
+                    <span className="text-[10px] text-gray-400">
+                      {bundle.featured
+                        ? "Featured"
+                        : "Standard"}
+                    </span>
+                  </div>
+                </TableCell>
+
+                {/* CREATED */}
+                <TableCell>
+                  <div className="min-w-[110px]">
+                    {bundle.createdAt ? (
+                      <>
+                        <p className="text-xs font-medium text-gray-700">
+                          {new Date(
+                            bundle.createdAt
+                          ).toLocaleDateString(
+                            "en-IN",
+                            {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                            }
+                          )}
+                        </p>
+
+                        <p className="mt-1 text-[10px] text-gray-400">
+                          {new Date(
+                            bundle.createdAt
+                          ).toLocaleTimeString(
+                            "en-IN",
+                            {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            }
+                          )}
+                        </p>
+                      </>
+                    ) : (
+                      <span className="text-xs text-gray-400">
+                        —
+                      </span>
+                    )}
+                  </div>
+                </TableCell>
+
+                {/* ACTIONS */}
+                <TableCell>
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        openEdit(bundle)
+                      }
+                      className="h-9 w-9 rounded-lg p-0"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() =>
+                        deleteBundle(bundle._id)
+                      }
+                      className="h-9 w-9 rounded-lg border-red-200 p-0 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            );
+          })
+        ) : (
+          <TableRow>
+            <TableCell
+              colSpan={10}
+              className="py-16 text-center"
+            >
+              <Package className="mx-auto mb-3 h-8 w-8 text-gray-300" />
+
+              <p className="font-medium text-gray-600">
+                No bundles found
+              </p>
+
+              <p className="mt-1 text-sm text-gray-400">
+                Create your first bundle to
+                get started.
+              </p>
+            </TableCell>
+          </TableRow>
+        )}
+      </TableBody>
+    </Table>
+  </div>
+</div>
 
         {/* EDIT MODAL */}
         <Dialog

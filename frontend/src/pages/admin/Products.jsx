@@ -484,7 +484,12 @@ export default function ProductList() {
       );
     }
   }
-
+const sizes =
+  editing?.sizes?.map((size) =>
+    typeof size === "string"
+      ? size
+      : size.name
+  ) || [];
   const categoryOptions = categories;
 
   return (
@@ -752,14 +757,7 @@ export default function ProductList() {
                         getDiscount(product);
 
                       const categoryName =
-                        product.category?.name ||
-                        categories.find(
-                          (c) =>
-                            String(c._id) ===
-                            String(
-                              product.category
-                            )
-                        )?.name ||
+                        product.category ||
                         "—";
 
                       const low =
@@ -774,6 +772,13 @@ export default function ProductList() {
                       const out =
                         inventory?.trackInventory &&
                         available <= 0;
+
+                        const sizes =
+                          product?.sizes?.map((size) =>
+                            typeof size === "string"
+                              ? size
+                              : size.name
+                          ) || [];
 
                       return (
                         <tr
@@ -940,35 +945,30 @@ export default function ProductList() {
 
                           {/* SIZES */}
 
-                          <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1 max-w-[180px]">
-                              {SIZES.map(
-                                (size) => {
-                                  const count =
-                                    Number(
-                                      inventory
-                                        ?.stock?.[
-                                        size
-                                      ] || 0
-                                    );
+                        <td className="px-4 py-4">
+  <div className="flex flex-wrap gap-1 max-w-[180px]">
+    {sizes.map((size) => {
+      const count = Number(
+        inventory?.stock?.[size] ??
+        inventory?.stock?.get?.(size) ??
+        0
+      );
 
-                                  return (
-                                    <span
-                                      key={size}
-                                      className={`px-1.5 py-1 rounded text-[10px] font-medium ${
-                                        count > 0
-                                          ? "bg-black text-white"
-                                          : "bg-gray-100 text-gray-400"
-                                      }`}
-                                    >
-                                      {size}{" "}
-                                      {count}
-                                    </span>
-                                  );
-                                }
-                              )}
-                            </div>
-                          </td>
+      return (
+        <span
+          key={size}
+          className={`px-1.5 py-1 rounded text-[10px] font-medium ${
+            count > 0
+              ? "bg-black text-white"
+              : "bg-gray-100 text-gray-400"
+          }`}
+        >
+          {size} {count}
+        </span>
+      );
+    })}
+  </div>
+</td>
 
                           {/* CATEGORY */}
 
@@ -1284,109 +1284,89 @@ export default function ProductList() {
                   )}
                 </div>
 
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  {SIZES.map((size) => {
-                    const inventory =
-                      editing
-                        ? getInventory(
-                            editing
-                          )
-                        : null;
+               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+  {sizes.map((size) => {
+    const inventory = editing
+      ? getInventory(editing)
+      : null;
 
-                    const value =
-                      Number(
-                        inventory?.stock?.[
-                          size
-                        ] || 0
-                      );
+    const value = Number(
+      inventory?.stock?.[size] ??
+        inventory?.stock?.get?.(size) ??
+        0
+    );
 
-                    return (
-                      <div
-                        key={size}
-                        className="border rounded-lg p-3"
-                      >
-                        <div className="flex justify-between mb-2">
-                          <span className="font-medium">
-                            {size}
-                          </span>
+    return (
+      <div
+        key={size}
+        className="border rounded-lg p-3"
+      >
+        <div className="flex justify-between mb-2">
+          <span className="font-medium">
+            {size}
+          </span>
 
-                          <span className="text-xs text-gray-400">
-                            units
-                          </span>
-                        </div>
+          <span className="text-xs text-gray-400">
+            units
+          </span>
+        </div>
 
-                        <Input
-                          type="number"
-                          min="0"
-                          value={value}
-                          onChange={(e) => {
-                            if (!editing)
-                              return;
+        <Input
+          type="number"
+          min="0"
+          value={value}
+          onChange={(e) => {
+            if (!editing) return;
 
-                            const next =
-                              Math.max(
-                                0,
-                                Number(
-                                  e.target
-                                    .value
-                                ) || 0
-                              );
+            const next = Math.max(
+              0,
+              Number(e.target.value) || 0
+            );
 
-                            setInventories(
-                              (current) =>
-                                current.map(
-                                  (item) =>
-                                    String(
-                                      item.product?._id ||
-                                        item.product
-                                    ) ===
-                                    String(
-                                      editing._id
-                                    )
-                                      ? {
-                                          ...item,
-                                          stock: {
-                                            ...item.stock,
-                                            [size]:
-                                              next,
-                                          },
-                                        }
-                                      : item
-                                )
-                            );
-                          }}
-                          onBlur={async (e) => {
-                            if (!editing)
-                              return;
+            setInventories((current) =>
+              current.map((item) =>
+                String(
+                  item.product?._id ||
+                    item.product
+                ) === String(editing._id)
+                  ? {
+                      ...item,
+                      stock: {
+                        ...(item.stock || {}),
+                        [size]: next,
+                      },
+                    }
+                  : item
+              )
+            );
+          }}
+          onBlur={async (e) => {
+            if (!editing) return;
 
-                            const inventory =
-                              getInventory(
-                                editing
-                              );
+            const inventory =
+              getInventory(editing);
 
-                            await updateInventory(
-                              editing._id,
-                              {
-                                stock: {
-                                  ...inventory.stock,
-                                  [size]:
-                                    Math.max(
-                                      0,
-                                      Number(
-                                        e.target
-                                          .value
-                                      ) || 0
-                                    ),
-                                },
-                              }
-                            );
-                          }}
-                          className="border border-gray-300"
-                        />
-                      </div>
-                    );
-                  })}
-                </div>
+            const next = Math.max(
+              0,
+              Number(e.target.value) || 0
+            );
+
+            await updateInventory(
+              editing._id,
+              {
+                stock: {
+                  ...(inventory?.stock || {}),
+                  [size]: next,
+                },
+              }
+            );
+          }}
+          className="border border-gray-300"
+        />
+      </div>
+    );
+  })}
+</div>
 
                 {editing && (
                   <div className="grid grid-cols-3 gap-3">

@@ -1,4 +1,5 @@
 // src/pages/admin/Layout.jsx
+
 import { NavLink, Outlet, useLocation } from "react-router-dom";
 import { useMemo, useState } from "react";
 import {
@@ -20,44 +21,124 @@ export default function AdminLayout() {
 
   const sidebarItems = useMemo(
     () => [
-      { name: "Dashboard", href: "/admin", icon: LayoutGrid },
-      { name: "Orders", href: "/admin/orders", icon: Package },
-      { name: "Products", href: "/admin/products", icon: Package },
-      { name: "Inventory", href: "/admin/inventory", icon: Package },
-      { name: "Add Product", href: "/admin/new/products", icon: PlusSquare },
-      { name: "Add Bundles", href: "/admin/new/bundles", icon: Package },
-      { name: "Bundles", href: "/admin/bundles", icon: Package },
-      { name: "Users", href: "/admin/users", icon: Users },
-      { name: "Category", href: "/admin/category", icon: Tag },
-      { name: "Returns", href: "/admin/returnslist", icon: RefreshCw },
+      {
+        name: "Dashboard",
+        href: "/admin",
+        icon: LayoutGrid,
+      },
+      {
+        name: "Orders",
+        href: "/admin/orders",
+        icon: Package,
+      },
+      {
+        name: "Products",
+        href: "/admin/products",
+        icon: Package,
+      },
+      {
+        name: "Inventory",
+        href: "/admin/inventory",
+        icon: Package,
+      },
+      {
+        name: "Add Product",
+        href: "/admin/new/products",
+        icon: PlusSquare,
+      },
+      {
+        name: "Add Bundles",
+        href: "/admin/new/bundles",
+        icon: Package,
+      },
+      {
+        name: "Bundles",
+        href: "/admin/bundles",
+        icon: Package,
+      },
+      {
+        name: "Users",
+        href: "/admin/users",
+        icon: Users,
+      },
+      {
+        name: "Category",
+        href: "/admin/category",
+        icon: Tag,
+      },
+      {
+        name: "Returns",
+        href: "/admin/returnslist",
+        icon: RefreshCw,
+      },
     ],
     []
   );
 
-  const isActive = (href) => location.pathname === href;
+  const isActive = (href) =>
+    location.pathname === href ||
+    (href !== "/admin" &&
+      location.pathname.startsWith(`${href}/`));
 
   return (
-    <div className="flex h-screen overflow-hidden">
-      {/* Sidebar */}
+    <div className="flex h-screen w-full overflow-hidden bg-gray-50">
+      {/* =========================
+          SIDEBAR
+      ========================= */}
       <aside
-        className={`flex-shrink-0 ${
-          collapsed ? "w-20" : "w-64"
-        } bg-black text-white flex flex-col`}
+        className={`
+          flex-shrink-0
+          h-full
+          bg-black
+          text-white
+          flex
+          flex-col
+          transition-all
+          duration-300
+          ${collapsed ? "w-20" : "w-64"}
+        `}
       >
-        <div className="flex items-center justify-between p-4 border-b border-gray-800">
+        {/* Logo */}
+        <div
+          className={`
+            h-16
+            flex
+            items-center
+            border-b
+            border-gray-800
+            ${collapsed ? "justify-center" : "justify-between px-4"}
+          `}
+        >
           {!collapsed && (
-            <span className="font-bold text-xl">Admin Panel</span>
+            <span className="text-lg font-bold tracking-tight">
+              Admin Panel
+            </span>
           )}
 
           <button
-            onClick={() => setCollapsed(!collapsed)}
-            className="text-gray-300 hover:text-white"
+            type="button"
+            onClick={() =>
+              setCollapsed((value) => !value)
+            }
+            className="
+              h-9
+              w-9
+              rounded-lg
+              flex
+              items-center
+              justify-center
+              text-gray-300
+              hover:bg-gray-900
+              hover:text-white
+              transition
+            "
           >
-            <Menu className="h-6 w-6" />
+            <Menu className="h-5 w-5" />
           </button>
         </div>
 
-        <nav className="flex-1 min-h-0 overflow-y-auto mt-2 px-3">
+        {/* Navigation */}
+        <nav className="flex-1 min-h-0 overflow-y-auto px-3 py-4">
           <ul className="space-y-1">
             {sidebarItems.map((item) => {
               const Icon = item.icon;
@@ -67,26 +148,47 @@ export default function AdminLayout() {
                 <li key={item.name}>
                   <NavLink
                     to={item.href}
+                    title={
+                      collapsed
+                        ? item.name
+                        : undefined
+                    }
                     className={`
-                      group flex items-center gap-3 px-4 py-2 rounded-lg
-                      transition-colors
+                      group
+                      flex
+                      items-center
+                      ${collapsed
+                        ? "justify-center"
+                        : "gap-3"
+                      }
+                      min-h-10
+                      px-3
+                      rounded-lg
+                      transition-all
                       ${
                         active
-                          ? "bg-white text-black shadow-md"
-                          : "text-gray-300 hover:bg-gray-900 hover:text-white"
+                          ? "bg-white text-black"
+                          : "text-gray-400 hover:bg-gray-900 hover:text-white"
                       }
                     `}
                   >
                     <Icon
-                      className={`h-5 w-5 transition-colors ${
-                        active
-                          ? "text-black"
-                          : "text-gray-300 group-hover:text-white"
-                      }`}
+                      className={`
+                        h-5
+                        w-5
+                        flex-shrink-0
+                        ${
+                          active
+                            ? "text-black"
+                            : "text-gray-400 group-hover:text-white"
+                        }
+                      `}
                     />
 
                     {!collapsed && (
-                      <span className="font-medium">{item.name}</span>
+                      <span className="text-sm font-medium">
+                        {item.name}
+                      </span>
                     )}
                   </NavLink>
                 </li>
@@ -95,51 +197,164 @@ export default function AdminLayout() {
           </ul>
         </nav>
 
-        <div className="flex-shrink-0 p-4 border-t border-gray-800">
+        {/* Back to Store */}
+        <div className="flex-shrink-0 border-t border-gray-800 p-3">
           <NavLink
             to="/"
-            className="flex items-center gap-3 text-gray-300 hover:text-white"
+            title={
+              collapsed
+                ? "Back to Store"
+                : undefined
+            }
+            className={`
+              flex
+              items-center
+              ${collapsed
+                ? "justify-center"
+                : "gap-3"
+              }
+              min-h-10
+              px-3
+              rounded-lg
+              text-gray-400
+              hover:bg-gray-900
+              hover:text-white
+              transition
+            `}
           >
-            <LogOut className="h-5 w-5" />
-            {!collapsed && <span>Back to Store</span>}
+            <LogOut className="h-5 w-5 flex-shrink-0" />
+
+            {!collapsed && (
+              <span className="text-sm font-medium">
+                Back to Store
+              </span>
+            )}
           </NavLink>
         </div>
       </aside>
 
-      {/* Right content */}
-      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
+      {/* =========================
+          RIGHT SIDE
+      ========================= */}
+      <div className="flex-1 min-w-0 h-full flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="sticky top-0 z-10 flex items-center justify-between bg-white shadow px-6 py-4 flex-shrink-0">
-          <div className="flex items-center gap-3 w-full max-w-xl bg-gray-100 rounded-lg px-3 py-1">
-            <Search className="h-5 w-5 text-gray-500" />
+        <header
+          className="
+            h-16
+            flex-shrink-0
+            flex
+            items-center
+            justify-between
+            gap-6
+            bg-white
+            border-b
+            border-gray-200
+            px-6
+          "
+        >
+          {/* Search */}
+          <div className="flex-1 max-w-xl">
+            <div
+              className="
+                h-10
+                flex
+                items-center
+                gap-3
+                px-3
+                rounded-lg
+                bg-gray-50
+                border
+                border-gray-200
+                focus-within:border-gray-400
+                transition
+              "
+            >
+              <Search className="h-4 w-4 text-gray-400 flex-shrink-0" />
 
-            <input
-              type="text"
-              placeholder="Search..."
-              className="flex-1 border-none outline-none bg-transparent text-sm text-gray-700"
-            />
+              <input
+                type="search"
+                placeholder="Search..."
+                className="
+                  w-full
+                  bg-transparent
+                  outline-none
+                  border-none
+                  text-sm
+                  text-gray-800
+                  placeholder:text-gray-400
+                "
+              />
+            </div>
           </div>
 
-          <div className="flex items-center gap-6">
-            <button className="relative text-gray-600 hover:text-gray-900">
-              <Bell className="h-6 w-6" />
+          {/* Right */}
+          <div className="flex items-center gap-5">
+            <button
+              type="button"
+              className="
+                relative
+                h-9
+                w-9
+                rounded-lg
+                flex
+                items-center
+                justify-center
+                text-gray-500
+                hover:bg-gray-100
+                hover:text-gray-900
+                transition
+              "
+            >
+              <Bell className="h-5 w-5" />
 
-              <span className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-4 w-4 flex items-center justify-center text-xs">
+              <span
+                className="
+                  absolute
+                  -top-0.5
+                  -right-0.5
+                  h-4
+                  min-w-4
+                  px-1
+                  rounded-full
+                  bg-red-500
+                  text-white
+                  text-[10px]
+                  font-semibold
+                  flex
+                  items-center
+                  justify-center
+                "
+              >
                 3
               </span>
             </button>
 
             <div className="flex items-center gap-2">
-              <div className="h-8 w-8 rounded-full bg-gray-300" />
-              <span className="text-sm font-medium text-gray-700">
+              <div className="h-8 w-8 rounded-full bg-gray-200" />
+
+              <span className="hidden sm:block text-sm font-medium text-gray-700">
                 Admin User
               </span>
             </div>
           </div>
         </header>
 
-        {/* Scrollable Outlet */}
-        <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 bg-gray-50">
+        {/* =========================
+            PAGE CONTENT
+        ========================= */}
+        <main
+          data-lenis-prevent
+          className="
+            flex-1
+            min-h-0
+            overflow-y-auto
+            overflow-x-hidden
+            bg-gray-50
+            p-4
+            sm:p-5
+            lg:p-6
+          "
+        >
           <Outlet />
         </main>
       </div>

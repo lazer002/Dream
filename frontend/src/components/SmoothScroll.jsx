@@ -1,28 +1,38 @@
+// src/components/SmoothScroll.jsx
+
 import { useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import Lenis from "@studio-freight/lenis";
 
-export default function SmoothScroll({ children, disabled }) {
+export default function SmoothScroll({ children }) {
+  const { pathname } = useLocation();
+
+  const isAdminPage = pathname.startsWith("/admin");
+
   useEffect(() => {
-  if (disabled) return;
+    if (isAdminPage) return;
 
     const lenis = new Lenis({
       duration: 1.2,
-      lerp: 0.08,       // 👈 smoothness (lower = smoother)
-      smooth: true,
-      smoothTouch: true,
+      lerp: 0.08,
+      smoothWheel: true,
+      smoothTouch: false,
     });
 
-    function raf(time) {
+    let rafId;
+
+    const raf = (time) => {
       lenis.raf(time);
-      requestAnimationFrame(raf);
-    }
+      rafId = requestAnimationFrame(raf);
+    };
 
-    requestAnimationFrame(raf);
+    rafId = requestAnimationFrame(raf);
 
-    return () => lenis.destroy();
-  }, []);
+    return () => {
+      cancelAnimationFrame(rafId);
+      lenis.destroy();
+    };
+  }, [isAdminPage]);
 
   return children;
 }
-
-// data-lenis-prevent

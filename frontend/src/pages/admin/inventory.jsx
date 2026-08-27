@@ -16,7 +16,14 @@ import {
 } from "lucide-react";
 
 import api from "@/utils/config";
-
+// add import
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import {
   Card,
   CardContent,
@@ -809,176 +816,215 @@ export default function AdminInventory() {
         </CardContent>
       </Card>
 
-      {/* MANAGE PANEL */}
 
-      {selected && (
-        <Card className="border-gray-200">
-          <CardHeader className="border-b">
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div>
-                <CardTitle>
-                  Manage Inventory
-                </CardTitle>
 
-                <p className="text-sm text-gray-500 mt-1">
-                  {selected.title}
-                </p>
-              </div>
-
-              <Button
-                variant="outline"
-                onClick={closeEditor}
-              >
-                Close
-              </Button>
+<Dialog
+  open={!!selected}
+  onOpenChange={(open) => {
+    if (!open) closeEditor();
+  }}
+>
+  <DialogContent
+    className="w-[calc(100%-24px)] max-w-7xl max-h-[90vh] overflow-y-auto p-0"
+  >
+    {selected && (
+      <>
+        <DialogHeader className="px-6 py-5 border-b">
+          <div className="flex items-center gap-4">
+            <div className="h-14 w-14 rounded-xl overflow-hidden bg-gray-100 shrink-0">
+              {selected.images?.[0] ? (
+                <img
+                  src={selected.images[0]}
+                  alt={selected.title}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <div className="h-full w-full flex items-center justify-center">
+                  <Package className="h-5 w-5 text-gray-300" />
+                </div>
+              )}
             </div>
-          </CardHeader>
 
-          <CardContent className="pt-6 space-y-8">
-            {/* PRODUCT */}
+            <div className="min-w-0">
+              <DialogTitle className="text-xl truncate">
+                Manage Inventory
+              </DialogTitle>
 
-            <div className="flex items-center gap-4">
-              <div className="h-20 w-20 rounded-xl overflow-hidden bg-gray-100">
-                {selected.images?.[0] && (
-                  <img
-                    src={selected.images[0]}
-                    alt={selected.title}
-                    className="h-full w-full object-cover"
-                  />
-                )}
-              </div>
+              <DialogDescription className="mt-1">
+                {selected.title}
+              </DialogDescription>
 
+              <p className="text-xs text-gray-500 mt-1 font-mono">
+                SKU: {form.sku || "—"}
+              </p>
+            </div>
+          </div>
+        </DialogHeader>
+
+        <div className="px-6 py-6 space-y-1">
+
+          {/* SETTINGS */}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="space-y-1">
+              <Label>SKU</Label>
+
+              <Input
+              disabled
+                value={form.sku}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    sku: e.target.value,
+                  }))
+                }
+                className="border-gray-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Low Stock Threshold</Label>
+
+              <Input
+                type="number"
+                min="0"
+                value={form.lowStockThreshold}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    lowStockThreshold: Math.max(
+                      0,
+                      Number(e.target.value) || 0
+                    ),
+                  }))
+                }
+                className="border-gray-200"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Reserved</Label>
+
+              <Input
+                type="number"
+                min="0"
+                value={form.reserved}
+                onChange={(e) =>
+                  setForm((current) => ({
+                    ...current,
+                    reserved: Math.max(
+                      0,
+                      Number(e.target.value) || 0
+                    ),
+                  }))
+                }
+                className="border-gray-200"
+              />
+            </div>
+          </div>
+
+          {/* STOCK */}
+
+          <div>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div>
-                <h2 className="font-semibold text-lg">
-                  {selected.title}
-                </h2>
+                <h3 className="font-semibold text-base">
+                  Stock by Size
+                </h3>
 
                 <p className="text-sm text-gray-500">
-                  SKU: {form.sku}
+                  Manage inventory for the sizes configured for this product.
+                </p>
+              </div>
+
+              <div className="rounded-xl bg-gray-50 border px-4 py-3 text-right">
+                <p className="text-xs text-gray-500">
+                  Available
+                </p>
+
+                <p className="text-xl font-bold">
+                  {form.trackInventory
+                    ? Math.max(
+                        0,
+                        getTotalStock({
+                          stock: form.stock,
+                          trackInventory:
+                            form.trackInventory,
+                        }) -
+                          Number(form.reserved || 0)
+                      )
+                    : "∞"}
                 </p>
               </div>
             </div>
 
-            {/* SETTINGS */}
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>SKU</Label>
-
-                <Input
-                  value={form.sku}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      sku: e.target.value,
-                    }))
+            {selected.sizes?.length ? (
+              <div
+                className={`
+                  grid gap-3
+                  ${
+                    selected.sizes.length === 1
+                      ? "grid-cols-1"
+                      : selected.sizes.length === 2
+                      ? "grid-cols-2"
+                      : "grid-cols-2 sm:grid-cols-3"
                   }
-                  className="border border-gray-200"
-                />
-              </div>
+                `}
+              >
+                {selected.sizes.map((size) => {
+                  const name =
+                    typeof size === "string"
+                      ? size
+                      : size?.name;
 
-              <div className="space-y-2">
-                <Label>
-                  Low Stock Threshold
-                </Label>
+                  if (!name) return null;
 
-                <Input
-                  type="number"
-                  min="0"
-                  value={
-                    form.lowStockThreshold
-                  }
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      lowStockThreshold:
-                        Math.max(
-                          0,
-                          Number(e.target.value)
-                        ),
-                    }))
-                  }
-                  className="border border-gray-200"
-                />
-              </div>
+                  const value = Number(
+                    form.stock?.[name] || 0
+                  );
 
-              <div className="space-y-2">
-                <Label>Reserved</Label>
-
-                <Input
-                  type="number"
-                  min="0"
-                  value={form.reserved}
-                  onChange={(e) =>
-                    setForm((current) => ({
-                      ...current,
-                      reserved: Math.max(
-                        0,
-                        Number(e.target.value)
-                      ),
-                    }))
-                  }
-                  className="border border-gray-200"
-                />
-              </div>
-            </div>
-
-            {/* STOCK */}
-
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <h3 className="font-semibold">
-                    Stock by Size
-                  </h3>
-
-                  <p className="text-sm text-gray-500">
-                    Update quantities for each size.
-                  </p>
-                </div>
-
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">
-                    Available
-                  </p>
-
-                  <p className="text-xl font-bold">
-                    {form.trackInventory
-                      ? Math.max(
-                          0,
-                          getTotalStock({
-                            stock: form.stock,
-                            trackInventory:
-                              form.trackInventory,
-                          }) -
-                            Number(
-                              form.reserved || 0
-                            )
-                        )
-                      : "∞"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-                {SIZES.map((size) => {
-                  const value =
-                    Number(
-                      form.stock?.[size] || 0
-                    );
+                  const inactive =
+                    typeof size === "object" &&
+                    size?.active === false;
 
                   return (
                     <div
-                      key={size}
-                      className="rounded-xl border border-gray-200 p-4 space-y-3"
+                      key={name}
+                      className={`
+                        rounded-xl border p-4 space-y-1
+                        ${
+                          inactive
+                            ? "bg-gray-50 border-gray-100 opacity-60"
+                            : "border-gray-200"
+                        }
+                      `}
                     >
                       <div className="flex items-center justify-between">
-                        <span className="font-semibold">
-                          {size}
-                        </span>
+                        <div>
+                          <span className="font-semibold">
+                            {name}
+                          </span>
 
-                        <span className="text-xs text-gray-400">
-                          stock
+                          {inactive && (
+                            <span className="ml-2 text-[10px] uppercase tracking-wide text-gray-400">
+                              Inactive
+                            </span>
+                          )}
+                        </div>
+
+                        <span
+                          className={`
+                            text-xs font-medium
+                            ${
+                              value > 0
+                                ? "text-green-600"
+                                : "text-red-500"
+                            }
+                          `}
+                        >
+                          {value > 0
+                            ? "Available"
+                            : "Out"}
                         </span>
                       </div>
 
@@ -986,25 +1032,26 @@ export default function AdminInventory() {
                         type="number"
                         min="0"
                         value={value}
+                        disabled={inactive}
                         onChange={(e) =>
                           updateStock(
-                            size,
+                            name,
                             e.target.value
                           )
                         }
-                        className="border border-gray-200 text-center"
+                        className="border-gray-200 text-center text-lg font-semibold"
                       />
 
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="outline"
-                          size="icon"
+                          className="flex-1"
+                          disabled={
+                            inactive || value <= 0
+                          }
                           onClick={() =>
-                            changeStock(
-                              size,
-                              -1
-                            )
+                            changeStock(name, -1)
                           }
                         >
                           <Minus className="h-4 w-4" />
@@ -1013,12 +1060,10 @@ export default function AdminInventory() {
                         <Button
                           type="button"
                           variant="outline"
-                          size="icon"
+                          className="flex-1"
+                          disabled={inactive}
                           onClick={() =>
-                            changeStock(
-                              size,
-                              1
-                            )
+                            changeStock(name, 1)
                           }
                         >
                           <Plus className="h-4 w-4" />
@@ -1028,70 +1073,142 @@ export default function AdminInventory() {
                   );
                 })}
               </div>
+            ) : (
+              <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-8 text-center">
+                <Package className="mx-auto h-8 w-8 text-gray-300" />
+
+                <p className="mt-3 font-medium text-gray-700">
+                  No sizes configured
+                </p>
+
+                <p className="mt-1 text-sm text-gray-500">
+                  Add sizes to this product before managing inventory.
+                </p>
+              </div>
+            )}
+          </div>
+
+          {/* INVENTORY SUMMARY */}
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="rounded-xl border bg-gray-50 p-4">
+              <p className="text-xs text-gray-500">
+                Total Stock
+              </p>
+
+              <p className="mt-1 text-xl font-bold">
+                {getTotalStock({
+                  stock: form.stock,
+                  trackInventory: form.trackInventory,
+                })}
+              </p>
             </div>
 
-            {/* OPTIONS */}
+            <div className="rounded-xl border bg-gray-50 p-4">
+              <p className="text-xs text-gray-500">
+                Reserved
+              </p>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Toggle
-                label="Track Inventory"
-                checked={form.trackInventory}
-                onChange={(value) =>
-                  setForm((current) => ({
-                    ...current,
-                    trackInventory: value,
-                  }))
-                }
-              />
-
-              <Toggle
-                label="Allow Backorder"
-                checked={form.allowBackorder}
-                onChange={(value) =>
-                  setForm((current) => ({
-                    ...current,
-                    allowBackorder: value,
-                  }))
-                }
-              />
-
-              <Toggle
-                label="Inventory Active"
-                checked={form.active}
-                onChange={(value) =>
-                  setForm((current) => ({
-                    ...current,
-                    active: value,
-                  }))
-                }
-              />
+              <p className="mt-1 text-xl font-bold">
+                {Number(form.reserved || 0)}
+              </p>
             </div>
 
-            {/* SAVE */}
+            <div className="rounded-xl border bg-gray-50 p-4">
+              <p className="text-xs text-gray-500">
+                Available
+              </p>
 
-            <div className="flex justify-end gap-3 border-t pt-6">
-              <Button
-                variant="outline"
-                onClick={closeEditor}
-              >
-                Cancel
-              </Button>
-
-              <Button
-                disabled={saving}
-                onClick={saveInventory}
-                className="bg-black text-white hover:bg-gray-800 gap-2"
-              >
-                <Save className="h-4 w-4" />
-
-                {saving
-                  ? "Saving..."
-                  : "Save Inventory"}
-              </Button>
+              <p className="mt-1 text-xl font-bold text-green-600">
+                {form.trackInventory
+                  ? Math.max(
+                      0,
+                      getTotalStock({
+                        stock: form.stock,
+                        trackInventory:
+                          form.trackInventory,
+                      }) -
+                        Number(form.reserved || 0)
+                    )
+                  : "∞"}
+              </p>
             </div>
-          </CardContent>
-        </Card>
-      )}
+
+            <div className="rounded-xl border bg-gray-50 p-4">
+              <p className="text-xs text-gray-500">
+                Sizes
+              </p>
+
+              <p className="mt-1 text-xl font-bold">
+                {selected.sizes?.length || 0}
+              </p>
+            </div>
+          </div>
+
+          {/* OPTIONS */}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <Toggle
+              label="Track Inventory"
+              checked={form.trackInventory}
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  trackInventory: value,
+                }))
+              }
+            />
+
+            <Toggle
+              label="Allow Backorder"
+              checked={form.allowBackorder}
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  allowBackorder: value,
+                }))
+              }
+            />
+
+            <Toggle
+              label="Inventory Active"
+              checked={form.active}
+              onChange={(value) =>
+                setForm((current) => ({
+                  ...current,
+                  active: value,
+                }))
+              }
+            />
+          </div>
+
+          {/* ACTIONS */}
+
+          <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-3 border-t pt-5">
+            <Button
+              variant="outline"
+              onClick={closeEditor}
+            >
+              Cancel
+            </Button>
+
+            <Button
+              disabled={saving}
+              onClick={saveInventory}
+              className="bg-black text-white hover:bg-gray-800 gap-2"
+            >
+              <Save className="h-4 w-4" />
+
+              {saving
+                ? "Saving..."
+                : "Save Inventory"}
+            </Button>
+          </div>
+        </div>
+      </>
+    )}
+  </DialogContent>
+</Dialog>
     </div>
   );
 }

@@ -312,43 +312,36 @@ export default function Products() {
                 <div className="p-3 flex flex-col gap-1">
 
 <div className="absolute top-3 left-3 z-20 flex flex-col items-start gap-2">
-  {p.isOutOfStock ? (
-    <div
-      className="
-        bg-black/80
-        backdrop-blur-md
-        text-white
-        text-[11px]
-        font-bold
-        tracking-[0.15em]
-        uppercase
-        px-3 py-2
-        rounded-full
-      "
-    >
-      Sold Out
-    </div>
-  ) : (
-    <>
-      {p.onSale && (
-        <div
-          className="
-            bg-black/80
-            backdrop-blur-md
-            text-white
-            text-[11px]
-            font-bold
-            tracking-[0.15em]
-            uppercase
-            px-3 py-2
-            rounded-full
-          "
-        >
-          Sale
-        </div>
-      )}
+  {(() => {
+    const hasAvailableSize =
+      Array.isArray(p.sizes) &&
+      p.sizes.some((size) => {
+        const name =
+          typeof size === "string"
+            ? size
+            : size?.name;
 
-      {p.isNewProduct && (
+        if (!name) return false;
+
+        const qty = Number(
+          p.inventory?.[name] ??
+            p.inventory?.stock?.[name] ??
+            0
+        );
+
+        return (
+          (typeof size === "string" ||
+            size.active !== false) &&
+          qty > 0
+        );
+      });
+
+    const soldOut =
+      p.isOutOfStock === true &&
+      !hasAvailableSize;
+
+    if (soldOut) {
+      return (
         <div
           className="
             bg-black/80
@@ -362,11 +355,51 @@ export default function Products() {
             rounded-full
           "
         >
-          NEW
+          Sold Out
         </div>
-      )}
-    </>
-  )}
+      );
+    }
+
+    return (
+      <>
+        {p.onSale && (
+          <div
+            className="
+              bg-black/80
+              backdrop-blur-md
+              text-white
+              text-[11px]
+              font-bold
+              tracking-[0.15em]
+              uppercase
+              px-3 py-2
+              rounded-full
+            "
+          >
+            Sale
+          </div>
+        )}
+
+        {p.isNewProduct && (
+          <div
+            className="
+              bg-black/80
+              backdrop-blur-md
+              text-white
+              text-[11px]
+              font-bold
+              tracking-[0.15em]
+              uppercase
+              px-3 py-2
+              rounded-full
+            "
+          >
+            NEW
+          </div>
+        )}
+      </>
+    );
+  })()}
 </div>
 
 
@@ -446,123 +479,145 @@ export default function Products() {
       </p>
     </DialogHeader>
 
-    {selectedProduct && (
-      <div className="px-6 py-5">
-        {selectedProduct.sizes?.length ? (
-          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-            {selectedProduct.sizes.map((size) => {
-              const name = size.name;
+{selectedProduct && (
+  <div className="px-6 py-5">
+    {selectedProduct.sizes?.length ? (
+      <>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {selectedProduct.sizes.map((size) => {
+            const name = size.name;
 
-              const qty = Number(
-                selectedProduct.inventory?.[name] || 0
-              );
+            const qty = Number(
+              selectedProduct.inventory?.[name] ??
+                selectedProduct.inventory?.stock?.[name] ??
+                0
+            );
 
-              const isAvailable =
-                size.active !== false && qty > 0;
+            const isAvailable =
+              size.active !== false && qty > 0;
 
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  disabled={!isAvailable}
-                  onClick={() => {
-                    if (isAvailable) {
-                      handleSelectSize(name);
-                    }
-                  }}
-                  className={`
-                    group
-                    relative
-                    min-h-[72px]
-                    rounded-xl
-                    border
-                    px-4
-                    py-3
-                    text-left
-                    transition-all
-                    duration-200
+            return (
+              <button
+                key={name}
+                type="button"
+                disabled={!isAvailable}
+                onClick={() => {
+                  if (isAvailable) {
+                    handleSelectSize(name);
+                  }
+                }}
+                className={`
+                  group
+                  relative
+                  min-h-[72px]
+                  rounded-xl
+                  border
+                  px-4
+                  py-3
+                  text-left
+                  transition-all
+                  duration-200
 
-                    ${
-                      isAvailable
-                        ? `
-                          border-gray-200
-                          bg-white
-                          hover:border-black
-                          hover:shadow-sm
-                          active:scale-[0.98]
-                        `
-                        : `
-                          border-gray-100
-                          bg-gray-50
-                          text-gray-400
-                          cursor-not-allowed
-                        `
-                    }
-                  `}
-                >
-                  <div className="flex items-center justify-between">
-                    <span
-                      className={`
-                        text-base font-semibold
-                        ${
-                          isAvailable
-                            ? "text-gray-900"
-                            : "text-gray-400"
-                        }
-                      `}
-                    >
-                      {name}
-                    </span>
-
-                    <span
-                      className={`
-                        h-2 w-2 rounded-full
-                        ${
-                          isAvailable
-                            ? "bg-green-500"
-                            : "bg-gray-300"
-                        }
-                      `}
-                    />
-                  </div>
-
+                  ${
+                    isAvailable
+                      ? `
+                        border-gray-200
+                        bg-white
+                        hover:border-black
+                        hover:shadow-sm
+                        active:scale-[0.98]
+                      `
+                      : `
+                        cursor-not-allowed
+                        border-gray-100
+                        bg-gray-50
+                        text-gray-400
+                      `
+                  }
+                `}
+              >
+                <div className="flex items-center justify-between">
                   <span
                     className={`
-                      mt-1 block text-xs
+                      text-base font-semibold
                       ${
                         isAvailable
-                          ? "text-gray-500"
+                          ? "text-gray-900"
                           : "text-gray-400"
                       }
                     `}
                   >
-                    {isAvailable
-                      ? qty <= 5
-                        ? `Only ${qty} left`
-                        : "Available"
-                      : "Out of stock"}
+                    {name}
                   </span>
-                </button>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
-            <p className="text-sm text-gray-500">
-              No sizes available for this product.
-            </p>
-          </div>
-        )}
 
-        {selectedProduct.isOutOfStock && (
-          <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-            <p className="text-sm font-medium text-red-600">
-              This product is currently out of stock.
-            </p>
-          </div>
-        )}
+                  <span
+                    className={`
+                      h-2 w-2 rounded-full
+                      ${
+                        isAvailable
+                          ? "bg-green-500"
+                          : "bg-gray-300"
+                      }
+                    `}
+                  />
+                </div>
+
+                <span
+                  className={`
+                    mt-1 block text-xs
+                    ${
+                      isAvailable
+                        ? "text-gray-500"
+                        : "text-gray-400"
+                    }
+                  `}
+                >
+                  {isAvailable
+                    ? qty <= 5
+                      ? `Only ${qty} left`
+                      : "Available"
+                    : "Out of stock"}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {(() => {
+          const hasAvailableSize =
+            selectedProduct.sizes.some((size) => {
+              const qty = Number(
+                selectedProduct.inventory?.[size.name] ??
+                  selectedProduct.inventory?.stock?.[
+                    size.name
+                  ] ??
+                  0
+              );
+
+              return (
+                size.active !== false &&
+                qty > 0
+              );
+            });
+
+          return !hasAvailableSize ? (
+            <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+              <p className="text-sm font-medium text-red-600">
+                This product is currently out of stock.
+              </p>
+            </div>
+          ) : null;
+        })()}
+      </>
+    ) : (
+      <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
+        <p className="text-sm text-gray-500">
+          No sizes available for this product.
+        </p>
       </div>
     )}
+  </div>
+)}
   </DialogContent>
 </Dialog>
 

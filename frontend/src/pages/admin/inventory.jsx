@@ -169,7 +169,7 @@ export default function AdminInventory() {
           ?.toLowerCase()
           .includes(query);
 
-      const total = getTotalStock(inventory);
+      const total = getTotalStock(inventory, product);
 
       const available = getAvailableStock(inventory);
 
@@ -213,7 +213,13 @@ export default function AdminInventory() {
     let lowStock = 0;
     let outOfStock = 0;
 
-    inventories.forEach((inventory) => {
+   inventories.forEach((inventory) => {
+  const product = products.find(
+    (p) =>
+      String(p._id) === String(inventory.product?._id || inventory.product)
+  );
+
+       if (!product) return;
       if (!inventory.trackInventory) return;
 
       const stock = getTotalStock(inventory);
@@ -248,20 +254,27 @@ export default function AdminInventory() {
     };
   }, [inventories, products]);
 
-  function getTotalStock(inventory) {
-    if (!inventory) return 0;
+function getTotalStock(inventory, product) {
+  if (!inventory) return 0;
 
-    if (!inventory.trackInventory) {
-      return 0;
-    }
-
-    return SIZES.reduce(
-      (total, size) =>
-        total +
-        Number(inventory.stock?.[size] || 0),
-      0
-    );
+  if (!inventory.trackInventory) {
+    return 0;
   }
+
+  const sizes = product?.sizes || [];
+
+  return sizes.reduce((total, size) => {
+    const name =
+      typeof size === "string"
+        ? size
+        : size?.name;
+
+    return (
+      total +
+      Number(inventory.stock?.[name] || 0)
+    );
+  }, 0);
+}
 
   function getAvailableStock(inventory) {
     if (!inventory) return 0;
@@ -652,8 +665,7 @@ export default function AdminInventory() {
                 <tbody>
                   {filteredRows.map(
                     ({ product, inventory }) => {
-                      const total =
-                        getTotalStock(inventory);
+                    const total = getTotalStock(inventory, product);
 
                       const available =
                         getAvailableStock(
@@ -722,24 +734,40 @@ export default function AdminInventory() {
                             </span>
                           </td>
 
-                          <td className="px-4 py-4">
-                            <div className="flex flex-wrap gap-1.5 max-w-[260px]">
-                              {SIZES.map((size) => (
-                                <span
-                                  key={size}
-                                  className="rounded-md bg-gray-100 px-2 py-1 text-xs"
-                                >
-                                  <span className="font-medium">
-                                    {size}
-                                  </span>{" "}
-                                  {inventory
-                                    ?.stock?.[
-                                      size
-                                    ] || 0}
-                                </span>
-                              ))}
-                            </div>
-                          </td>
+                       <td className="px-4 py-4">
+  <div className="flex flex-wrap gap-1.5 max-w-[260px]">
+    {(product.sizes || []).map((size) => {
+      const name =
+        typeof size === "string"
+          ? size
+          : size?.name;
+
+      if (!name) return null;
+
+      const stock =
+        Number(inventory?.stock?.[name] || 0);
+
+      return (
+        <span
+          key={name}
+          className={`
+            rounded-md px-2 py-1 text-xs
+            ${
+              stock > 0
+                ? "bg-gray-100 text-gray-900"
+                : "bg-red-50 text-red-600"
+            }
+          `}
+        >
+          <span className="font-medium">
+            {name}
+          </span>{" "}
+          {stock}
+        </span>
+      );
+    })}
+  </div>
+</td>
 
                           <td className="px-4 py-4 font-medium">
                             {inventory?.reserved ||

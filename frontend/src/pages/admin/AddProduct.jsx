@@ -31,14 +31,19 @@ import {
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch.jsx";
 import api from "@/utils/config";
+import toast from "react-hot-toast";
 
 const SIZE_OPTIONS = {
   apparel: ["XS", "S", "M", "L", "XL", "XXL"],
   pants: ["28", "30", "32", "34", "36", "38", "40", "42"],
 };
 
-const getSizeOptions = (category) => {
-  const value = String(category || "").toLowerCase();
+const getSizeOptions = (categoryId, categories) => {
+  const category = categories.find(
+    (item) => String(item._id) === String(categoryId)
+  );
+
+  const value = String(category?.name || "").toLowerCase();
 
   if (
     value.includes("pant") ||
@@ -55,6 +60,7 @@ const getSizeOptions = (category) => {
 const INITIAL_FORM = {
   title: "",
   description: "",
+  details: "",
   price: "",
   oldPrice: "",
   category: "",
@@ -70,15 +76,17 @@ const INITIAL_FORM = {
 export default function AddProduct() {
   const fileInputRef = useRef(null);
   const descriptionRef = useRef(null);
+const detailsRef = useRef(null);
 
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState(INITIAL_FORM);
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
   const [saving, setSaving] = useState(false);
-  const [msg, setMsg] = useState("");
   const [descriptionMode, setDescriptionMode] =
     useState("html");
+const [detailsMode, setDetailsMode] =
+  useState("html");
 
   const updateForm = (key, value) => {
     setForm((prev) => ({
@@ -151,7 +159,41 @@ export default function AddProduct() {
       );
     });
   };
+const insertDetailsHtml = (before, after) => {
+  const textarea = detailsRef.current;
 
+  if (!textarea) return;
+
+  const start = textarea.selectionStart;
+  const end = textarea.selectionEnd;
+
+  const selected =
+    form.details.slice(start, end);
+
+  const value =
+    form.details.slice(0, start) +
+    before +
+    selected +
+    after +
+    form.details.slice(end);
+
+  updateForm("details", value);
+
+  requestAnimationFrame(() => {
+    textarea.focus();
+
+    const cursor =
+      start +
+      before.length +
+      selected.length +
+      after.length;
+
+    textarea.setSelectionRange(
+      cursor,
+      cursor
+    );
+  });
+};
   const insertLink = () => {
     const url = window.prompt("Enter URL");
 
@@ -159,139 +201,143 @@ export default function AddProduct() {
 
     insertHtml(`<a href="${url}">`, "</a>");
   };
+const insertDetailsLink = () => {
+  const url = window.prompt(
+    "Enter URL"
+  );
 
+  if (!url) return;
+
+  insertDetailsHtml(
+    `<a href="${url}" target="_blank" rel="noopener noreferrer">`,
+    "</a>"
+  );
+};
   const insertCode = () => {
     insertHtml("<code>", "</code>");
   };
 
-  async function submit(e) {
-    e?.preventDefault();
+async function submit(e) {
+  e?.preventDefault();
 
-    if (!form.title.trim()) {
-      setMsg("❌ Product title is required");
-      return;
-    }
+  if (!form.title.trim()) {
+    toast.error("Product title is required");
+    return;
+  }
 
-    if (!form.category) {
-      setMsg("❌ Please select a category");
-      return;
-    }
+  if (!form.category) {
+    toast.error("Please select a category");
+    return;
+  }
 
-    if (!form.price || Number(form.price) < 0) {
-      setMsg("❌ Enter a valid price");
-      return;
-    }
+  if (!form.price || Number(form.price) < 0) {
+    toast.error("Enter a valid price");
+    return;
+  }
 
-    if (!form.sizes.length) {
-      setMsg("❌ Select at least one size");
-      return;
-    }
+  if (!form.sizes.length) {
+    toast.error("Select at least one size");
+    return;
+  }
 
-    setSaving(true);
-    setMsg("");
+  setSaving(true);
 
-    try {
-      let uploadedUrls = [];
+  try {
+    let uploadedUrls = [];
 
-      if (files.length) {
-        const fd = new FormData();
+    if (files.length) {
+      const fd = new FormData();
 
-        files.forEach((file) => {
-          fd.append("files", file);
-        });
-
-        const { data } = await api.post(
-          "/admin/upload/images",
-          fd,
-          {
-            headers: {
-              "Content-Type": "multipart/form-data",
-            },
-            timeout: 60000,
-          }
-        );
-
-        uploadedUrls =
-          data.images?.map(
-            (image) => image.url
-          ) || [];
-      }
-
-      const payload = {
-        title: form.title.trim(),
-        description: form.description,
-
-        price: Number(form.price),
-
-        oldPrice:
-          form.oldPrice !== ""
-            ? Number(form.oldPrice)
-            : undefined,
-
-        images: uploadedUrls,
-
-        category: form.category,
-
-        sizes: form.sizes.map((size) => ({
-          name: size,
-          active: true,
-        })),
-
-        tags: form.tags
-          .split(",")
-          .map((tag) => tag.trim())
-          .filter(Boolean),
-
-        active: Boolean(form.active),
-        published: Boolean(form.published),
-        isNewProduct: Boolean(form.isNewProduct),
-        onSale: Boolean(form.onSale),
-        featured: Boolean(form.featured),
-      };
+      files.forEach((file) => {
+        fd.append("files", file);
+      });
 
       const { data } = await api.post(
-        "/products",
-        payload
+        "/admin/upload/images",
+        fd,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          timeout: 60000,
+        }
       );
 
-      if (
-        !data?.success &&
-        data?.success !== undefined
-      ) {
-        throw new Error(
-          data?.message ||
-            "Failed to create product"
-        );
-      }
-
-      setMsg(
-        "✅ Product created successfully"
-      );
-
-      setForm(INITIAL_FORM);
-      setFiles([]);
-
-      if (fileInputRef.current) {
-        fileInputRef.current.value = "";
-      }
-    } catch (error) {
-      console.error(
-        "create product:",
-        error
-      );
-
-      setMsg(
-        `❌ ${
-          error?.response?.data?.message ||
-          error?.response?.data?.error ||
-          error?.message ||
-          "Failed to create product"
-        }`
-      );
-    } finally {
-      setSaving(false);
+      uploadedUrls =
+        data.images?.map((image) => image.url) || [];
     }
+
+    const payload = {
+      title: form.title.trim(),
+      description: form.description,
+      details: form.details?.trim() || "",
+
+      price: Number(form.price),
+
+      oldPrice:
+        form.oldPrice !== ""
+          ? Number(form.oldPrice)
+          : undefined,
+
+      images: uploadedUrls,
+
+      // MongoDB category ObjectId
+      category: form.category,
+
+      sizes: form.sizes.map((size) => ({
+        name: size,
+        active: true,
+      })),
+
+      tags: form.tags
+        .split(",")
+        .map((tag) => tag.trim())
+        .filter(Boolean),
+
+      active: Boolean(form.active),
+      published: Boolean(form.published),
+      isNewProduct: Boolean(form.isNewProduct),
+      onSale: Boolean(form.onSale),
+      featured: Boolean(form.featured),
+    };
+
+    const { data } = await api.post(
+      "/products",
+      payload
+    );
+
+    if (
+      !data?.success &&
+      data?.success !== undefined
+    ) {
+      throw new Error(
+        data?.message ||
+          data?.error ||
+          "Failed to create product"
+      );
+    }
+
+    toast.success("Product created successfully");
+
+    setForm(INITIAL_FORM);
+    setFiles([]);
+
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  } catch (error) {
+    console.error("create product:", error);
+
+    toast.error(
+      error?.response?.data?.message ||
+        error?.response?.data?.error ||
+        error?.message ||
+        "Failed to create product"
+    );
+  } finally {
+    setSaving(false);
   }
+}
 
   useEffect(() => {
     async function fetchCategories() {
@@ -331,9 +377,10 @@ export default function AddProduct() {
     };
   }, [files]);
 
-  const sizeOptions = getSizeOptions(
-    form.category
-  );
+const sizeOptions = getSizeOptions(
+  form.category,
+  categories
+)
 
   return (
     <div className="w-full">
@@ -367,18 +414,7 @@ export default function AddProduct() {
         </Button>
       </div>
 
-      {/* ERROR / SUCCESS */}
-      {msg && (
-        <div
-          className={`mb-5 rounded-lg border px-4 py-3 text-sm ${
-            msg.startsWith("✅")
-              ? "border-green-200 bg-green-50 text-green-700"
-              : "border-red-200 bg-red-50 text-red-700"
-          }`}
-        >
-          {msg}
-        </div>
-      )}
+
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
         {/* LEFT */}
@@ -403,8 +439,8 @@ export default function AddProduct() {
 
             <div className="p-5">
               <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>
+                <div className="space-y-2 border-b">
+                  <Label className="font-bold">
                     Product Title
                   </Label>
 
@@ -422,19 +458,22 @@ export default function AddProduct() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>
+                   <Label className="font-bold">
                     Category
                   </Label>
 
-                  <Select
-                    value={form.category}
-                    onValueChange={(value) =>
-                      updateForm(
-                        "category",
-                        value
-                      )
-                    }
-                  >
+               <Select
+  value={form.category}
+  onValueChange={(value) => {
+    updateForm("category", value);
+
+    setForm((prev) => ({
+      ...prev,
+      category: value,
+      sizes: [],
+    }));
+  }}
+>
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
@@ -444,7 +483,7 @@ export default function AddProduct() {
                         (category) => (
                           <SelectItem
                             key={category._id}
-                            value={category.slug}
+                            value={category._id}
                           >
                             {category.name}
                           </SelectItem>
@@ -457,7 +496,7 @@ export default function AddProduct() {
                 {/* DESCRIPTION */}
                 <div className="space-y-2 md:col-span-2">
                   <div className="flex items-center justify-between">
-                    <Label>
+                     <Label className="font-bold">
                       Description
                     </Label>
 
@@ -605,8 +644,216 @@ export default function AddProduct() {
                   )}
                 </div>
 
+{/* DETAILS */}
+<div className="space-y-2 md:col-span-2">
+  <div className="flex items-center justify-between">
+     <Label className="font-bold">Product Details</Label>
+
+    <div className="flex rounded-md border bg-gray-50 p-0.5">
+      <button
+        type="button"
+        onClick={() =>
+          setDetailsMode("html")
+        }
+        className={`rounded px-2.5 py-1 text-xs font-medium ${
+          detailsMode === "html"
+            ? "bg-black text-white"
+            : "text-gray-600"
+        }`}
+      >
+        HTML
+      </button>
+
+      <button
+        type="button"
+        onClick={() =>
+          setDetailsMode("normal")
+        }
+        className={`rounded px-2.5 py-1 text-xs font-medium ${
+          detailsMode === "normal"
+            ? "bg-black text-white"
+            : "text-gray-600"
+        }`}
+      >
+        Normal
+      </button>
+    </div>
+  </div>
+
+  {detailsMode === "html" ? (
+    <div className="overflow-hidden rounded-lg border">
+      <div className="flex flex-wrap items-center gap-1 border-b bg-gray-50 p-1.5">
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<strong>",
+              "</strong>"
+            )
+          }
+          className="rounded p-1.5 hover:bg-gray-200"
+        >
+          <Bold className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<em>",
+              "</em>"
+            )
+          }
+          className="rounded p-1.5 hover:bg-gray-200"
+        >
+          <Italic className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<h2>",
+              "</h2>"
+            )
+          }
+          className="rounded px-2 py-1 text-xs font-bold hover:bg-gray-200"
+        >
+          H2
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<h3>",
+              "</h3>"
+            )
+          }
+          className="rounded px-2 py-1 text-xs font-bold hover:bg-gray-200"
+        >
+          H3
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<ul>\n  <li>",
+              "</li>\n</ul>"
+            )
+          }
+          className="rounded p-1.5 hover:bg-gray-200"
+        >
+          <List className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<ol>\n  <li>",
+              "</li>\n</ol>"
+            )
+          }
+          className="rounded p-1.5 hover:bg-gray-200"
+        >
+          <ListOrdered className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<p>",
+              "</p>"
+            )
+          }
+          className="rounded px-2 py-1 text-xs font-medium hover:bg-gray-200"
+        >
+          P
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<blockquote>",
+              "</blockquote>"
+            )
+          }
+          className="rounded px-2 py-1 text-xs hover:bg-gray-200"
+        >
+          Quote
+        </button>
+
+        <button
+          type="button"
+          onClick={insertDetailsLink}
+          className="rounded p-1.5 hover:bg-gray-200"
+        >
+          <Link className="h-4 w-4" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() =>
+            insertDetailsHtml(
+              "<hr />",
+              ""
+            )
+          }
+          className="rounded px-2 py-1 text-xs hover:bg-gray-200"
+        >
+          HR
+        </button>
+      </div>
+
+      <Textarea
+        ref={detailsRef}
+        rows={8}
+        value={form.details}
+        onChange={(e) =>
+          updateForm(
+            "details",
+            e.target.value
+          )
+        }
+        placeholder="<p>Product details...</p>"
+        className="
+          min-h-[180px]
+          resize-y
+          rounded-none
+          border-0
+          font-mono
+          text-sm
+          shadow-none
+          focus-visible:ring-0
+        "
+      />
+
+      <div className="border-t bg-gray-50 px-3 py-1.5 text-[11px] text-gray-500">
+        HTML supported
+      </div>
+    </div>
+  ) : (
+    <Textarea
+      rows={8}
+      value={form.details}
+      onChange={(e) =>
+        updateForm(
+          "details",
+          e.target.value
+        )
+      }
+      placeholder="Write product details..."
+      className="min-h-[180px] resize-y"
+    />
+  )}
+</div>
+
                 <div className="space-y-2 md:col-span-2">
-                  <Label>
+                   <Label className="font-bold">
                     Tags
                   </Label>
 
@@ -625,6 +872,8 @@ export default function AddProduct() {
                     Separate tags with commas
                   </p>
                 </div>
+
+
               </div>
             </div>
           </section>
@@ -732,8 +981,8 @@ export default function AddProduct() {
             </div>
 
             <div className="grid grid-cols-1 gap-4 p-5 md:grid-cols-3">
-              <div className="space-y-2">
-                <Label>
+              <div className="space-y-2 border-b">
+                 <Label className="font-bold">
                   Selling Price
                 </Label>
 
@@ -748,11 +997,12 @@ export default function AddProduct() {
                       e.target.value
                     )
                   }
+                  placeholder="enter price"
                 />
               </div>
 
               <div className="space-y-2">
-                <Label>
+                 <Label className="font-bold border-b">
                   Old Price
                 </Label>
 
@@ -767,6 +1017,7 @@ export default function AddProduct() {
                       e.target.value
                     )
                   }
+                  placeholder="enter price"
                 />
               </div>
 
@@ -895,7 +1146,7 @@ export default function AddProduct() {
                   className="flex items-center justify-between gap-3 rounded-lg border p-3"
                 >
                   <div>
-                    <Label>
+                     <Label className="font-bold">
                       {item.label}
                     </Label>
 
@@ -948,7 +1199,7 @@ export default function AddProduct() {
               onClick={() => {
                 setForm(INITIAL_FORM);
                 setFiles([]);
-                setMsg("");
+                
 
                 if (fileInputRef.current) {
                   fileInputRef.current.value =

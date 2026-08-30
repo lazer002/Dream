@@ -40,7 +40,11 @@ const productSchema = new mongoose.Schema(
       default: "",
       trim: true,
     },
-
+   details: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     price: {
       type: Number,
       required: true,
@@ -93,13 +97,11 @@ sizes: [
   },
 ],
 
-    category: {
-      type: String,
-      required: true,
-      lowercase: true,
-      trim: true,
-      index: true,
-    },
+category: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: "Category",
+  required: true,
+},
 
     tags: {
       type: [String],
@@ -203,9 +205,7 @@ productSchema.pre("validate", async function (next) {
     this.discount = 0;
   }
 
-  if (this.category) {
-    this.category = this.category.toLowerCase().trim();
-  }
+
 
   next();
 });

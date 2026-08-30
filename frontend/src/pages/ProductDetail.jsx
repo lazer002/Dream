@@ -7,11 +7,12 @@ import { Badge } from "@/components/ui/badge"
 import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
 import { Card } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
-import { Dialog, DialogContent, DialogClose } from "@/components/ui/dialog"
+import RecentlyViewed from "@/components/RecentlyViewed";
 import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
 import api from "@/utils/config"
 import toast from "react-hot-toast"
 import { useWishlist } from "../state/WishlistContext.jsx";
+import RelatedProducts from "@/components/RelatedProducts.jsx"
 export default function ProductDetail() {
   const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
   const { publicId } = useParams()
@@ -70,10 +71,7 @@ export default function ProductDetail() {
     const getProduct = async () => {
       setLoading(true)
       try {
-        console.log("hitttttttttttttt")
         const { data } = await api.get(`/products/${publicId}`)
-                console.log("fff",data)
-
         setProduct(data)
         setActiveImage(0) // reset image index when product changes
       } catch (error) {
@@ -430,6 +428,8 @@ export default function ProductDetail() {
       : addToWishlist(product._id);
   };
   const wishlisted = wishlist.includes(product._id);
+
+  console.log("recommendedProducts",recommendedProducts)
   return (
     <>
       <div
@@ -721,9 +721,90 @@ flex-shrink-0
         <div className="md:w-1/2 flex flex-col gap-4 " >
           <h1 className="text-[30px] md:text-[44px] leading-tight font-bold text-gray-900">{product.title}</h1>
 
-          <p className="text-base md:text-[19px] text-gray-700 leading-relaxed">
-            Elevate your style with the <strong>{product.title}</strong>. Crafted from premium 100% cotton, this piece ensures unmatched comfort while maintaining a breathable, relaxed fit.
-          </p>
+<div
+  className="
+    text-base
+    md:text-[19px]
+    text-gray-700
+    leading-relaxed
+
+    [&_p]:mb-4
+    [&_p:last-child]:mb-0
+
+    [&_strong]:block
+    [&_strong]:mt-6
+    [&_strong]:mb-2
+    [&_strong]:font-semibold
+    [&_strong]:text-gray-900
+
+    [&_h1]:text-2xl
+    [&_h1]:font-bold
+    [&_h1]:text-gray-900
+    [&_h1]:mt-6
+    [&_h1]:mb-3
+
+    [&_h2]:text-xl
+    [&_h2]:font-semibold
+    [&_h2]:text-gray-900
+    [&_h2]:mt-6
+    [&_h2]:mb-3
+
+    [&_h3]:text-lg
+    [&_h3]:font-semibold
+    [&_h3]:text-gray-900
+    [&_h3]:mt-5
+    [&_h3]:mb-2
+
+    [&_ul]:list-disc
+    [&_ul]:pl-6
+    [&_ul]:my-3
+
+    [&_ol]:list-decimal
+    [&_ol]:pl-6
+    [&_ol]:my-3
+
+    [&_li]:mb-1
+
+    [&_a]:underline
+    [&_a]:underline-offset-2
+    [&_a]:hover:text-black
+
+    [&_em]:italic
+
+    [&_u]:underline
+
+    [&_blockquote]:border-l-4
+    [&_blockquote]:border-gray-300
+    [&_blockquote]:pl-4
+    [&_blockquote]:my-4
+    [&_blockquote]:italic
+    [&_blockquote]:text-gray-500
+
+    [&_hr]:my-6
+    [&_hr]:border-gray-200
+
+    [&_img]:max-w-full
+    [&_img]:rounded-xl
+    [&_img]:my-4
+
+    [&_table]:w-full
+    [&_table]:my-4
+    [&_table]:border-collapse
+
+    [&_th]:border
+    [&_th]:border-gray-200
+    [&_th]:p-2
+    [&_th]:font-semibold
+    [&_th]:text-left
+
+    [&_td]:border
+    [&_td]:border-gray-200
+    [&_td]:p-2
+  "
+  dangerouslySetInnerHTML={{
+    __html: product.description || "",
+  }}
+/>
 
           <div className="flex flex-wrap items-baseline gap-2 md:gap-3">
             {/* Discounted / Current Price */}
@@ -741,7 +822,7 @@ flex-shrink-0
 
             {/* Optional Discount Label */}
             <span className="text-sm md:text-[21px] font-semibold text-red-600">
-              (20% OFF)
+              {Math.floor(product.discount)}% OFF
             </span>
           </div>
 
@@ -956,46 +1037,328 @@ flex-shrink-0
           </div>
 
           {/* Accordion */}
-          <Accordion type="single" collapsible className="text-base md:text-xl w-full">
-            <AccordionItem value="wash-care">
-              <AccordionTrigger>Wash Care</AccordionTrigger>
-              <AccordionContent>
-                <ul className="list-disc pl-5 text-sm md:text-base text-gray-700">
-                  <li>Use cold water to prevent fading & shrinking</li>
-                  <li>Avoid harsh detergents & wash inside out</li>
-                  <li>Do not bleach or tumble dry</li>
-                </ul>
-              </AccordionContent>
-            </AccordionItem>
+      <Accordion
+  type="multiple"
+  className="text-base md:text-xl w-full"
+>
+  {/* PRODUCT DETAILS */}
+  <AccordionItem value="product-details">
+    <AccordionTrigger>
+      Product Details
+    </AccordionTrigger>
 
-            <AccordionItem value="delivery">
-              <AccordionTrigger>Delivery / Shipping</AccordionTrigger>
-              <AccordionContent>
-                <p className="text-sm md:text-base text-gray-700">
-                  <strong>Metros:</strong> 2–4 days • <strong>Rest of India:</strong> 3–6 days
-                </p>
-              </AccordionContent>
-            </AccordionItem>
+    <AccordionContent>
+      <div
+        className="
+          text-sm
+          md:text-base
+          text-gray-700
+          leading-relaxed
 
-            <AccordionItem value="returns">
-              <AccordionTrigger>Returns & Exchange</AccordionTrigger>
-              <AccordionContent>
-                <p className="text-xs md:text-sm text-gray-700">
-                  Returns accepted for defective/incorrect items. Exchange fee: ₹399. Contact{" "}
-                  <strong>garrib@gmail.com</strong>.
-                </p>
-              </AccordionContent>
-            </AccordionItem>
+          [&_p]:mb-4
+          [&_p:last-child]:mb-0
 
-            <AccordionItem value="offers">
-              <AccordionTrigger>Offers</AccordionTrigger>
-              <AccordionContent>
-                <p className="text-xs md:text-sm text-gray-700">
-                  Add 2 products + 1 tank top → Apply code <strong>BUY2GET1</strong>.
-                </p>
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
+          [&_strong]:font-semibold
+          [&_strong]:text-gray-900
+
+          [&_h1]:text-xl
+          [&_h1]:font-bold
+          [&_h1]:text-gray-900
+          [&_h1]:mt-5
+          [&_h1]:mb-3
+
+          [&_h2]:text-lg
+          [&_h2]:font-semibold
+          [&_h2]:text-gray-900
+          [&_h2]:mt-5
+          [&_h2]:mb-2
+
+          [&_h3]:font-semibold
+          [&_h3]:text-gray-900
+          [&_h3]:mt-4
+          [&_h3]:mb-2
+
+          [&_ul]:list-disc
+          [&_ul]:pl-5
+          [&_ul]:my-3
+
+          [&_ol]:list-decimal
+          [&_ol]:pl-5
+          [&_ol]:my-3
+
+          [&_li]:mb-1.5
+
+          [&_table]:w-full
+          [&_table]:border-collapse
+          [&_table]:my-4
+
+          [&_th]:border
+          [&_th]:border-gray-200
+          [&_th]:bg-gray-50
+          [&_th]:p-2
+          [&_th]:text-left
+          [&_th]:font-semibold
+
+          [&_td]:border
+          [&_td]:border-gray-200
+          [&_td]:p-2
+
+          [&_a]:underline
+          [&_a]:underline-offset-2
+          [&_a]:hover:text-black
+
+          [&_em]:italic
+          [&_u]:underline
+
+          [&_blockquote]:border-l-4
+          [&_blockquote]:border-gray-300
+          [&_blockquote]:pl-4
+          [&_blockquote]:my-4
+          [&_blockquote]:italic
+          [&_blockquote]:text-gray-500
+
+          [&_hr]:my-5
+          [&_hr]:border-gray-200
+
+          [&_img]:max-w-full
+          [&_img]:rounded-xl
+          [&_img]:my-4
+        "
+        dangerouslySetInnerHTML={{
+          __html: product.details || "",
+        }}
+      />
+    </AccordionContent>
+  </AccordionItem>
+
+  {/* WASH CARE */}
+  <AccordionItem value="wash-care">
+    <AccordionTrigger>
+      Wash Care
+    </AccordionTrigger>
+
+    <AccordionContent>
+      <ul className="list-disc pl-5 text-sm md:text-base text-gray-700 space-y-2">
+        <li>
+          Machine wash with similar colors.
+        </li>
+        <li>
+          Use cold or lukewarm water to help prevent
+          fading and shrinking.
+        </li>
+        <li>
+          Turn the garment inside out before washing.
+        </li>
+        <li>
+          Use a mild detergent and avoid harsh chemicals.
+        </li>
+        <li>
+          Do not bleach unless specifically mentioned.
+        </li>
+        <li>
+          Do not tumble dry unless the care label allows it.
+        </li>
+        <li>
+          Dry in shade and avoid prolonged direct sunlight.
+        </li>
+        <li>
+          Iron on low or medium heat when required.
+        </li>
+      </ul>
+    </AccordionContent>
+  </AccordionItem>
+
+  {/* DELIVERY */}
+  <AccordionItem value="delivery">
+    <AccordionTrigger>
+      Delivery & Shipping
+    </AccordionTrigger>
+
+    <AccordionContent>
+      <div className="space-y-3 text-sm md:text-base text-gray-700">
+        <p>
+          We carefully pack every order to ensure your
+          product reaches you safely.
+        </p>
+
+        <div className="space-y-2">
+          <p>
+            <strong>Metro Cities:</strong>{" "}
+            2–4 business days
+          </p>
+
+          <p>
+            <strong>Rest of India:</strong>{" "}
+            3–6 business days
+          </p>
+
+          <p>
+            <strong>Remote Areas:</strong>{" "}
+            Delivery may take slightly longer depending
+            on the courier service.
+          </p>
+        </div>
+
+        <p>
+          Delivery timelines may vary during weekends,
+          holidays, sales, and unexpected courier delays.
+        </p>
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+
+  {/* RETURNS */}
+  <AccordionItem value="returns">
+    <AccordionTrigger>
+      Returns & Exchange
+    </AccordionTrigger>
+
+    <AccordionContent>
+      <div className="space-y-3 text-sm md:text-base text-gray-700">
+        <p>
+          We want you to be completely satisfied with
+          your purchase.
+        </p>
+
+        <ul className="list-disc pl-5 space-y-2">
+          <li>
+            Exchange requests must be made within the
+            applicable exchange period.
+          </li>
+          <li>
+            Items must be unused and in original
+            condition.
+          </li>
+          <li>
+            Original tags and packaging should be
+            retained.
+          </li>
+          <li>
+            Defective or incorrect products can be
+            reported to our support team.
+          </li>
+        </ul>
+
+        <p>
+          <strong>Exchange Fee:</strong> ₹399
+        </p>
+
+        <p>
+          For assistance, contact{" "}
+          <strong>garrib@gmail.com</strong>.
+        </p>
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+
+  {/* OFFERS */}
+  <AccordionItem value="offers">
+    <AccordionTrigger>
+      Offers & Promotions
+    </AccordionTrigger>
+
+    <AccordionContent>
+      <div className="space-y-4 text-sm md:text-base text-gray-700">
+        <div className="rounded-lg border border-gray-200 p-4">
+          <p className="font-semibold text-gray-900">
+            Extra 10% OFF
+          </p>
+
+          <p className="mt-1">
+            Get an additional 10% off on purchases
+            above ₹2,999.
+          </p>
+
+          <p className="mt-2 font-medium">
+            Code:{" "}
+            <span className="font-bold">
+              NORETURN
+            </span>
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 p-4">
+          <p className="font-semibold text-gray-900">
+            Extra 10% OFF
+          </p>
+
+          <p className="mt-1">
+            Get an additional 10% off on purchases
+            above ₹3,299.
+          </p>
+
+          <p className="mt-2 font-medium">
+            Code:{" "}
+            <span className="font-bold">
+              LEVI10
+            </span>
+          </p>
+        </div>
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+
+  {/* SIZE & FIT */}
+  <AccordionItem value="size-fit">
+    <AccordionTrigger>
+      Size & Fit
+    </AccordionTrigger>
+
+    <AccordionContent>
+      <div className="space-y-3 text-sm md:text-base text-gray-700">
+        <p>
+          Choose your regular size for the intended
+          fit. For a more relaxed look, consider sizing
+          up.
+        </p>
+
+        <div className="rounded-lg bg-gray-50 border border-gray-200 p-4">
+          <p>
+            <strong>Fit:</strong> Regular Fit
+          </p>
+
+          <p className="mt-2">
+            <strong>Model:</strong> Model is wearing
+            size M.
+          </p>
+        </div>
+
+        <button
+          type="button"
+          className="text-sm font-semibold underline underline-offset-4 hover:text-gray-600"
+          onClick={() => {
+            // open your size guide modal here
+          }}
+        >
+          View Size Guide →
+        </button>
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+
+  {/* PAYMENT */}
+  <AccordionItem value="payment">
+    <AccordionTrigger>
+      Payment & Security
+    </AccordionTrigger>
+
+    <AccordionContent>
+      <div className="space-y-3 text-sm md:text-base text-gray-700">
+        <p>
+          Your payment information is securely processed
+          through our payment provider.
+        </p>
+
+        <ul className="list-disc pl-5 space-y-2">
+          <li>Secure online payments</li>
+          <li>UPI and cards supported</li>
+          <li>Payment information is encrypted</li>
+          <li>Your card details are never stored by us</li>
+        </ul>
+      </div>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>
         </div>
 
         {/* Fullscreen Image Zoom Modal */}
@@ -1116,238 +1479,11 @@ flex-shrink-0
         )}
       </div>
 
-      {/* You Might Be Interested Section */}
-      <section className="mt-16 md:mt-24 px-4 md:px-6 pb-16">
-        <div className="max-w-[1600px] mx-auto">
-
-          {/* Header */}
-          <div className="flex items-end justify-between mb-8 md:mb-10">
-            <div>
-              <p className="text-sm uppercase tracking-[0.3em] text-neutral-500 mb-2">
-                Discover More
-              </p>
-
-              <h2 className="text-2xl md:text-5xl font-bold tracking-tight text-black">
-                You Might Also Like
-              </h2>
-            </div>
-
-            <button
-              onClick={() => navigate("/shop")}
-              className="
-          hidden md:flex
-          items-center
-          text-sm
-          font-medium
-          text-neutral-700
-          hover:text-black
-          transition
-        "
-            >
-              View All →
-            </button>
-          </div>
-
-          {recommendedProducts.length ? (
-            <div
-              className="
-          grid
-          grid-cols-2
-          lg:grid-cols-3
-          gap-4
-          md:gap-8
-        "
-            >
-              {recommendedProducts.map((prod) => (
-                <article
-                  key={prod._id}
-                  role="button"
-                  tabIndex={0}
-                  onClick={() =>
-                   navigate(`/product/${prod.publicId}`)
-                  }
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      navigate(`/product/${prod.publicId}`)
-                    }
-                  }}
-                  className="
-              group
-              cursor-pointer
-            "
-                >
-                  {/* IMAGE */}
-                  <div
-                    className="
-                relative
-                overflow-hidden
-                rounded-2xl
-                bg-neutral-100
-
-                aspect-[3/4]
-
-                shadow-sm
-                transition-all
-                duration-500
-
-                group-hover:shadow-2xl
-              "
-                  >
-                    <img
-                      src={
-                        prod.images?.[0] ||
-                        "/images/placeholder.png"
-                      }
-                      alt={prod.title}
-                      className="
-                  w-full
-                  h-full
-                  object-cover
-
-                  transition-transform
-                  duration-700
-
-                  group-hover:scale-110
-                "
-                    />
-
-                    {/* Gradient */}
-                    <div
-                      className="
-                  absolute
-                  inset-0
-                  bg-gradient-to-t
-                  from-black/70
-                  via-black/20
-                  to-transparent
-                "
-                    />
-
-                    {/* Price Badge */}
-                    <div
-                      className="
-                  absolute
-                  top-3
-                  right-3
-
-                  bg-white/90
-                  backdrop-blur-md
-
-                  rounded-full
-
-                  px-3
-                  py-1
-
-                  text-xs
-                  md:text-sm
-                  font-semibold
-                "
-                    >
-                      ₹{Number(prod.price ?? 0).toLocaleString()}
-                    </div>
-
-                    {/* Bottom Content */}
-                    <div
-                      className="
-                  absolute
-                  bottom-0
-                  left-0
-                  right-0
-
-                  p-4
-                  md:p-6
-
-                  text-white
-                "
-                    >
-                      <h3
-                        className="
-                    text-sm
-                    md:text-xl
-
-                    font-semibold
-
-                    line-clamp-2
-                  "
-                      >
-                        {prod.title}
-                      </h3>
-
-                      <p
-                        className="
-                    mt-1
-
-                    text-xs
-                    md:text-sm
-
-                    text-white/80
-                  "
-                      >
-                        Premium Collection
-                      </p>
-
-                      <div
-                        className="
-                    mt-3
-
-                    flex
-                    items-center
-                    justify-between
-                  "
-                      >
-                        <span
-                          className="
-                      text-xs
-                      md:text-sm
-                      text-white/90
-                    "
-                        >
-                          Inclusive of taxes
-                        </span>
-
-                        <span
-                          className="
-                      opacity-0
-                      translate-x-3
-
-                      group-hover:opacity-100
-                      group-hover:translate-x-0
-
-                      transition-all
-                      duration-300
-
-                      text-sm
-                      font-medium
-                    "
-                        >
-                          View →
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : (
-            <div
-              className="
-          rounded-2xl
-          border
-          border-dashed
-          border-neutral-300
-
-          py-20
-
-          text-center
-        "
-            >
-              <p className="text-neutral-500">
-                No recommendations available right now.
-              </p>
-            </div>
-          )}
-        </div>
-      </section>
+ <RelatedProducts
+   type="product"
+   publicId={publicId}
+ />
+      <RecentlyViewed currentProduct={product} type="product"/>
     </>
   )
 }

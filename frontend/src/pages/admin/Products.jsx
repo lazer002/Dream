@@ -47,6 +47,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import { useNavigate } from "react-router-dom";
 
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
@@ -60,6 +61,7 @@ const EMPTY_STOCK = {
 };
 
 export default function ProductList() {
+  const navigate = useNavigate()
   const [products, setProducts] = useState([]);
   const [inventories, setInventories] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -101,6 +103,7 @@ export default function ProductList() {
           api.get("/categories"),
         ]);
 
+        console.log(productsRes.data?.items[0],'productsRes.data?.items')
       setProducts(
         productsRes.data?.items ||
           productsRes.data?.products ||
@@ -261,14 +264,8 @@ export default function ProductList() {
     return products.filter((product) => {
       const inventory = getInventory(product);
 
-      const categoryName =
-        product.category?.name ||
-        categories.find(
-          (c) =>
-            String(c._id) ===
-            String(product.category)
-        )?.name ||
-        "";
+  const categoryName =
+  product.category?.name || "—";
 
       const matchesSearch =
         !query ||
@@ -288,10 +285,11 @@ export default function ProductList() {
           tag.toLowerCase().includes(query)
         );
 
-      const matchesCategory =
-        categoryFilter === "all" ||
-        String(product.category?._id || product.category) ===
-          String(categoryFilter);
+const matchesCategory =
+  categoryFilter === "all" ||
+  String(product.category?.slug || "")
+    .toLowerCase()
+    === String(categoryFilter).toLowerCase();
 
       const available =
         getAvailableStock(inventory);
@@ -361,22 +359,22 @@ export default function ProductList() {
   function handleEdit(product) {
     setEditing(product);
 
-    setForm({
-      title: product.title || "",
-      description: product.description || "",
-      price: product.price ?? "",
-      oldPrice: product.oldPrice ?? "",
-      category:
-        product.category?._id ||
-        product.category ||
-        "",
-      published: Boolean(product.published),
-      onSale: Boolean(product.onSale),
-      isNewProduct: Boolean(
-        product.isNewProduct
-      ),
-      featured: Boolean(product.featured),
-    });
+setForm({
+  title: product.title || "",
+  description: product.description || "",
+  details: product.details || "",
+  price: product.price ?? "",
+  oldPrice: product.oldPrice ?? "",
+  category: String(
+    product.category?._id ||
+    product.category ||
+    ""
+  ),
+  published: Boolean(product.published),
+  onSale: Boolean(product.onSale),
+  isNewProduct: Boolean(product.isNewProduct),
+  featured: Boolean(product.featured),
+});
 
     setOpen(true);
   }
@@ -406,10 +404,11 @@ export default function ProductList() {
           : 0;
 
       await api.put(
-        `/products/${editing._id}`,
+        `/admin/products/${editing._id}`,
         {
           title: form.title.trim(),
           description: form.description,
+          details:form.details,
           price,
           oldPrice,
           discount,
@@ -470,7 +469,7 @@ export default function ProductList() {
   async function confirmDelete() {
     try {
       await api.delete(
-        `/products/${deleteId}`
+        `/admin/products/${deleteId}`
       );
 
       setDeleteOpen(false);
@@ -491,6 +490,14 @@ const sizes =
       : size.name
   ) || [];
   const categoryOptions = categories;
+
+const openProduct = (product) => {
+  if (product?.publicId) {
+    navigate(`/admin/products/${product.publicId}`);
+  }
+};
+
+
 
   return (
     <div className="w-full space-y-6">
@@ -591,31 +598,29 @@ const sizes =
               />
             </div>
 
-            <Select
-              value={categoryFilter}
-              onValueChange={setCategoryFilter}
-            >
-              <SelectTrigger className="border border-gray-200">
-                <SelectValue placeholder="Category" />
-              </SelectTrigger>
+         <Select
+  value={categoryFilter}
+  onValueChange={setCategoryFilter}
+>
+  <SelectTrigger className="border border-gray-200">
+    <SelectValue placeholder="Category" />
+  </SelectTrigger>
 
-              <SelectContent>
-                <SelectItem value="all">
-                  All Categories
-                </SelectItem>
+  <SelectContent>
+    <SelectItem value="all">
+      All Categories
+    </SelectItem>
 
-                {categoryOptions.map(
-                  (category) => (
-                    <SelectItem
-                      key={category._id}
-                      value={category._id}
-                    >
-                      {category.name}
-                    </SelectItem>
-                  )
-                )}
-              </SelectContent>
-            </Select>
+{categoryOptions.map((category) => (
+  <SelectItem
+    key={category._id}
+    value={category.slug}
+  >
+    {category.name}
+  </SelectItem>
+))}
+  </SelectContent>
+</Select>
 
             <Select
               value={statusFilter}
@@ -757,8 +762,7 @@ const sizes =
                         getDiscount(product);
 
                       const categoryName =
-                        product.category ||
-                        "—";
+                      product.category?.name || "—";
 
                       const low =
                         inventory?.trackInventory &&
@@ -783,11 +787,15 @@ const sizes =
                       return (
                         <tr
                           key={product._id}
-                          className="border-b hover:bg-gray-50"
+                          onClick={() => openProduct(product)}
+                          className="border-b hover:bg-gray-50 "
                         >
                           {/* PRODUCT */}
 
-                          <td className="px-4 py-4">
+                         <td
+    className="px-4 py-4 cursor-pointer group"
+    onClick={() => openProduct(product)}
+  >
                             <div className="flex items-center gap-3">
                               <div className="h-14 w-14 rounded-lg bg-gray-100 overflow-hidden shrink-0">
                                 {product.images?.[0] ? (
@@ -1066,21 +1074,21 @@ const sizes =
                                 <Eye className="h-4 w-4" />
                               </Button>
 
-                              <Button
-                                size="icon"
-                                variant="outline"
-                                onClick={() =>
-                                  handleEdit(
-                                    product
-                                  )
-                                }
-                              >
+                           <Button
+  size="icon"
+  variant="outline"
+  onClick={(e) => {
+    e.stopPropagation();
+    handleEdit(product);
+  }}
+>
                                 <Pencil className="h-4 w-4" />
                               </Button>
 
                               <Button
                                 size="icon"
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
                                   setDeleteId(
                                     product._id
                                   );
@@ -1123,353 +1131,354 @@ const sizes =
 
       {/* EDIT */}
 
-      <Dialog
-        open={open}
-        onOpenChange={setOpen}
-      >
-        <DialogContent className="max-w-fit w-full max-h-[90vh] overflow-y-auto px-4">
-          <DialogHeader>
-            <DialogTitle>
-              Edit Product
-            </DialogTitle>
-          </DialogHeader>
+   <Dialog
+  open={open}
+  onOpenChange={setOpen}
+>
+  <DialogContent className="max-w-fit w-full max-h-[90vh] overflow-y-auto px-4">
+    <DialogHeader>
+      <DialogTitle>
+        Edit Product
+      </DialogTitle>
+    </DialogHeader>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-4">
-            <div className="space-y-6">
-              <section className="space-y-4">
-                <h3 className="font-semibold">
-                  Basic Information
-                </h3>
+    <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 py-4">
+      {/* LEFT */}
+      <div className="space-y-6">
 
-                <div className="space-y-2">
-                  <Label>Title</Label>
+        {/* BASIC INFORMATION */}
+        <section className="space-y-4">
+          <h3 className="font-semibold">
+            Basic Information
+          </h3>
 
-                  <Input
-                    value={form.title}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        title: e.target.value,
-                      })
-                    }
-                    className="border border-gray-300"
-                  />
-                </div>
+          <div className="space-y-2">
+            <Label>Title</Label>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label>
-                      Price (₹)
-                    </Label>
+            <Input
+              value={form.title}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  title: e.target.value,
+                })
+              }
+              className="border border-gray-300"
+            />
+          </div>
 
-                    <Input
-                      type="number"
-                      value={form.price}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          price: e.target.value,
-                        })
-                      }
-                      className="border border-gray-300"
-                    />
-                  </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Price (₹)</Label>
 
-                  <div className="space-y-2">
-                    <Label>
-                      Old Price (₹)
-                    </Label>
-
-                    <Input
-                      type="number"
-                      value={form.oldPrice}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          oldPrice:
-                            e.target.value,
-                        })
-                      }
-                      className="border border-gray-300"
-                    />
-                  </div>
-                </div>
-
-                <div className="rounded-lg bg-gray-50 border p-4">
-                  <p className="text-xs text-gray-500">
-                    Calculated Discount
-                  </p>
-
-                  <p className="text-2xl font-bold mt-1">
-                    {getDiscount({
-                      price: form.price,
-                      oldPrice:
-                        form.oldPrice,
-                    })}
-                    %
-                  </p>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>
-                    Description
-                  </Label>
-
-                  <Textarea
-                    value={form.description}
-                    onChange={(e) =>
-                      setForm({
-                        ...form,
-                        description:
-                          e.target.value,
-                      })
-                    }
-                    className="min-h-[220px] border border-gray-300"
-                  />
-                </div>
-              </section>
-
-              <section className="space-y-4">
-                <h3 className="font-semibold">
-                  Category
-                </h3>
-
-                <Select
-                  value={form.category}
-                  onValueChange={(value) =>
-                    setForm({
-                      ...form,
-                      category: value,
-                    })
-                  }
-                >
-                  <SelectTrigger className="border border-gray-300">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-
-                  <SelectContent>
-                    {categories.map(
-                      (category) => (
-                        <SelectItem
-                          key={category._id}
-                          value={category._id}
-                        >
-                          {category.name}
-                        </SelectItem>
-                      )
-                    )}
-                  </SelectContent>
-                </Select>
-              </section>
+              <Input
+                type="number"
+                value={form.price}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    price: e.target.value,
+                  })
+                }
+                className="border border-gray-300"
+              />
             </div>
 
-            <div className="space-y-6">
-              {/* INVENTORY */}
+            <div className="space-y-2">
+              <Label>Old Price (₹)</Label>
 
-              <section className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="font-semibold">
-                    Inventory
-                  </h3>
-
-                  {editing && (
-                    <span className="text-sm text-gray-500">
-                      Available:{" "}
-                      {getAvailableStock(
-                        getInventory(
-                          editing
-                        )
-                      )}
-                    </span>
-                  )}
-                </div>
-
-               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-  {sizes.map((size) => {
-    const inventory = editing
-      ? getInventory(editing)
-      : null;
-
-    const value = Number(
-      inventory?.stock?.[size] ??
-        inventory?.stock?.get?.(size) ??
-        0
-    );
-
-    return (
-      <div
-        key={size}
-        className="border rounded-lg p-3"
-      >
-        <div className="flex justify-between mb-2">
-          <span className="font-medium">
-            {size}
-          </span>
-
-          <span className="text-xs text-gray-400">
-            units
-          </span>
-        </div>
-
-        <Input
-          type="number"
-          min="0"
-          value={value}
-          onChange={(e) => {
-            if (!editing) return;
-
-            const next = Math.max(
-              0,
-              Number(e.target.value) || 0
-            );
-
-            setInventories((current) =>
-              current.map((item) =>
-                String(
-                  item.product?._id ||
-                    item.product
-                ) === String(editing._id)
-                  ? {
-                      ...item,
-                      stock: {
-                        ...(item.stock || {}),
-                        [size]: next,
-                      },
-                    }
-                  : item
-              )
-            );
-          }}
-          onBlur={async (e) => {
-            if (!editing) return;
-
-            const inventory =
-              getInventory(editing);
-
-            const next = Math.max(
-              0,
-              Number(e.target.value) || 0
-            );
-
-            await updateInventory(
-              editing._id,
-              {
-                stock: {
-                  ...(inventory?.stock || {}),
-                  [size]: next,
-                },
-              }
-            );
-          }}
-          className="border border-gray-300"
-        />
-      </div>
-    );
-  })}
-</div>
-
-                {editing && (
-                  <div className="grid grid-cols-3 gap-3">
-                    <InfoBox
-                      label="Total"
-                      value={getTotalStock(
-                        getInventory(
-                          editing
-                        )
-                      )}
-                    />
-
-                    <InfoBox
-                      label="Reserved"
-                      value={
-                        getInventory(
-                          editing
-                        ).reserved || 0
-                      }
-                    />
-
-                    <InfoBox
-                      label="Available"
-                      value={getAvailableStock(
-                        getInventory(
-                          editing
-                        )
-                      )}
-                    />
-                  </div>
-                )}
-              </section>
-
-              {/* STATUS */}
-
-              <section className="space-y-3">
-                <h3 className="font-semibold">
-                  Product Flags
-                </h3>
-
-                {[
-                  ["published", "Published"],
-                  ["onSale", "On Sale"],
-                  [
-                    "isNewProduct",
-                    "New Product",
-                  ],
-                  ["featured", "Featured"],
-                ].map(([key, label]) => (
-                  <div
-                    key={key}
-                    className="flex items-center justify-between border rounded-lg p-4"
-                  >
-                    <Label>{label}</Label>
-
-                    <button
-                      type="button"
-                      onClick={() =>
-                        setForm({
-                          ...form,
-                          [key]: !form[key],
-                        })
-                      }
-                      className={`w-11 h-6 rounded-full p-1 ${
-                        form[key]
-                          ? "bg-black"
-                          : "bg-gray-300"
-                      }`}
-                    >
-                      <span
-                        className={`block h-4 w-4 bg-white rounded-full transition ${
-                          form[key]
-                            ? "translate-x-5"
-                            : ""
-                        }`}
-                      />
-                    </button>
-                  </div>
-                ))}
-              </section>
+              <Input
+                type="number"
+                value={form.oldPrice}
+                onChange={(e) =>
+                  setForm({
+                    ...form,
+                    oldPrice: e.target.value,
+                  })
+                }
+                className="border border-gray-300"
+              />
             </div>
           </div>
 
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setOpen(false)}
-            >
-              Cancel
-            </Button>
+          <div className="rounded-lg bg-gray-50 border p-4">
+            <p className="text-xs text-gray-500">
+              Calculated Discount
+            </p>
 
-            <Button
-              disabled={saving}
-              onClick={saveProduct}
-              className="bg-black text-white hover:bg-gray-800"
+            <p className="text-2xl font-bold mt-1">
+              {getDiscount({
+                price: form.price,
+                oldPrice: form.oldPrice,
+              })}
+              %
+            </p>
+          </div>
+
+          {/* DESCRIPTION */}
+          <div className="space-y-2">
+            <Label>Description</Label>
+
+            <Textarea
+              value={form.description}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  description: e.target.value,
+                })
+              }
+              className="min-h-[220px] border border-gray-300"
+            />
+          </div>
+
+          {/* PRODUCT DETAILS */}
+          <div className="space-y-2">
+            <Label>Product Details</Label>
+
+            <Textarea
+              value={form.details || ""}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  details: e.target.value,
+                })
+              }
+              placeholder="Enter product details..."
+              className="min-h-[180px] border border-gray-300"
+            />
+
+            <p className="text-xs text-gray-500">
+              HTML is supported.
+            </p>
+          </div>
+        </section>
+
+        {/* CATEGORY */}
+        <section className="space-y-4">
+          <h3 className="font-semibold">
+            Category
+          </h3>
+<Select
+  value={String(form.category?._id || form.category || "")}
+  onValueChange={(value) => {
+    updateForm("category", value);
+  }}
+>
+  <SelectTrigger>
+    <SelectValue placeholder="Select category" />
+  </SelectTrigger>
+
+  <SelectContent>
+    {categories.map((category) => (
+      <SelectItem
+        key={category._id}
+        value={String(category._id)}
+      >
+        {category.name}
+      </SelectItem>
+    ))}
+  </SelectContent>
+</Select>
+        </section>
+      </div>
+
+      {/* RIGHT */}
+      <div className="space-y-6">
+
+        {/* INVENTORY */}
+        <section className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">
+              Inventory
+            </h3>
+
+            {editing && (
+              <span className="text-sm text-gray-500">
+                Available:{" "}
+                {getAvailableStock(
+                  getInventory(editing)
+                )}
+              </span>
+            )}
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+            {sizes.map((size) => {
+              const inventory = editing
+                ? getInventory(editing)
+                : null;
+
+              const value = Number(
+                inventory?.stock?.[size] ??
+                  inventory?.stock?.get?.(size) ??
+                  0
+              );
+
+              return (
+                <div
+                  key={size}
+                  className="border rounded-lg p-3"
+                >
+                  <div className="flex justify-between mb-2">
+                    <span className="font-medium">
+                      {size}
+                    </span>
+
+                    <span className="text-xs text-gray-400">
+                      units
+                    </span>
+                  </div>
+
+                  <Input
+                    type="number"
+                    min="0"
+                    value={value}
+                    onChange={(e) => {
+                      if (!editing) return;
+
+                      const next = Math.max(
+                        0,
+                        Number(e.target.value) || 0
+                      );
+
+                      setInventories((current) =>
+                        current.map((item) =>
+                          String(
+                            item.product?._id ||
+                              item.product
+                          ) === String(editing._id)
+                            ? {
+                                ...item,
+                                stock: {
+                                  ...(item.stock || {}),
+                                  [size]: next,
+                                },
+                              }
+                            : item
+                        )
+                      );
+                    }}
+                    onBlur={async (e) => {
+                      if (!editing) return;
+
+                      const inventory =
+                        getInventory(editing);
+
+                      const next = Math.max(
+                        0,
+                        Number(e.target.value) || 0
+                      );
+
+                      await updateInventory(
+                        editing._id,
+                        {
+                          stock: {
+                            ...(inventory?.stock || {}),
+                            [size]: next,
+                          },
+                        }
+                      );
+                    }}
+                    className="border border-gray-300"
+                  />
+                </div>
+              );
+            })}
+          </div>
+
+          {editing && (
+            <div className="grid grid-cols-3 gap-3">
+              <InfoBox
+                label="Total"
+                value={getTotalStock(
+                  getInventory(editing)
+                )}
+              />
+
+              <InfoBox
+                label="Reserved"
+                value={
+                  getInventory(editing)
+                    .reserved || 0
+                }
+              />
+
+              <InfoBox
+                label="Available"
+                value={getAvailableStock(
+                  getInventory(editing)
+                )}
+              />
+            </div>
+          )}
+        </section>
+
+        {/* STATUS */}
+        <section className="space-y-3">
+          <h3 className="font-semibold">
+            Product Flags
+          </h3>
+
+          {[
+            ["published", "Published"],
+            ["onSale", "On Sale"],
+            ["isNewProduct", "New Product"],
+            ["featured", "Featured"],
+          ].map(([key, label]) => (
+            <div
+              key={key}
+              className="flex items-center justify-between border rounded-lg p-4"
             >
-              {saving
-                ? "Saving..."
-                : "Save Changes"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+              <Label>{label}</Label>
+
+              <button
+                type="button"
+                onClick={() =>
+                  setForm({
+                    ...form,
+                    [key]: !form[key],
+                  })
+                }
+                className={`w-11 h-6 rounded-full p-1 ${
+                  form[key]
+                    ? "bg-black"
+                    : "bg-gray-300"
+                }`}
+              >
+                <span
+                  className={`block h-4 w-4 bg-white rounded-full transition ${
+                    form[key]
+                      ? "translate-x-5"
+                      : ""
+                  }`}
+                />
+              </button>
+            </div>
+          ))}
+        </section>
+      </div>
+    </div>
+
+    <DialogFooter>
+      <Button
+        variant="outline"
+        onClick={() => setOpen(false)}
+      >
+        Cancel
+      </Button>
+
+      <Button
+        disabled={saving}
+        onClick={saveProduct}
+        className="bg-black text-white hover:bg-gray-800"
+      >
+        {saving
+          ? "Saving..."
+          : "Save Changes"}
+      </Button>
+    </DialogFooter>
+  </DialogContent>
+</Dialog>
 
       {/* DELETE */}
 

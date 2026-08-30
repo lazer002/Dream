@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import api from "@/utils/config";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Pencil,
   Trash2,
@@ -36,6 +36,7 @@ import {
 import toast from "react-hot-toast";
 
 export default function ShowBundle() {
+  const navigate = useNavigate()
   const [bundles, setBundles] = useState([]);
   const [allProducts, setAllProducts] = useState([]);
 
@@ -608,7 +609,7 @@ export default function ShowBundle() {
                 </TableCell>
 
                 {/* BUNDLE */}
-                <TableCell>
+                <TableCell >
                   <div className="w-[240px]">
                     <p className="font-semibold text-black">
                       {bundle.title || "Untitled Bundle"}
@@ -666,57 +667,53 @@ export default function ShowBundle() {
                       </span>
                     </div>
 
-                    <div className="space-y-2">
-                      {bundle.products
-                        ?.slice(0, 5)
-                        .map((product) => (
-                          <div
-                            key={product._id}
-                            className="flex items-center gap-2"
-                          >
-                            {product.images?.[0] ? (
-                              <img
-                                src={product.images[0]}
-                                alt={product.title}
-                                className="h-9 w-9 rounded-lg border object-cover"
-                              />
-                            ) : (
-                              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
-                                <Package className="h-4 w-4 text-gray-300" />
-                              </div>
-                            )}
+              <div className="space-y-2">
+  {bundle.products?.slice(0, 5).map((product) => (
+    <div
+      key={product._id}
+      onClick={() =>
+        navigate(`/admin/products/${product.publicId}`)
+      }
+      className="flex items-center gap-2 cursor-pointer hover:underline"
+    >
+      {product.images?.[0] ? (
+        <img
+          src={product.images[0]}
+          alt={product.title}
+          className="h-9 w-9 rounded-lg border object-cover"
+        />
+      ) : (
+        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
+          <Package className="h-4 w-4 text-gray-300" />
+        </div>
+      )}
 
-                            <div className="min-w-0">
-                              <p className="truncate text-xs font-medium text-gray-800">
-                                {product.title}
-                              </p>
+      <div className="min-w-0">
+        <p className="truncate text-xs font-medium text-gray-800">
+          {product.title}
+        </p>
 
-                              <div className="flex items-center gap-2">
-                                <span className="text-[11px] text-gray-500">
-                                  ₹
-                                  {Number(
-                                    product.price || 0
-                                  ).toLocaleString(
-                                    "en-IN"
-                                  )}
-                                </span>
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] text-gray-500">
+            ₹{Number(product.price || 0).toLocaleString("en-IN")}
+          </span>
 
-                                {product.isOutOfStock && (
-                                  <span className="text-[10px] font-medium text-red-500">
-                                    Out of stock
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
+          {product.isOutOfStock && (
+            <span className="text-[10px] font-medium text-red-500">
+              Out of stock
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  ))}
 
-                      {productCount > 5 && (
-                        <span className="text-xs font-medium text-gray-400">
-                          +{productCount - 5} more products
-                        </span>
-                      )}
-                    </div>
+  {productCount > 5 && (
+    <span className="text-xs font-medium text-gray-400">
+      +{productCount - 5} more products
+    </span>
+  )}
+</div>
                   </div>
                 </TableCell>
 
@@ -906,6 +903,18 @@ export default function ShowBundle() {
                 {/* ACTIONS */}
                 <TableCell>
                   <div className="flex justify-end gap-2">
+                       <Button
+                      variant="outline"
+                      size="sm"
+                        onClick={() =>
+        navigate(
+          `/admin/bundles/${bundle.publicId}`
+        )
+      }
+                      className="h-9 w-9 rounded-lg p-0"
+                    >
+                      <Eye className="h-4 w-4" />
+                    </Button>
                     <Button
                       variant="outline"
                       size="sm"

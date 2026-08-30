@@ -10,7 +10,12 @@ export default function SmoothScroll({ children }) {
   const isAdminPage = pathname.startsWith("/admin");
 
   useEffect(() => {
-    if (isAdminPage) return;
+    if (isAdminPage) {
+      window.scrollTo(0, 0);
+      document.documentElement.scrollTop = 0;
+      document.body.scrollTop = 0;
+      return;
+    }
 
     const lenis = new Lenis({
       duration: 1.2,
@@ -18,6 +23,8 @@ export default function SmoothScroll({ children }) {
       smoothWheel: true,
       smoothTouch: false,
     });
+
+    window.lenis = lenis;
 
     let rafId;
 
@@ -28,11 +35,35 @@ export default function SmoothScroll({ children }) {
 
     rafId = requestAnimationFrame(raf);
 
+    // Reset scroll whenever route changes
+    lenis.scrollTo(0, {
+      immediate: true,
+      force: true,
+    });
+
+    window.scrollTo(0, 0);
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+
+    requestAnimationFrame(() => {
+      lenis.scrollTo(0, {
+        immediate: true,
+        force: true,
+      });
+
+      window.scrollTo(0, 0);
+    });
+
     return () => {
       cancelAnimationFrame(rafId);
+
+      if (window.lenis === lenis) {
+        delete window.lenis;
+      }
+
       lenis.destroy();
     };
-  }, [isAdminPage]);
+  }, [pathname, isAdminPage]);
 
   return children;
 }

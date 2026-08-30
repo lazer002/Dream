@@ -1,6 +1,7 @@
 // src/pages/admin/AdvancedOrders.jsx
-import React, { use, useEffect, useMemo, useState } from "react";
-import api  from "@/utils/config";
+
+import React, { useEffect, useMemo, useState } from "react";
+import api from "@/utils/config";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Loader2,
@@ -8,7 +9,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Download,
-
 } from "lucide-react";
 import {
   Select,
@@ -19,66 +19,105 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import toast from "react-hot-toast";
-
-
 
 const STATUS_COLORS = {
   pending: "bg-yellow-100 text-yellow-800",
   confirmed: "bg-blue-100 text-blue-800",
   dispatched: "bg-indigo-100 text-indigo-800",
+  shipped: "bg-purple-100 text-purple-800",
+  "out for delivery": "bg-orange-100 text-orange-800",
   delivered: "bg-green-100 text-green-800",
+  cancelled: "bg-red-100 text-red-800",
   canceled: "bg-red-100 text-red-800",
+  "return requested": "bg-orange-100 text-orange-800",
+  "return approved": "bg-green-100 text-green-800",
+  "return rejected": "bg-red-100 text-red-800",
+  returned: "bg-gray-100 text-gray-800",
+  refunded: "bg-gray-100 text-gray-800",
 };
 
-
+const STATUS_OPTIONS = [
+  "pending",
+  "confirmed",
+  "dispatched",
+  "shipped",
+  "out for delivery",
+  "delivered",
+  "cancelled",
+];
 
 export default function Orders() {
+  const navigate = useNavigate();
+
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("");
   const [source, setSource] = useState("");
-  const [sort, setSort] = useState("newest"); // newest | oldest
+  const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [total, setTotal] = useState(0);
   const [error, setError] = useState("");
-  const navigate = useNavigate();
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [statusChanging, setStatusChanging] = useState(false);
-  const [showStatusModal, setShowStatusModal] = useState(false);
-  const [newStatus, setNewStatus] = useState("");
 
-
-  // debounce search
   useEffect(() => {
-    const t = setTimeout(() => setDebouncedSearch(search.trim()), 350);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search.trim());
+    }, 350);
+
+    return () => clearTimeout(timer);
   }, [search]);
 
-  // fetch
   const fetchOrders = async () => {
     try {
       setLoading(true);
       setError("");
+
       const params = new URLSearchParams();
-      if (debouncedSearch) params.append("search", debouncedSearch);
-      if (status) params.append("status", status);
-      if (source) params.append("source", source);
+
+      if (debouncedSearch) {
+        params.append("search", debouncedSearch);
+      }
+
+      if (status) {
+        params.append("status", status);
+      }
+
+      if (source) {
+        params.append("source", source);
+      }
 
       params.append("page", page);
       params.append("limit", limit);
       params.append("sort", sort);
 
-      const res = await api.get(`/admin/orders?${params.toString()}`);
-      setOrders(res.data.orders || []);
-      setTotal(res.data.total || 0);
+      const res = await api.get(
+        `/admin/orders?${params.toString()}`
+      );
+
+      setOrders(
+        Array.isArray(res.data?.orders)
+          ? res.data.orders
+          : []
+      );
+
+      setTotal(Number(res.data?.total || 0));
     } catch (err) {
       console.error("fetchOrders:", err);
-      setError("Failed to load orders");
+      setError(
+        err?.response?.data?.error ||
+          "Failed to load orders"
+      );
     } finally {
       setLoading(false);
     }
@@ -86,461 +125,892 @@ export default function Orders() {
 
   useEffect(() => {
     fetchOrders();
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, status, source, page, limit, sort]);
+  }, [
+    debouncedSearch,
+    status,
+    source,
+    page,
+    limit,
+    sort,
+  ]);
 
+  const deliveryBadge = (
+    paymentMethod,
+    paymentStatus
+  ) => {
+    if (paymentMethod === "cod") {
+      if (paymentStatus === "pending") {
+        return {
+          text: "COD — Pending",
+          cls: "bg-yellow-100 text-yellow-800",
+        };
+      }
 
+      if (
+        paymentStatus === "paid" ||
+        paymentStatus === "success"
+      ) {
+        return {
+          text: "COD — Collected",
+          cls: "bg-green-100 text-green-800",
+        };
+      }
 
-  // change status (open modal)
-
-
-  // perform status change
-  const doChangeStatus = async () => {
-    if (!selectedOrder || !newStatus) return;
-    setStatusChanging(true);
-    try {
-      const res = await api.put(`/admin/orders/${selectedOrder._id}/status`, { status: newStatus });
-      // optimistic: update in UI
-      setOrders((cur) => cur.map((o) => (o._id === selectedOrder._id ? res.data.order : o)));
-      setShowStatusModal(false);
-    } catch (err) {
-      console.error("change status:", err);
-      alert("Failed to update status.");
-    } finally {
-      setStatusChanging(false);
+      return {
+        text: "COD",
+        cls: "bg-gray-100 text-gray-800",
+      };
     }
+
+    if (
+      paymentStatus === "paid" ||
+      paymentStatus === "success"
+    ) {
+      return {
+        text: "Prepaid — Paid",
+        cls: "bg-green-100 text-green-800",
+      };
+    }
+
+    if (paymentStatus === "pending") {
+      return {
+        text: "Prepaid — Pending",
+        cls: "bg-yellow-100 text-yellow-800",
+      };
+    }
+
+    return {
+      text: "Prepaid",
+      cls: "bg-gray-100 text-gray-800",
+    };
   };
 
- 
-
-  const pageCount = Math.ceil(total / limit) || 1;
-
-  const onActivateRow = (id) => navigate(`/admin/orders/${id}`);
   const tableRows = useMemo(() => {
-    return (orders || []).map((o) => {
-      const customerName = o.shippingAddress
-        ? `${o.shippingAddress.firstName || ""} ${o.shippingAddress.lastName || ""}`.trim()
+    return orders.map((order) => {
+      const customerName = order.shippingAddress
+        ? `${order.shippingAddress.firstName || ""} ${
+            order.shippingAddress.lastName || ""
+          }`.trim()
         : "";
-      const customerPhone = o.shippingAddress?.phone || "";
 
-      // itemCount from API, fallback to items length or sum qty
-      const itemCount = typeof o.itemCount === "number"
-        ? o.itemCount
-        : Array.isArray(o.items)
-          ? o.items.reduce((s, it) => s + (Number(it.quantity) || 1), 0)
-          : 0;
+      const customerPhone =
+        order.shippingAddress?.phone || "";
 
-      // normalize items to { image, title, qty }
-      const items = (o.items || []).map((it) => ({
-        image: it.mainImage || (it.images && it.images[0]) || null,
-        title: it.title || "",
-        qty: Number(it.quantity) || 1,
+      const itemCount =
+        typeof order.itemCount === "number"
+          ? order.itemCount
+          : Array.isArray(order.items)
+            ? order.items.reduce(
+                (sum, item) =>
+                  sum +
+                  (Number(item.quantity) || 1),
+                0
+              )
+            : 0;
+
+      const items = (
+        Array.isArray(order.items)
+          ? order.items
+          : []
+      ).map((item) => ({
+        image:
+          item.mainImage ||
+          item.images?.[0] ||
+          null,
+        title: item.title || "",
+        qty: Number(item.quantity) || 1,
       }));
 
       return {
-        id: String(o._id),
-        orderNumber: o.orderNumber || "—",
-        email: o.email || "—",
-        total: Number(o.total || 0),
-        status: o.orderStatus || "pending",
-        createdAt: o.createdAt || null,
+        publicOrderId:
+          order.publicOrderId || null,
+
+        orderNumber:
+          order.orderNumber || "—",
+
+        email:
+          order.email || "—",
+
+        total:
+          Number(order.total || 0),
+
+        status:
+          order.orderStatus || "pending",
+
+        createdAt:
+          order.createdAt || null,
+
         itemCount,
+
         items,
+
         customerName,
+
         customerPhone,
-        paymentMethod: o.paymentMethod || "cod",
-        paymentStatus: o.paymentStatus || "pending",
+
+        paymentMethod:
+          order.paymentMethod || "cod",
+
+        paymentStatus:
+          order.paymentStatus || "pending",
       };
     });
   }, [orders]);
 
-  /* helper (place near top of component) */
-  function deliveryBadge(paymentMethod, paymentStatus) {
-    if (paymentMethod === "cod") {
-      if (paymentStatus === "pending") return { text: "COD — Pending", cls: "bg-yellow-100 text-yellow-800" };
-      if (paymentStatus === "success") return { text: "COD — Collected", cls: "bg-green-100 text-green-800" };
-      return { text: "COD", cls: "bg-gray-100 text-gray-800" };
+  const onActivateRow = (publicOrderId) => {
+    if (!publicOrderId) {
+      toast.error(
+        "This order does not have a publicOrderId"
+      );
+      return;
     }
-    // prepaid (razorpay etc)
-    if (paymentStatus === "success") return { text: "Prepaid — Paid", cls: "bg-green-100 text-green-800" };
-    if (paymentStatus === "pending") return { text: "Prepaid — Pending", cls: "bg-yellow-100 text-yellow-800" };
-    return { text: "Prepaid", cls: "bg-gray-100 text-gray-800" };
-  }
- // exportCsv utility — call exportCsv(orders) or exportCsv(orders, { filename })
-const exportCsv = () => {
-  console.log("Generating CSV for orders:", orders); // <<-- debug line
 
-  if (!Array.isArray(orders) || orders.length === 0) {
-    toast.warn("No orders available to export");
-    return;
-  }
-
-  const cols = [
-    { key: "orderNumber", label: "OrderNumber" },
-    { key: "email", label: "Email" },
-    { key: "orderStatus", label: "Status" },
-    { key: "total", label: "Total" },
-    { key: "itemCount", label: "ItemsCount" },
-    { key: "createdAt", label: "CreatedAt" },
-    { key: "source", label: "Source" },
-      { key: "paymentMethod", label: "PaymentMethod" },
-    { key: "paymentStatus", label: "PaymentStatus" },
-  ];
-
-  const safe = (v) => {
-    if (v === null || v === undefined) return "";
-    return String(v).replace(/"/g, '""');
+    navigate(
+      `/admin/orders/${publicOrderId}`
+    );
   };
 
-  const header = cols.map((c) => `"${c.label}"`).join(",");
-  const rows = orders.map((o) => {
-    const itemCount =
-      typeof o.itemCount === "number"
-        ? o.itemCount
-        : Array.isArray(o.items)
-        ? o.items.reduce((s, it) => s + (Number(it.quantity) || 1), 0)
-        : 0;
+  const exportCsv = () => {
+    if (
+      !Array.isArray(orders) ||
+      orders.length === 0
+    ) {
+      toast.warn(
+        "No orders available to export"
+      );
+      return;
+    }
 
-    const rowObj = {
-      orderNumber: o.orderNumber ?? "",
-      email: o.email ?? "",
-      orderStatus: o.orderStatus ?? "",
-      total: o.total ?? "",
-      itemCount,
-      createdAt: o.createdAt ? new Date(o.createdAt).toISOString() : "",
-      source: o.source ?? "",
-            paymentMethod: o.paymentMethod ?? "",
-      paymentStatus: o.paymentStatus ?? "",
+    const columns = [
+      {
+        key: "orderNumber",
+        label: "OrderNumber",
+      },
+      {
+        key: "publicOrderId",
+        label: "PublicOrderId",
+      },
+      {
+        key: "email",
+        label: "Email",
+      },
+      {
+        key: "orderStatus",
+        label: "Status",
+      },
+      {
+        key: "total",
+        label: "Total",
+      },
+      {
+        key: "itemCount",
+        label: "ItemsCount",
+      },
+      {
+        key: "createdAt",
+        label: "CreatedAt",
+      },
+      {
+        key: "source",
+        label: "Source",
+      },
+      {
+        key: "paymentMethod",
+        label: "PaymentMethod",
+      },
+      {
+        key: "paymentStatus",
+        label: "PaymentStatus",
+      },
+    ];
+
+    const safe = (value) => {
+      if (
+        value === null ||
+        value === undefined
+      ) {
+        return "";
+      }
+
+      return String(value).replace(
+        /"/g,
+        '""'
+      );
     };
 
-    return cols.map((c) => `"${safe(rowObj[c.key])}"`).join(",");
-  });
+    const header = columns
+      .map((column) => `"${column.label}"`)
+      .join(",");
 
-  const csv = [header, ...rows].join("\n");
-  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8;" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = `orders-${new Date().toISOString().slice(0, 10)}.csv`;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-  toast.success("CSV export initiated");
-};
+    const rows = orders.map((order) => {
+      const itemCount =
+        typeof order.itemCount === "number"
+          ? order.itemCount
+          : Array.isArray(order.items)
+            ? order.items.reduce(
+                (sum, item) =>
+                  sum +
+                  (Number(item.quantity) || 1),
+                0
+              )
+            : 0;
+
+      const row = {
+        orderNumber:
+          order.orderNumber || "",
+
+        publicOrderId:
+          order.publicOrderId || "",
+
+        email:
+          order.email || "",
+
+        orderStatus:
+          order.orderStatus || "",
+
+        total:
+          order.total || "",
+
+        itemCount,
+
+        createdAt: order.createdAt
+          ? new Date(
+              order.createdAt
+            ).toISOString()
+          : "",
+
+        source:
+          order.source || "",
+
+        paymentMethod:
+          order.paymentMethod || "",
+
+        paymentStatus:
+          order.paymentStatus || "",
+      };
+
+      return columns
+        .map(
+          (column) =>
+            `"${safe(row[column.key])}"`
+        )
+        .join(",");
+    });
+
+    const csv = [
+      header,
+      ...rows,
+    ].join("\n");
+
+    const blob = new Blob(
+      ["\uFEFF" + csv],
+      {
+        type: "text/csv;charset=utf-8;",
+      }
+    );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const anchor =
+      document.createElement("a");
+
+    anchor.href = url;
+
+    anchor.download = `orders-${new Date()
+      .toISOString()
+      .slice(0, 10)}.csv`;
+
+    document.body.appendChild(anchor);
+
+    anchor.click();
+
+    anchor.remove();
+
+    setTimeout(
+      () => URL.revokeObjectURL(url),
+      2000
+    );
+
+    toast.success(
+      "CSV export initiated"
+    );
+  };
+
+  const resetFilters = () => {
+    setSearch("");
+    setStatus("");
+    setSource("");
+    setSort("newest");
+    setPage(1);
+  };
+
+  const pageCount =
+    Math.ceil(total / limit) || 1;
 
   return (
-    <div className="p-8  mx-auto">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Orders</h1>
+    <div className="min-h-full bg-gray-50 p-6 md:p-8">
+      <div className="mx-auto max-w-[1800px]">
+        {/* HEADER */}
+        <div className="mb-6 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight text-gray-950">
+              Orders
+            </h1>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={exportCsv}
-            className="inline-flex items-center gap-2 bg-black text-white px-3 py-2 rounded-md hover:bg-gray-900"
-            title="Export visible orders"
-          >
-            <Download className="w-4 h-4" /> Export CSV
-          </button>
-          <Link to="/admin/orders/create" className="inline-flex items-center gap-2 px-3 py-2 rounded-md border border-gray-200 hover:bg-gray-50">
-            New Order
-          </Link>
-        </div>
-      </div>
+            <p className="mt-1 text-sm text-gray-500">
+              Manage and track customer orders
+            </p>
+          </div>
 
-      {/* Filters */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={exportCsv}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-black px-4 text-sm font-medium text-white transition hover:bg-gray-800"
+            >
+              <Download className="h-4 w-4" />
+              Export CSV
+            </button>
 
-      <div className="bg-white border border-gray-100 rounded-lg p-4 mb-6 flex flex-col md:flex-row gap-3 md:items-end">
-        {/* 🔍 Search */}
-        <div className="flex items-center gap-2 flex-1">
-          <div className="flex items-center gap-2 border border-gray-200 rounded-md px-3  w-full max-w-lg">
-            <Search className="w-4 h-4 text-gray-500" />
-            <Input
-              value={search}
-              onChange={(e) => {
-                setSearch(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Search by order #, email or phone"
-              className="w-full outline-none text-sm bg-transparent"
-            />
+            <Link
+              to="/admin/orders/create"
+              className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-900 transition hover:bg-gray-50"
+            >
+              New Order
+            </Link>
           </div>
         </div>
 
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* 🟡 Status */}
-          <Select
-            value={status || "all"}
-            onValueChange={(v) => {
-              setStatus(v === "all" ? "" : v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="All statuses" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectGroup>
-                <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="confirmed">Confirmed</SelectItem>
-                <SelectItem value="dispatched">Dispatched</SelectItem>
-                <SelectItem value="delivered">Delivered</SelectItem>
-                <SelectItem value="canceled">Canceled</SelectItem>
-              </SelectGroup>
-            </SelectContent>
-          </Select>
+        {/* FILTERS */}
+        <div className="mb-6 rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            {/* SEARCH */}
+            <div className="relative min-w-0 flex-1 xl:max-w-xl">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
 
+              <Input
+                value={search}
+                onChange={(event) => {
+                  setSearch(
+                    event.target.value
+                  );
+                  setPage(1);
+                }}
+                placeholder="Search by order number, email or phone"
+                className="h-10 w-full rounded-lg border border-gray-200 bg-white pl-10 text-sm shadow-none focus:border-gray-400 focus:ring-2 focus:ring-gray-100"
+              />
+            </div>
 
-          {/* 🌐 Source */}
-          <Select
-            value={source || "all"}
-            onValueChange={(v) => {
-              setSource(v === "all" ? "" : v);
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[130px]">
-              <SelectValue placeholder="All sources" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All sources</SelectItem>
-              <SelectItem value="web">Web</SelectItem>
-              <SelectItem value="mobile">Mobile</SelectItem>
-              <SelectItem value="admin">Admin</SelectItem>
-            </SelectContent>
-          </Select>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* STATUS */}
+              <Select
+                value={status || "all"}
+                onValueChange={(value) => {
+                  setStatus(
+                    value === "all"
+                      ? ""
+                      : value
+                  );
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-10 w-[160px] rounded-lg border-gray-200 bg-white">
+                  <SelectValue placeholder="All statuses" />
+                </SelectTrigger>
 
+                <SelectContent>
+                  <SelectGroup>
+                    <SelectItem value="all">
+                      All statuses
+                    </SelectItem>
 
-          {/* 📦 Limit */}
-          {/* LIMIT */}
-          <Select
-            value={String(limit)}
-            onValueChange={(v) => {
-              setLimit(Number(v));
-              setPage(1);
-            }}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Items / page" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="10">10 / page</SelectItem>
-              <SelectItem value="20">20 / page</SelectItem>
-              <SelectItem value="50">50 / page</SelectItem>
-              <SelectItem value="100">100 / page</SelectItem>
-            </SelectContent>
-          </Select>
+                    {STATUS_OPTIONS.map(
+                      (value) => (
+                        <SelectItem
+                          key={value}
+                          value={value}
+                        >
+                          {value
+                            .charAt(0)
+                            .toUpperCase() +
+                            value.slice(1)}
+                        </SelectItem>
+                      )
+                    )}
+                  </SelectGroup>
+                </SelectContent>
+              </Select>
 
-          {/* SORT */}
-          {/* ensure value is never empty; fallback to 'newest' */}
-          <Select
-            value={sort || "newest"}
-            onValueChange={(v) => {
-              setSort(v);
-              setPage(1); // reset pagination when sorting changes
-            }}
-          >
-            <SelectTrigger className="w-[120px]">
-              <SelectValue placeholder="Sort" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="oldest">Oldest</SelectItem>
-            </SelectContent>
-          </Select>
+              {/* SOURCE */}
+              <Select
+                value={source || "all"}
+                onValueChange={(value) => {
+                  setSource(
+                    value === "all"
+                      ? ""
+                      : value
+                  );
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-10 w-[130px] rounded-lg border-gray-200 bg-white">
+                  <SelectValue placeholder="All sources" />
+                </SelectTrigger>
 
+                <SelectContent>
+                  <SelectItem value="all">
+                    All sources
+                  </SelectItem>
 
+                  <SelectItem value="web">
+                    Web
+                  </SelectItem>
 
-          {/* 🔄 Reset */}
-          <button
-            onClick={() => {
-              setSearch("");
-              setStatus("");
-              setSource("");
+                  <SelectItem value="mobile">
+                    Mobile
+                  </SelectItem>
 
-              setPage(1);
-            }}
-            className="px-3 py-2 rounded-md border border-gray-200 text-sm hover:bg-gray-50 transition"
-          >
-            Reset
-          </button>
-        </div>
-      </div>
+                  <SelectItem value="admin">
+                    Admin
+                  </SelectItem>
+                </SelectContent>
+              </Select>
 
+              {/* LIMIT */}
+              <Select
+                value={String(limit)}
+                onValueChange={(value) => {
+                  setLimit(
+                    Number(value)
+                  );
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-10 w-[120px] rounded-lg border-gray-200 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
 
-      {/* Table */}
-      <div className="bg-white border border-gray-100 rounded-lg overflow-hidden" data-lenis-prevent>
-        {loading ? (
-          <div className="p-8 flex justify-center">
-            <Loader2 className="w-6 h-6 animate-spin" />
+                <SelectContent>
+                  <SelectItem value="10">
+                    10 / page
+                  </SelectItem>
+
+                  <SelectItem value="20">
+                    20 / page
+                  </SelectItem>
+
+                  <SelectItem value="50">
+                    50 / page
+                  </SelectItem>
+
+                  <SelectItem value="100">
+                    100 / page
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              {/* SORT */}
+              <Select
+                value={sort || "newest"}
+                onValueChange={(value) => {
+                  setSort(value);
+                  setPage(1);
+                }}
+              >
+                <SelectTrigger className="h-10 w-[120px] rounded-lg border-gray-200 bg-white">
+                  <SelectValue />
+                </SelectTrigger>
+
+                <SelectContent>
+                  <SelectItem value="newest">
+                    Newest
+                  </SelectItem>
+
+                  <SelectItem value="oldest">
+                    Oldest
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+
+              <button
+                type="button"
+                onClick={resetFilters}
+                className="h-10 rounded-lg border border-gray-200 bg-white px-4 text-sm font-medium text-gray-700 transition hover:bg-gray-50"
+              >
+                Reset
+              </button>
+            </div>
           </div>
-        ) : error ? (
-          <div className="p-6 text-red-600">{error}</div>
-        ) : (
-          <>
-            <Table className="min-w-full divide-y divide-gray-100 text-sm">
+        </div>
 
-              <TableHeader className="bg-gray-50 text-gray-700 font-semibold">
-                <tr>
-                  <TableHead className="px-4 py-3 text-left">Image</TableHead>
-                  <TableHead className="px-4 py-3 text-left">Order Number</TableHead>
-                  <TableHead className="px-4 py-3 text-left">Customer</TableHead>
-                  <TableHead className="px-4 py-3 text-left">Email</TableHead>
-                  <TableHead className="px-4 py-3 text-left">Delivery</TableHead>
-                  <TableHead className="px-4 py-3 text-left">Status</TableHead>
-                  <TableHead className="px-4 py-3 text-left">Items</TableHead>
-                  <TableHead className="px-4 py-3 text-left">Total</TableHead>
-                  <TableHead className="px-4 py-3 text-left">Created</TableHead>
-                </tr>
-              </TableHeader>
+        {/* TABLE */}
+        <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+          {loading ? (
+            <div className="flex min-h-[400px] items-center justify-center">
+              <Loader2 className="h-7 w-7 animate-spin text-gray-500" />
+            </div>
+          ) : error ? (
+            <div className="flex min-h-[300px] flex-col items-center justify-center gap-3 p-8">
+              <p className="text-sm font-medium text-red-600">
+                {error}
+              </p>
 
-              <TableBody className="divide-y divide-gray-100">
-                {tableRows.length > 0 ? (
-                  tableRows.map((r) => {
-                    const delivery = deliveryBadge(r.paymentMethod, r.paymentStatus);
-                    return (
-                      <TableRow
-                        key={r.id}
-                        className="hover:bg-gray-50 cursor-pointer"
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => onActivateRow(r.id)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" || e.key === " ") {
-                            e.preventDefault();
-                            onActivateRow(r.id);
-                          }
-                        }}
-                        aria-label={`Open order ${r.orderNumber}`}
-                      >
-                        {/* Order + thumbnails */}
-                        <TableCell className="px-4 py-3">
-                          <div className="flex items-center gap-3">
-                            {/* thumbnails: up to 3 */}
-                            <div className="relative flex items-center" title={`${r.itemCount} item${r.itemCount === 1 ? "" : "s"}`}>
-                              {r.items.slice(0, 3).map((it, idx) => (
-                                it.image ? (
-                                  <img
-                                    key={idx}
-                                    src={it.image}
-                                    alt={it.title || `Item ${idx + 1}`}
-                                    title={it.title || `Item ${idx + 1}`}
-                                    className="w-9 h-9 rounded-md object-cover border border-white shadow-sm transition-transform duration-150 hover:scale-[1.05]"
-                                    style={{ marginLeft: idx === 0 ? 0 : -8, zIndex: idx + 1 }}
-                                  />
-                                ) : (
-                                  <div
-                                    key={idx}
-                                    className="w-9 h-9 rounded-md bg-gray-100 flex items-center justify-center text-xs text-gray-400 border border-white shadow-sm"
-                                    style={{ marginLeft: idx === 0 ? 0 : -8, zIndex: idx + 1 }}
-                                  >
-                                    ?
+              <button
+                type="button"
+                onClick={fetchOrders}
+                className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50"
+              >
+                Try again
+              </button>
+            </div>
+          ) : (
+            <>
+              <div
+                className="overflow-x-auto"
+                data-lenis-prevent
+              >
+                <Table className="min-w-[1250px]">
+                  <TableHeader className="bg-gray-50">
+                    <TableRow className="hover:bg-gray-50">
+                      <TableHead className="h-12 px-5 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Products
+                      </TableHead>
+
+                      <TableHead className="h-12 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Order
+                      </TableHead>
+
+                      <TableHead className="h-12 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Customer
+                      </TableHead>
+
+                      <TableHead className="h-12 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Email
+                      </TableHead>
+
+                      <TableHead className="h-12 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Payment
+                      </TableHead>
+
+                      <TableHead className="h-12 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Status
+                      </TableHead>
+
+                      <TableHead className="h-12 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Items
+                      </TableHead>
+
+                      <TableHead className="h-12 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Total
+                      </TableHead>
+
+                      <TableHead className="h-12 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                        Created
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+
+                  <TableBody>
+                    {tableRows.length > 0 ? (
+                      tableRows.map((row) => {
+                        const delivery =
+                          deliveryBadge(
+                            row.paymentMethod,
+                            row.paymentStatus
+                          );
+
+                        return (
+                          <TableRow
+                            key={
+                              row.publicOrderId ||
+                              row.orderNumber
+                            }
+                            role="button"
+                            tabIndex={0}
+                            onClick={() =>
+                              onActivateRow(
+                                row.publicOrderId
+                              )
+                            }
+                            onKeyDown={(event) => {
+                              if (
+                                event.key ===
+                                  "Enter" ||
+                                event.key ===
+                                  " "
+                              ) {
+                                event.preventDefault();
+
+                                onActivateRow(
+                                  row.publicOrderId
+                                );
+                              }
+                            }}
+                            className="cursor-pointer border-b border-gray-100 transition hover:bg-gray-50"
+                          >
+                            {/* PRODUCTS */}
+                            <TableCell className="px-5 py-4">
+                              <div className="flex items-center">
+                                {row.items
+                                  .slice(0, 3)
+                                  .map(
+                                    (
+                                      item,
+                                      index
+                                    ) =>
+                                      item.image ? (
+                                        <img
+                                          key={`${row.publicOrderId}-${index}`}
+                                          src={
+                                            item.image
+                                          }
+                                          alt={
+                                            item.title ||
+                                            "Product"
+                                          }
+                                          title={
+                                            item.title ||
+                                            "Product"
+                                          }
+                                          className={`h-11 w-11 rounded-lg border-2 border-white object-cover shadow-sm ${
+                                            index >
+                                            0
+                                              ? "-ml-2"
+                                              : ""
+                                          }`}
+                                          style={{
+                                            zIndex:
+                                              index +
+                                              1,
+                                          }}
+                                        />
+                                      ) : (
+                                        <div
+                                          key={`${row.publicOrderId}-empty-${index}`}
+                                          className={`flex h-11 w-11 items-center justify-center rounded-lg border-2 border-white bg-gray-100 text-xs text-gray-400 shadow-sm ${
+                                            index >
+                                            0
+                                              ? "-ml-2"
+                                              : ""
+                                          }`}
+                                        >
+                                          ?
+                                        </div>
+                                      )
+                                  )}
+
+                                {row.items.length >
+                                  3 && (
+                                  <div className="-ml-2 flex h-11 w-11 items-center justify-center rounded-full border-2 border-white bg-gray-100 text-xs font-semibold text-gray-700 shadow-sm">
+                                    +
+                                    {row.items
+                                      .length -
+                                      3}
                                   </div>
-                                )
-                              ))}
-                              {r.items.length > 3 && (
-                                <div
-                                  className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-xs font-medium text-gray-700 border border-white shadow-sm ml-[-6px]"
-                                  style={{ zIndex: 4 }}
-                                >
-                                  +{r.items.length - 3}
+                                )}
+                              </div>
+                            </TableCell>
+
+                            {/* ORDER */}
+                            <TableCell className="py-4">
+                              <div className="font-semibold text-gray-900">
+                                {
+                                  row.orderNumber
+                                }
+                              </div>
+
+                              {row.publicOrderId && (
+                                <div className="mt-1 max-w-[170px] truncate text-[11px] text-gray-400">
+                                  {
+                                    row.publicOrderId
+                                  }
                                 </div>
                               )}
+                            </TableCell>
+
+                            {/* CUSTOMER */}
+                            <TableCell className="py-4">
+                              <div className="font-medium text-gray-900">
+                                {row.customerName ||
+                                  row.email}
+                              </div>
+
+                              <div className="mt-1 text-xs text-gray-500">
+                                {
+                                  row.customerPhone ||
+                                  "—"
+                                }
+                              </div>
+                            </TableCell>
+
+                            {/* EMAIL */}
+                            <TableCell className="max-w-[230px] py-4">
+                              <div className="break-all text-sm text-gray-700">
+                                {row.email}
+                              </div>
+                            </TableCell>
+
+                            {/* PAYMENT */}
+                            <TableCell className="py-4">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${delivery.cls}`}
+                              >
+                                {
+                                  delivery.text
+                                }
+                              </span>
+                            </TableCell>
+
+                            {/* STATUS */}
+                            <TableCell className="py-4">
+                              <span
+                                className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                  STATUS_COLORS[
+                                    row.status
+                                  ] ||
+                                  "bg-gray-100 text-gray-800"
+                                }`}
+                              >
+                                {row.status}
+                              </span>
+                            </TableCell>
+
+                            {/* ITEMS */}
+                            <TableCell className="py-4">
+                              <span className="font-medium text-gray-700">
+                                {Number(
+                                  row.itemCount ||
+                                    0
+                                )}
+                              </span>
+                            </TableCell>
+
+                            {/* TOTAL */}
+                            <TableCell className="py-4">
+                              <span className="font-semibold text-gray-950">
+                                ₹
+                                {Number(
+                                  row.total ||
+                                    0
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </span>
+                            </TableCell>
+
+                            {/* CREATED */}
+                            <TableCell className="whitespace-nowrap py-4 text-sm text-gray-500">
+                              {row.createdAt
+                                ? new Date(
+                                    row.createdAt
+                                  ).toLocaleString(
+                                    "en-IN",
+                                    {
+                                      day: "2-digit",
+                                      month:
+                                        "short",
+                                      year:
+                                        "numeric",
+                                      hour:
+                                        "2-digit",
+                                      minute:
+                                        "2-digit",
+                                    }
+                                  )
+                                : "—"}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })
+                    ) : (
+                      <TableRow>
+                        <TableCell
+                          colSpan={9}
+                          className="h-[300px] text-center"
+                        >
+                          <div className="flex flex-col items-center justify-center">
+                            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-gray-100 text-gray-400">
+                              <Search className="h-5 w-5" />
                             </div>
 
+                            <p className="font-medium text-gray-900">
+                              No orders found
+                            </p>
 
+                            <p className="mt-1 text-sm text-gray-500">
+                              Try changing your
+                              search or filters.
+                            </p>
                           </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex flex-col">
-                            <div className="font-medium text-gray-900">{r.orderNumber}</div>
-
-                          </div>
-                        </TableCell>
-                        {/* Customer */}
-                        <TableCell className="px-4 py-3">
-                          <div className="font-medium text-gray-900">{r.customerName || r.email}</div>
-                          <div className="text-xs text-gray-500">{r.customerPhone || "—"}</div>
-                        </TableCell>
-
-                        {/* Email */}
-                        <TableCell className="px-4 py-3">
-                          <div className="text-sm text-gray-700 break-all">{r.email}</div>
-                        </TableCell>
-
-                        {/* Delivery */}
-                        <TableCell className="px-4 py-3">
-                          <span className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${delivery.cls}`}>
-                            {delivery.text}
-                          </span>
-                        </TableCell>
-
-                        {/* Status */}
-                        <TableCell className="px-4 py-3">
-                          <span
-                            className={`inline-block px-2 py-1 rounded-full text-xs font-semibold ${STATUS_COLORS[r.status] || "bg-gray-100 text-gray-800"}`}
-                            role="status"
-                            aria-label={`Order status ${r.status}`}
-                          >
-                            {r.status}
-                          </span>
-                        </TableCell>
-
-                        {/* Items count */}
-                        <TableCell className="px-4 py-3">
-                          <div className="text-sm text-gray-700">{Number(r.itemCount || 0)}</div>
-                        </TableCell>
-
-                        {/* Total */}
-                        <TableCell className="px-4 py-3 font-semibold">₹{Number(r.total || 0)}</TableCell>
-
-                        {/* Created */}
-                        <TableCell className="px-4 py-3 text-gray-600">
-                          {r.createdAt ? new Date(r.createdAt).toLocaleString() : "—"}
                         </TableCell>
                       </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={8} className="p-8 text-center text-gray-500">
-                      No orders found.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-
-
-            {/* pagination */}
-            <div className="flex items-center justify-between px-4 py-3">
-              <div className="text-sm text-gray-600">
-                Showing {(page - 1) * limit + 1} - {Math.min(page * limit, total)} of {total}
+                    )}
+                  </TableBody>
+                </Table>
               </div>
-              <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  disabled={page === 1}
-                  className="p-2 border border-gray-200 rounded-md"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <div className="text-sm px-3">{page}</div>
-                <button
-                  onClick={() => setPage((p) => Math.min(pageCount, p + 1))}
-                  disabled={page === pageCount}
-                  className="p-2 border border-gray-200 rounded-md"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
+
+              {/* PAGINATION */}
+              <div className="flex flex-col gap-3 border-t border-gray-100 px-5 py-4 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-gray-500">
+                  {total > 0
+                    ? `Showing ${
+                        (page - 1) *
+                          limit +
+                        1
+                      } - ${Math.min(
+                        page * limit,
+                        total
+                      )} of ${total}`
+                    : "0 orders"}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPage((current) =>
+                        Math.max(
+                          1,
+                          current - 1
+                        )
+                      )
+                    }
+                    disabled={page === 1}
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+
+                  <div className="flex h-9 min-w-9 items-center justify-center rounded-lg bg-black px-3 text-sm font-medium text-white">
+                    {page}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setPage((current) =>
+                        Math.min(
+                          pageCount,
+                          current + 1
+                        )
+                      )
+                    }
+                    disabled={
+                      page === pageCount
+                    }
+                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-gray-200 bg-white transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-40"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
-            </div>
-          </>
-        )}
+            </>
+          )}
+        </div>
       </div>
-
-  
     </div>
   );
 }

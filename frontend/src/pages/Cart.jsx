@@ -187,19 +187,23 @@ const openRemoveModal = (
                             : it.product.title}
                         </h3>
 
-                        {isBundle ? (
-                          <p className="text-sm text-black/70 font-semibold mt-1 uppercase">
-                            Bundle of{" "}
-                            {it.bundleProducts?.length || 0} items
-                          </p>
-                        ) : (
-                          it.size && (
-                            <p className="text-sm text-black/70 font-semibold mt-1 uppercase">
-                              Size {it.size}
-                            </p>
-                          )
-                        )}
+                       {isBundle ? (
+  <p className="text-sm text-black/70 font-semibold mt-1 uppercase">
+    Bundle of {it.bundleProducts?.length || 0} items
+  </p>
+) : (
+  <>
+    {it.size && (
+      <p className="text-sm text-black/70 font-semibold mt-1 uppercase">
+        Size {it.size}
+      </p>
+    )}
 
+    <p className="mt-1 text-xs font-medium text-orange-600">
+      {it.product?.inventory?.[it.size] ?? 0} left in stock
+    </p>
+  </>
+)}
                         <p className="text-sm font-bold text-black/70 mt-2">
                           Delivery by{" "}
                           <span className="text-black font-bold">
@@ -260,21 +264,43 @@ const openRemoveModal = (
                           {it.quantity}
                         </span>
 
-                        <button
-                          onClick={() =>
-                            update(
-                              isBundle
-                                ? it.bundle?._id || it._id
-                                : it.product._id,
-                              it.quantity + 1,
-                              it.size,
-                              isBundle
-                            )
-                          }
-                          className="text-xl text-gray-500 hover:text-black transition"
-                        >
-                          +
-                        </button>
+
+<button
+  onClick={() => {
+    const maxStock =
+      it.product?.inventory?.[it.size] ?? 0;
+
+    if (!isBundle && it.quantity >= maxStock) {
+      toast.error(
+        `${it.product?.title} (${it.size}) has only ${maxStock} left`
+      );
+      return;
+    }
+
+    update(
+      isBundle
+        ? it.bundle?._id || it._id
+        : it.product._id,
+      it.quantity + 1,
+      it.size,
+      isBundle
+    );
+  }}
+  disabled={
+    !isBundle &&
+    it.quantity >=
+      (it.product?.inventory?.[it.size] ?? 0)
+  }
+  className={`text-xl transition ${
+    !isBundle &&
+    it.quantity >=
+      (it.product?.inventory?.[it.size] ?? 0)
+      ? "cursor-not-allowed text-gray-200"
+      : "text-gray-500 hover:text-black"
+  }`}
+>
+  +
+</button>
                       </div>
                     </div>
                   </div>

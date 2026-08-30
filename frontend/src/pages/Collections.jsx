@@ -244,10 +244,6 @@ const BundlesPage = () => {
         {!loading && bundles.length > 0 && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             {bundles.map((bundle) => {
-              const total = bundle.products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0;
-              const bundlePrice = Number(bundle.price || total);
-              const fakeOriginal = Math.round(bundlePrice / 0.7);
-              const discountPercent = Math.round(((fakeOriginal - bundlePrice) / fakeOriginal) * 100);
 
               return (
              <Link
@@ -334,7 +330,7 @@ const BundlesPage = () => {
         Bundle
       </span>
 
-      {discountPercent > 0 && (
+      {bundle.discount > 0 && (
 
         <span
           className="
@@ -348,7 +344,7 @@ const BundlesPage = () => {
             text-black
           "
         >
-          {discountPercent}% OFF
+          {bundle.discount}% OFF
         </span>
 
       )}
@@ -396,11 +392,11 @@ const BundlesPage = () => {
 <div className="mt-6 flex items-center flex-wrap gap-3">
 
   <span className="text-4xl font-black">
-    ₹{bundlePrice.toLocaleString()}
+    ₹{bundle.price}
   </span>
 
   <span className="text-lg text-white/50 line-through">
-    ₹{fakeOriginal.toLocaleString()}
+    ₹{Math.round(bundle.oldPrice)}
   </span>
 
   <span
@@ -415,7 +411,7 @@ const BundlesPage = () => {
       text-black
     "
   >
-    SAVE {discountPercent}%
+    SAVE {bundle.discount}%
   </span>
 
 </div>

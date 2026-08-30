@@ -41,14 +41,14 @@ import AdminReturnDetail from "./pages/admin/ReturnDetail.jsx";
 import ThankYouPage from "./pages/Thankyou.jsx";
 import SearchResultsPage from "./pages/Search.jsx";
 import BuildYourLookPage from "./pages/BuildYourLookPage.jsx";
-
+import AdminProductDetail from "@/pages/admin/ProductDetail";
+import AdminBundleDetail from "./pages/admin/BundleDetail.jsx";
+import ScrollManager from "./components/ScrollManager.jsx";
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
   const { user, loading } = useAuth();
 
-  console.log("loading:", loading);
-  console.log("user:", user);
-  console.log("role:", user?.role);
+ 
 
   if (loading) return <div>Loading...</div>;
 
@@ -66,10 +66,6 @@ export default function App() {
   const isAuthRoute =
     location.pathname === "/login" || location.pathname === "/register";
 
-
-
-  // hide header/footer on admin + auth pages
-  // const hideChrome = isAdminRoute || isAuthRoute;
   const hideChrome = isAdminRoute 
 
   return (
@@ -78,7 +74,9 @@ export default function App() {
         {/* Hide header/footer for admin + auth routes */}
         {!hideChrome && <Header />}
 
-        <main className="flex-grow">
+        <main className="flex-grow ">
+          <ScrollManager />
+          <div className={!isAdminRoute ? "storefront" : ""}>
           <Routes>
             {/* 🏠 Public Routes */}
             <Route path="/" element={<Home />} />
@@ -125,11 +123,15 @@ export default function App() {
               <Route path="users" element={<AdminUsers />} />
               <Route path="category" element={<CategoriesAdmin />} />
               <Route path="orders" element={<Orders />} />
-              <Route path="orders/:id" element={<OrderDetail />} />
+              <Route path="orders/:publicOrderId" element={<OrderDetail />} />
               <Route path="returnslist" element={<AdminReturns />} />
               <Route path="returnslist/:rmaNumber" element={<AdminReturnDetail />} />
+              <Route  path="/admin/products/:publicId"  element={<AdminProductDetail />}/>
+              <Route  path="bundles/:publicId"  element={<AdminBundleDetail />}
+/>
             </Route>
           </Routes>
+          </div>
         </main>
 
         {!hideChrome && <Footer />}

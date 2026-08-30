@@ -8,17 +8,19 @@ import {
   ChevronRight,
   X,
   ShoppingBag,
+  Check,
+  Plus,
 } from "lucide-react";
+
 const BuildYourLookPage = () => {
   const { addBundleToCart } = useCart();
   const navigate = useNavigate();
+
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
-
   const [loading, setLoading] = useState(true);
   const [showLookDrawer, setShowLookDrawer] = useState(false);
-  const [activeCategory, setActiveCategory] =
-    useState("all");
+  const [activeCategory, setActiveCategory] = useState("all");
 
   const [selectedProducts, setSelectedProducts] = useState(() => {
     const saved = localStorage.getItem("build-look-products");
@@ -60,6 +62,7 @@ const BuildYourLookPage = () => {
       );
     } catch (error) {
       console.error(error);
+      toast.error("Unable to load products");
     } finally {
       setLoading(false);
     }
@@ -84,9 +87,10 @@ const BuildYourLookPage = () => {
       activeCategory === "all"
         ? products
         : products.filter(
-          (product) =>
-            product.category?._id === activeCategory
-        );
+            (product) =>
+              String(product.category?._id) ===
+              String(activeCategory)
+          );
 
     const selectedIds = new Set(
       selectedProducts.map((p) => p._id)
@@ -101,67 +105,37 @@ const BuildYourLookPage = () => {
     );
 
     return [...selected, ...remaining];
-  }, [products, activeCategory, selectedProducts]);
+  }, [
+    products,
+    activeCategory,
+    selectedProducts,
+  ]);
 
   const toggleProduct = (product) => {
     const exists = selectedProducts.some(
       (p) => p._id === product._id
     );
 
-    // remove if already selected
     if (exists) {
-      setSelectedProducts((prev) =>
-        prev.filter((p) => p._id !== product._id)
-      );
+      removeProduct(product._id);
       return;
     }
 
-    // limit to 3 products
     if (selectedProducts.length >= 3) {
-      toast.error("You can select only 3 pieces");
+      toast.error("Your look can have up to 3 pieces");
       return;
     }
 
-    // add product
+    if (!selectedSizes[product._id]) {
+      toast.error("Please select a size first");
+      return;
+    }
+
     setSelectedProducts((prev) => [
       ...prev,
       product,
     ]);
   };
-
-  const subtotal = useMemo(() => {
-    return selectedProducts.reduce(
-      (sum, item) =>
-        sum + Number(item.price || 0),
-      0
-    );
-  }, [selectedProducts]);
-
-  const discount = Math.round(subtotal * 0.1);
-
-  const total = subtotal - discount;
-
-  const handleAddLook = (a) => {
-    if (!selectedProducts.length) return;
-
-    const customBundle = {
-      title: "My Custom Look",
-      products: selectedProducts,
-      price: total,
-      custom: true,
-    };
-
-    addBundleToCart(
-      customBundle,
-      selectedSizes
-    );
-    localStorage.removeItem("build-look-products");
-    localStorage.removeItem("build-look-sizes");
-
-    setSelectedProducts([]);
-    setSelectedSizes({});
-  };
-
 
   const removeProduct = (productId) => {
     setSelectedProducts((prev) =>
@@ -175,98 +149,145 @@ const BuildYourLookPage = () => {
     });
   };
 
-  return (
-    <div className="bg-white min-h-screen">
-      {/* HERO */}
-      <section className="border-b border-neutral-200">
-        <div className="max-w-[1800px] mx-auto px-6 md:px-10 py-14">
-          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-10">
-            <div>
-              <p className="uppercase tracking-[0.35em] text-xs text-neutral-500">
-                Personal Styling
-              </p>
+  const subtotal = useMemo(() => {
+    return selectedProducts.reduce(
+      (sum, item) =>
+        sum + Number(item.price || 0),
+      0
+    );
+  }, [selectedProducts]);
 
-              <h1 className="mt-4 text-5xl md:text-7xl font-black tracking-tight leading-none">
-                BUILD YOUR LOOK
+  const discount =
+    selectedProducts.length > 0
+      ? Math.round(subtotal * 0.1)
+      : 0;
+
+  const total = subtotal - discount;
+
+  const handleAddLook = () => {
+    if (!selectedProducts.length) return;
+
+    const customBundle = {
+      title: "My Custom Look",
+      products: selectedProducts,
+      price: total,
+      custom: true,
+    };
+
+    addBundleToCart(
+      customBundle,
+      selectedSizes
+    );
+
+    localStorage.removeItem("build-look-products");
+    localStorage.removeItem("build-look-sizes");
+
+    setSelectedProducts([]);
+    setSelectedSizes({});
+    setShowLookDrawer(false);
+
+    toast.success("Your look was added to cart");
+  };
+
+  return (
+    <div className="min-h-screen bg-[#fafafa] text-black">
+
+      {/* HERO */}
+      <section className="border-b border-neutral-200 bg-white">
+        <div className="mx-auto max-w-[1800px] px-5 py-10 sm:px-8 md:px-10 md:py-16">
+
+          <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
+
+            <div className="max-w-3xl">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-neutral-500">
+                <ShoppingBag className="h-3.5 w-3.5" />
+                Personal Styling
+              </div>
+
+              <h1 className="text-4xl font-black tracking-[-0.04em] sm:text-5xl md:text-7xl">
+                Build Your Look
               </h1>
 
-              <p className="mt-5 max-w-2xl text-neutral-600 text-lg">
-                Curate your outfit from our latest collection.
-                Select sizes, mix pieces and unlock bundle savings.
+              <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-500 sm:text-base md:text-lg">
+                Pick your favorite pieces, choose your sizes,
+                and create a complete look with{" "}
+                <span className="font-semibold text-black">
+                  10% bundle savings.
+                </span>
               </p>
             </div>
 
-            <div className="flex gap-12">
-              <div>
-                <div className="text-4xl font-black">
-                  {selectedProducts.length}
-                </div>
+            <div className="flex items-center gap-3">
 
-                <div className="text-sm text-neutral-500 uppercase tracking-widest">
-                  Items
-                </div>
+              <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-5 py-4">
+                <p className="text-2xl font-black">
+                  {selectedProducts.length}/3
+                </p>
+
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                  Pieces
+                </p>
               </div>
 
-              <div>
-                <div className="text-4xl font-black">
+              <div className="rounded-2xl bg-black px-5 py-4 text-white">
+                <p className="text-2xl font-black">
                   10%
-                </div>
+                </p>
 
-                <div className="text-sm text-neutral-500 uppercase tracking-widest">
-                  Savings
-                </div>
+                <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                  Bundle Saving
+                </p>
               </div>
+
             </div>
           </div>
         </div>
       </section>
 
-      <div className="max-w-[1800px] mx-auto px-4 md:px-8 py-10">
-        {/* CATEGORY BAR */}
+      <div className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 md:px-8 md:py-10">
 
-        <div className="sticky top-0 z-30 bg-white/95 backdrop-blur-md py-4 mb-10 border-b">
-          <div className="flex gap-3 overflow-x-auto">
+        {/* CATEGORY NAV */}
+        <div className="sticky top-0 z-30 -mx-4 border-b border-neutral-200 bg-[#fafafa]/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
+
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
+
             <button
+              type="button"
               onClick={() =>
                 setActiveCategory("all")
               }
               className={`
-pb-3
-text-sm
-uppercase
-tracking-[0.2em]
-border-b-2
-
-${activeCategory === "all"
-                  ? "border-black text-black"
-                  : "border-transparent text-neutral-400"
+                shrink-0 rounded-full px-5 py-2.5
+                text-xs font-semibold uppercase tracking-[0.16em]
+                transition-all
+                ${
+                  activeCategory === "all"
+                    ? "bg-black text-white shadow-sm"
+                    : "border border-neutral-200 bg-white text-neutral-500 hover:border-black hover:text-black"
                 }
-`}
+              `}
             >
-              All
+              All Pieces
             </button>
 
             {categories.map((category) => (
               <button
                 key={category._id}
+                type="button"
                 onClick={() =>
-                  setActiveCategory(
-                    category._id
-                  )
+                  setActiveCategory(category._id)
                 }
                 className={`
-pb-3
-text-sm
-uppercase
-tracking-[0.2em]
-border-b-2
-transition-all
-
-${activeCategory === category._id
-                    ? "border-black text-black"
-                    : "border-transparent text-neutral-400 hover:text-black"
+                  shrink-0 rounded-full px-5 py-2.5
+                  text-xs font-semibold uppercase tracking-[0.16em]
+                  transition-all
+                  ${
+                    String(activeCategory) ===
+                    String(category._id)
+                      ? "bg-black text-white shadow-sm"
+                      : "border border-neutral-200 bg-white text-neutral-500 hover:border-black hover:text-black"
                   }
-`}
+                `}
               >
                 {category.name}
               </button>
@@ -274,858 +295,713 @@ ${activeCategory === category._id
           </div>
         </div>
 
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_440px] gap-12">
-          {/* PRODUCTS */}
+        <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] xl:gap-14">
 
-          <div>
+          {/* PRODUCTS */}
+          <main>
+
+            <div className="mb-5 flex items-end justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-neutral-400">
+                  Curate
+                </p>
+
+                <h2 className="mt-1 text-2xl font-black tracking-tight md:text-3xl">
+                  Choose Your Pieces
+                </h2>
+              </div>
+
+              <p className="text-xs text-neutral-400">
+                {filteredProducts.length} items
+              </p>
+            </div>
+
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {[...Array(9)].map((_, i) => (
+              <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
+                {[...Array(6)].map((_, i) => (
                   <div
                     key={i}
-                    className="animate-pulse"
+                    className="overflow-hidden rounded-2xl border border-neutral-200 bg-white"
                   >
-                    {/* Image */}
-                    <div className="h-[460px] w-full bg-neutral-200 rounded-xl" />
+                    <div className="aspect-[3/4] animate-pulse bg-neutral-200" />
 
-                    <div className="p-6">
-
-                      {/* Category */}
-                      <div className="h-3 w-20 bg-neutral-200 rounded mb-4" />
-
-                      {/* Title */}
-                      <div className="h-6 w-3/4 bg-neutral-200 rounded mb-4" />
-
-                      {/* Price */}
-                      <div className="h-6 w-24 bg-neutral-200 rounded mb-6" />
-
-                      {/* Sizes */}
-                      <div className="flex gap-2 mb-5">
-                        {[...Array(4)].map((_, idx) => (
-                          <div
-                            key={idx}
-                            className="h-8 w-10 bg-neutral-200 rounded"
-                          />
-                        ))}
-                      </div>
-
-                      {/* Button */}
-                      <div className="h-12 w-full bg-neutral-200 rounded" />
+                    <div className="space-y-3 p-4">
+                      <div className="h-3 w-20 animate-pulse rounded bg-neutral-200" />
+                      <div className="h-5 w-3/4 animate-pulse rounded bg-neutral-200" />
+                      <div className="h-5 w-20 animate-pulse rounded bg-neutral-200" />
+                      <div className="h-10 animate-pulse rounded-xl bg-neutral-200" />
                     </div>
                   </div>
                 ))}
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-20">
-                No products found
+              <div className="flex min-h-[400px] items-center justify-center rounded-3xl border border-dashed border-neutral-300 bg-white">
+                <div className="text-center">
+                  <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-neutral-100">
+                    <ShoppingBag className="h-6 w-6 text-neutral-400" />
+                  </div>
+
+                  <h3 className="mt-4 font-semibold">
+                    No pieces found
+                  </h3>
+
+                  <p className="mt-1 text-sm text-neutral-400">
+                    Try another category.
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                {filteredProducts.map(
-                  (product) => {
-                    const selected =
-                      selectedProducts.some(
-                        (p) =>
-                          p._id === product._id
-                      );
+              <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
 
-                    return (
+                {filteredProducts.map((product) => {
+                  const selected =
+                    selectedProducts.some(
+                      (p) => p._id === product._id
+                    );
+
+                  const selectedSize =
+                    selectedSizes[product._id];
+
+                  const availableSizes =
+                    Object.entries(
+                      product.inventory || {}
+                    ).filter(
+                      ([, qty]) =>
+                        Number(qty) > 0
+                    );
+
+                  return (
+                    <article
+                      key={product._id}
+                      className={`
+                        group overflow-hidden rounded-2xl
+                        border bg-white
+                        transition-all duration-300
+                        ${
+                          selected
+                            ? "border-black ring-1 ring-black"
+                            : "border-neutral-200 hover:-translate-y-1 hover:border-neutral-300 hover:shadow-xl"
+                        }
+                      `}
+                    >
+
+                      {/* IMAGE */}
                       <div
-                        key={product._id}
-
-                        className="
-                        group
-                        overflow-hidden
-                       bg-white
-                        transition-all
-                        duration-500
-                        hover:-translate-y-1
-                       
-                      "
+                        className="relative aspect-[3/4] cursor-pointer overflow-hidden bg-neutral-100"
+                        onClick={() =>
+                          navigate(
+                            `/product/${product._id}`
+                          )
+                        }
                       >
-                        <div className="relative overflow-hidden">
-                          {selected && (
-                            <div
-                              className="
-      absolute
-      top-3
-      right-3
-      z-10
-      bg-black
-      text-white
-      text-[10px]
-      uppercase
-      tracking-widest
-      px-3
-      py-1
-      rounded-full
-    "
-                            >
-                              Selected
-                            </div>
-                          )}
-                          <img
-                            src={
-                              product
-                                .images?.[0]
-                            }
-                            alt={
-                              product.title
-                            }
-                            className="
-                            h-[460px]
-                            w-full
-                            object-cover
-                            transition-transform
-                            duration-700
-                            border border-black/10
-                            group-hover:scale-[1.03]
-                          "
-                            onClick={() => navigate(`/product/${product._id}`)}
-                          />
-                        </div>
+                        <img
+                          src={
+                            product.images?.[0] ||
+                            "/images/placeholder.png"
+                          }
+                          alt={product.title}
+                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+                        />
 
-                        <div className="p-6">
-                          <p className="text-xs uppercase tracking-[0.2em] text-neutral-400">
-                            {
-                              product
-                                .category
-                                ?.name
-                            }
-                          </p>
+                        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent opacity-60" />
 
-                          <h3 className="font-bold text-xl mt-2">
-                            {
-                              product.title
-                            }
-                          </h3>
+                        {selected && (
+                          <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+                            <Check className="h-3 w-3" />
+                            Added
+                          </div>
+                        )}
 
-                          <p className="mt-3 font-semibold text-lg">
+                        {product.isNewProduct && !selected && (
+                          <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] backdrop-blur">
+                            New
+                          </span>
+                        )}
+                      </div>
+
+                      {/* INFO */}
+                      <div className="p-4 sm:p-5">
+
+                        <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+                          {product.category?.name ||
+                            "Collection"}
+                        </p>
+
+                        <h3 className="mt-1.5 line-clamp-2 min-h-[40px] text-sm font-bold leading-5 sm:text-base">
+                          {product.title}
+                        </h3>
+
+                        <div className="mt-3 flex items-center justify-between">
+                          <span className="text-base font-black sm:text-lg">
                             ₹
                             {Number(
-                              product.price
+                              product.price || 0
                             ).toLocaleString()}
-                          </p>
+                          </span>
 
-                          {/* SIZE SELECTOR */}
-                          <div className="mt-4 flex flex-wrap gap-2">
-                            {Object.entries(product.inventory || {}).map(
-                              ([size, qty]) => (
-                                <button
-                                  key={size}
-                                  type="button"
-                                  disabled={qty <= 0 || selected}
-                                  onClick={() =>
-                                    setSelectedSizes((prev) => ({
-                                      ...prev,
-                                      [product._id]: size,
-                                    }))
-                                  }
-                                  className={`
-        relative
-        h-8
-        px-3
-        border
-        text-xs
-        font-medium
-        transition-all
+                          {product.oldPrice &&
+                            Number(
+                              product.oldPrice
+                            ) > Number(product.price) && (
+                              <span className="text-xs text-neutral-400 line-through">
+                                ₹
+                                {Number(
+                                  product.oldPrice
+                                ).toLocaleString()}
+                              </span>
+                            )}
+                        </div>
 
-        ${qty <= 0
-                                      ? "cursor-not-allowed border-neutral-200 text-neutral-400 line-through"
-                                      : ""
-                                    }
+                        {/* SIZE */}
+                        <div className="mt-4">
+                          <div className="mb-2 flex items-center justify-between">
+                            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+                              Select Size
+                            </span>
 
-        ${selected
-                                      ? "pointer-events-none opacity-50"
-                                      : ""
-                                    }
-
-        ${selectedSizes[product._id] === size
-                                      ? "bg-black text-white border-black"
-                                      : qty > 0
-                                        ? "border-neutral-300 hover:border-black"
-                                        : ""
-                                    }
-      `}
-                                >
-                                  {size}
-
-
-                                </button>
-                              )
+                            {selectedSize && (
+                              <span className="text-[10px] font-semibold text-black">
+                                {selectedSize} selected
+                              </span>
                             )}
                           </div>
 
-                          <button
-                            disabled={!selectedSizes[product._id]}
-                            onClick={() => toggleProduct(product)}
-                            className={`
-    mt-5
+                          <div className="flex flex-wrap gap-1.5">
+                            {availableSizes.length ? (
+                              availableSizes.map(
+                                ([size]) => {
+                                  const active =
+                                    selectedSize ===
+                                    size;
 
-    w-full
-
-    py-3
-
-    border
-
-    uppercase
-    tracking-[0.15em]
-    text-xs
-    font-semibold
-
-    transition-all
-
-    ${!selectedSizes[product._id]
-                                ? "border-neutral-300 text-neutral-400 cursor-not-allowed"
-                                : selected
-                                  ? "bg-black text-white border-black"
-                                  : "border-black hover:bg-black hover:text-white"
-                              }
-  `}
-                          >
-                            {!selectedSizes[product._id] ? (
-                              "Select Size"
-                            ) : selected ? (
-                              <>
-                                <span className="group-hover:hidden">
-                                  ✓ Added
-                                </span>
-
-                                <span className="hidden group-hover:inline">
-                                  Remove
-                                </span>
-                              </>
+                                  return (
+                                    <button
+                                      key={size}
+                                      type="button"
+                                      disabled={selected}
+                                      onClick={() =>
+                                        setSelectedSizes(
+                                          (prev) => ({
+                                            ...prev,
+                                            [product._id]:
+                                              size,
+                                          })
+                                        )
+                                      }
+                                      className={`
+                                        min-w-[40px]
+                                        rounded-lg
+                                        border px-2.5 py-2
+                                        text-[11px]
+                                        font-semibold
+                                        transition-all
+                                        ${
+                                          active
+                                            ? "border-black bg-black text-white"
+                                            : "border-neutral-200 bg-white text-neutral-700 hover:border-black"
+                                        }
+                                        ${
+                                          selected
+                                            ? "cursor-not-allowed opacity-50"
+                                            : ""
+                                        }
+                                      `}
+                                    >
+                                      {size}
+                                    </button>
+                                  );
+                                }
+                              )
                             ) : (
-                              "Add To Look"
+                              <span className="text-xs text-red-500">
+                                Out of stock
+                              </span>
                             )}
-                          </button>
+                          </div>
                         </div>
+
+                        {/* ACTION */}
+                        <button
+                          type="button"
+                          disabled={
+                            !selectedSize &&
+                            !selected
+                          }
+                          onClick={() =>
+                            toggleProduct(product)
+                          }
+                          className={`
+                            mt-4 flex w-full items-center justify-center gap-2
+                            rounded-xl px-4 py-3
+                            text-xs font-bold uppercase tracking-[0.15em]
+                            transition-all
+                            ${
+                              selected
+                                ? "bg-black text-white hover:bg-neutral-800"
+                                : selectedSize
+                                  ? "bg-black text-white hover:bg-neutral-800"
+                                  : "cursor-not-allowed bg-neutral-100 text-neutral-400"
+                            }
+                          `}
+                        >
+                          {selected ? (
+                            <>
+                              <Check className="h-4 w-4" />
+                              Added to Look
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="h-4 w-4" />
+                              Add to Look
+                            </>
+                          )}
+                        </button>
+
                       </div>
-                    );
-                  }
-                )}
+                    </article>
+                  );
+                })}
               </div>
             )}
-          </div>
+          </main>
 
-          {/* SUMMARY */}
+          {/* DESKTOP SUMMARY */}
+          <aside className="hidden lg:block">
+            <div className="sticky top-24 overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm">
 
-          <aside
-            className="
-         hidden
-lg:block
-sticky
-top-24
-h-fit
-rounded-[32px]
-border
-bg-white
-p-6
-shadow-xl
-            "
-          >
-            <div className="border-b pb-6">
-              <p className="uppercase tracking-[0.25em] text-xs text-neutral-500">
-                Styling Board
-              </p>
-
-              <h2 className="mt-3 text-3xl font-black">
-                Your Look
-              </h2>
-
-              <p className="mt-2 text-neutral-500">
-                {selectedProducts.length}/3 selected pieces
-              </p>
-            </div>
-
-            {/* Preview */}
-
-            {/* Preview */}
-
-            <div className="mt-8 space-y-4">
-              {selectedProducts.map((product) => (
-                <div
-                  key={product._id}
-                  className="
-        flex
-        gap-4
-
-        border-b
-        pb-4
-      "
-                >
-                  <img
-                    src={product.images?.[0]}
-                    alt={product.title}
-                    className="
-          w-20
-          h-24
-
-          object-cover
-        "
-                  />
-
-                  <div className="flex-1">
-                    <p className="font-medium">
-                      {product.title}
+              <div className="border-b border-neutral-200 p-7">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-neutral-400">
+                      Styling Board
                     </p>
 
-                    <p className="text-sm text-neutral-500 mt-1">
-                      Size: {selectedSizes[product._id]}
-                    </p>
-
-                    <p className="mt-2 font-semibold">
-                      ₹{Number(product.price).toLocaleString()}
-                    </p>
+                    <h2 className="mt-2 text-3xl font-black tracking-tight">
+                      Your Look
+                    </h2>
                   </div>
 
-                  <button
-                    onClick={() => {
-                      setSelectedProducts((prev) =>
-                        prev.filter(
-                          (p) => p._id !== product._id
-                        )
-                      );
-
-                      setSelectedSizes((prev) => {
-                        const copy = { ...prev };
-                        delete copy[product._id];
-                        return copy;
-                      });
-                    }}
-                    className="
-          text-neutral-400
-          hover:text-black
-        "
-                  >
-                    <CircleX className=" h-10 " />
-                  </button>
+                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100">
+                    <ShoppingBag className="h-5 w-5" />
+                  </div>
                 </div>
-              ))}
+
+                <div className="mt-4 flex items-center justify-between rounded-2xl bg-neutral-50 px-4 py-3">
+                  <span className="text-sm text-neutral-500">
+                    Selected pieces
+                  </span>
+
+                  <span className="font-bold">
+                    {selectedProducts.length}/3
+                  </span>
+                </div>
+              </div>
+
+              <div className="max-h-[48vh] overflow-y-auto p-6">
+
+                {selectedProducts.length === 0 ? (
+                  <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
+                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100">
+                      <ShoppingBag className="h-7 w-7 text-neutral-400" />
+                    </div>
+
+                    <h3 className="mt-5 font-semibold">
+                      Start building your look
+                    </h3>
+
+                    <p className="mt-2 max-w-[230px] text-sm leading-5 text-neutral-400">
+                      Choose up to 3 pieces and select a size for each one.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {selectedProducts.map(
+                      (product, index) => (
+                        <div
+                          key={product._id}
+                          className="group flex gap-4 rounded-2xl border border-neutral-200 p-3"
+                        >
+                          <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
+                            <img
+                              src={product.images?.[0]}
+                              alt={product.title}
+                              className="h-full w-full object-cover"
+                            />
+
+                            <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">
+                              {index + 1}
+                            </span>
+                          </div>
+
+                          <div className="min-w-0 flex-1">
+                            <div className="flex justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="line-clamp-2 text-sm font-semibold leading-5">
+                                  {product.title}
+                                </p>
+
+                                <p className="mt-1 text-xs text-neutral-400">
+                                  {product.category?.name}
+                                </p>
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeProduct(
+                                    product._id
+                                  )
+                                }
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-400 transition hover:bg-black hover:text-white"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
+
+                            <div className="mt-3 flex items-center justify-between">
+                              <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[10px] font-semibold">
+                                Size{" "}
+                                {selectedSizes[
+                                  product._id
+                                ]}
+                              </span>
+
+                              <span className="text-sm font-bold">
+                                ₹
+                                {Number(
+                                  product.price
+                                ).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    )}
+
+                    {selectedProducts.length < 3 && (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          window.scrollTo({
+                            top: 0,
+                            behavior: "smooth",
+                          })
+                        }
+                        className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-300 py-4 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500 transition hover:border-black hover:text-black"
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add Another Piece
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="border-t border-neutral-200 bg-neutral-50 p-6">
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between text-neutral-500">
+                    <span>Subtotal</span>
+                    <span className="font-medium text-black">
+                      ₹{subtotal.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="flex justify-between">
+                    <span className="font-medium text-neutral-500">
+                      Bundle saving
+                    </span>
+
+                    <span className="font-semibold text-green-600">
+                      -₹{discount.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="my-4 border-t border-neutral-200" />
+
+                  <div className="flex items-end justify-between">
+                    <span className="text-sm font-semibold">
+                      Total
+                    </span>
+
+                    <span className="text-3xl font-black tracking-tight">
+                      ₹{total.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={!selectedProducts.length}
+                  onClick={handleAddLook}
+                  className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-black py-4 text-xs font-bold uppercase tracking-[0.18em] text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  Add Look to Cart
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+
+                <p className="mt-3 text-center text-[10px] text-neutral-400">
+                  10% bundle discount applied automatically
+                </p>
+              </div>
             </div>
-
-            <div className=" pt-8 space-y-4">
-              <div className="flex justify-between">
-                <span>Subtotal</span>
-                <span>
-                  ₹
-                  {subtotal.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-green-600">
-                <span>
-                  Bundle Saving
-                </span>
-                <span>
-                  -₹
-                  {discount.toLocaleString()}
-                </span>
-              </div>
-
-              <div className="flex justify-between text-3xl font-black">
-                <span>Total</span>
-
-                <span>
-                  ₹
-                  {total.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <button
-              disabled={
-                !selectedProducts.length
-              }
-              onClick={handleAddLook}
-              className="
-  w-full
-
-  mt-8
-
-  bg-black
-  text-white
-
-  py-4
-
-  uppercase
-  tracking-[0.25em]
-  text-xs
-  font-semibold
-
-  transition-all
-
-  hover:opacity-90
-
-  disabled:opacity-40
-"
-            >
-              ADD LOOK TO CART
-            </button>
           </aside>
         </div>
       </div>
+
       {/* MOBILE FLOATING BAR */}
+      {selectedProducts.length > 0 && (
+        <div className="lg:hidden">
 
-
-
-{selectedProducts.length > 0 && (
-  <>
-    {/* Floating Bar */}
-    {!showLookDrawer && (
-      <div
-        onClick={() => setShowLookDrawer(true)}
-        className="
-          lg:hidden
-          fixed
-          bottom-4
-          left-4
-          right-4
-          z-[60]
-          rounded-3xl
-          bg-black
-          text-white
-          shadow-[0_20px_50px_rgba(0,0,0,.35)]
-          px-5
-          py-4
-          active:scale-95
-          transition-all
-          duration-300
-        "
-      >
-        <div className="flex items-center justify-between">
-
-          {/* Left */}
-
-          <div className="flex items-center gap-4">
-
-            <div className="flex -space-x-3">
-
-              {selectedProducts
-                .slice(0, 3)
-                .map((product) => (
-                  <img
-                    key={product._id}
-                    src={product.images?.[0]}
-                    alt=""
-                    className="
-                      h-11
-                      w-11
-                      rounded-xl
-                      border-2
-                      border-black
-                      object-cover
-                    "
-                  />
-                ))}
-
-            </div>
-
-            <div>
-
-              <h4 className="font-semibold">
-                {selectedProducts.length} Item
-                {selectedProducts.length > 1 && "s"}
-              </h4>
-
-              <p className="text-xs text-lime-400">
-                Save ₹{discount.toLocaleString()}
-              </p>
-
-            </div>
-
-          </div>
-
-          {/* Right */}
-
-   <div className="flex items-center gap-2">
-
-  <span className="text-xl font-bold">
-    ₹{total.toLocaleString()}
-  </span>
-
-  <ChevronRight
-    size={18}
-    className="text-lime-400"
-  />
-
-</div>
-
-        </div>
-      </div>
-    )}
-
-    {/* Backdrop */}
-
-    {showLookDrawer && (
-      <div
-        onClick={() => setShowLookDrawer(false)}
-        className="
-          lg:hidden
-          fixed
-          inset-0
-          z-[65]
-          bg-black/40
-          backdrop-blur-[6px]
-        "
-      />
-    )}
-
-    {/* Drawer */}
-
-    <div
-      className={`
-        lg:hidden
-        fixed
-        inset-x-0
-        bottom-0
-        z-[70]
-
-        h-[82vh]
-
-        rounded-t-[34px]
-
-        bg-[#fafafa]
-
-        shadow-[0_-15px_40px_rgba(0,0,0,.18)]
-
-        transition-all
-        duration-300
-
-        ${
-          showLookDrawer
-            ? "translate-y-0"
-            : "translate-y-full"
-        }
-      `}
-    >
-
-      <div className="flex h-full flex-col">
-
-        {/* Handle */}
-
-        <div className="pt-3">
-
-          <div className="mx-auto h-1.5 w-12 rounded-full bg-neutral-300"/>
-
-        </div>
-
-        {/* Header */}
-
-        <div className="px-5 pt-5 pb-4 border-b bg-white">
-
-          <div className="flex items-center justify-between">
-
-            <div>
-
-              <p className="text-[11px] uppercase tracking-[0.3em] text-neutral-400">
-                YOUR LOOK
-              </p>
-
-              <h2 className="mt-1 text-3xl font-black">
-                Styling Board
-              </h2>
-
-              <p className="mt-1 text-sm text-lime-600 font-medium">
-                {selectedProducts.length}/3 Selected
-              </p>
-
-            </div>
-
+          {!showLookDrawer && (
             <button
+              type="button"
+              onClick={() =>
+                setShowLookDrawer(true)
+              }
+              className="fixed bottom-4 left-4 right-4 z-[60] rounded-2xl bg-black px-4 py-3.5 text-white shadow-[0_15px_50px_rgba(0,0,0,.3)] transition active:scale-[.98]"
+            >
+              <div className="flex items-center justify-between">
+
+                <div className="flex items-center gap-3">
+                  <div className="flex -space-x-2">
+                    {selectedProducts
+                      .slice(0, 3)
+                      .map((product) => (
+                        <img
+                          key={product._id}
+                          src={
+                            product.images?.[0]
+                          }
+                          alt=""
+                          className="h-10 w-10 rounded-xl border-2 border-black object-cover"
+                        />
+                      ))}
+                  </div>
+
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">
+                      {selectedProducts.length}/3 pieces
+                    </p>
+
+                    <p className="text-[11px] text-neutral-400">
+                      Save ₹
+                      {discount.toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-lg font-black">
+                    ₹{total.toLocaleString()}
+                  </span>
+
+                  <ChevronRight
+                    size={18}
+                    className="text-white"
+                  />
+                </div>
+              </div>
+            </button>
+          )}
+
+          {/* BACKDROP */}
+          {showLookDrawer && (
+            <div
               onClick={() =>
                 setShowLookDrawer(false)
               }
-              className="
-                h-10
-                w-10
-                rounded-full
-                bg-neutral-100
-                flex
-                items-center
-                justify-center
-              "
-            >
-              <X size={20}/>
-            </button>
+              className="fixed inset-0 z-[65] bg-black/50 backdrop-blur-sm"
+            />
+          )}
 
-          </div>
+          {/* DRAWER */}
+          <div
+            className={`
+              fixed inset-x-0 bottom-0 z-[70]
+              max-h-[88vh]
+              rounded-t-[28px]
+              bg-[#fafafa]
+              shadow-[0_-20px_60px_rgba(0,0,0,.2)]
+              transition-transform duration-300
+              ${
+                showLookDrawer
+                  ? "translate-y-0"
+                  : "translate-y-full"
+              }
+            `}
+          >
+            <div className="flex max-h-[88vh] flex-col">
 
-        </div>
+              <div className="shrink-0 bg-white px-5 pb-4 pt-3">
+                <div className="mx-auto h-1.5 w-12 rounded-full bg-neutral-300" />
 
-        {/* ========= PART 2 STARTS FROM HERE ========= */}
+                <div className="mt-5 flex items-center justify-between">
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-neutral-400">
+                      Styling Board
+                    </p>
 
-        <div className="flex-1 overflow-y-auto px-5 py-5">
+                    <h2 className="mt-1 text-2xl font-black">
+                      Your Look
+                    </h2>
+                  </div>
 
-{selectedProducts.length === 0 ? (
-  <div className="flex h-full items-center justify-center text-neutral-400">
-    No products selected
-  </div>
-) : (
-  <div className="space-y-4">
-    {selectedProducts.map((product) => (
-      <div
-        key={product._id}
-        className="
-          rounded-3xl
-          bg-white
-          border
-          border-neutral-200
-          p-3
-          shadow-sm
-        "
-      >
-        <div className="flex gap-3">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setShowLookDrawer(false)
+                    }
+                    className="flex h-10 w-10 items-center justify-center rounded-full bg-neutral-100"
+                  >
+                    <X className="h-5 w-5" />
+                  </button>
+                </div>
 
-          {/* Image */}
+                <div className="mt-4 flex items-center justify-between rounded-xl bg-neutral-50 px-4 py-3">
+                  <span className="text-xs text-neutral-500">
+                    Pieces selected
+                  </span>
 
-          <img
-            src={product.images?.[0]}
-            alt={product.title}
-            className="
-              h-24
-              w-20
-              rounded-2xl
-              object-cover
-            "
-          />
-
-          {/* Details */}
-
-          <div className="flex flex-1 flex-col justify-between">
-
-            <div className="flex justify-between">
-
-              <div>
-
-                <h3 className="font-semibold text-[15px] leading-5">
-                  {product.title}
-                </h3>
-
-                <p className="mt-2 text-sm text-neutral-500">
-                  Size {selectedSizes[product._id]}
-                </p>
-
+                  <span className="text-sm font-bold">
+                    {selectedProducts.length}/3
+                  </span>
+                </div>
               </div>
 
-              <button
-                onClick={() =>
-                  removeProduct(product._id)
-                }
-                className="
-                  h-9
-                  w-9
-                  rounded-full
-                  bg-neutral-100
-                  flex
-                  items-center
-                  justify-center
-                "
-              >
-                <CircleX size={18} />
-              </button>
+              <div className="flex-1 overflow-y-auto px-4 py-4">
 
-            </div>
+                <div className="space-y-3">
+                  {selectedProducts.map(
+                    (product, index) => (
+                      <div
+                        key={product._id}
+                        className="rounded-2xl border border-neutral-200 bg-white p-3"
+                      >
+                        <div className="flex gap-3">
 
-            <div className="mt-3 flex items-center justify-between">
+                          <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl">
+                            <img
+                              src={
+                                product.images?.[0]
+                              }
+                              alt={product.title}
+                              className="h-full w-full object-cover"
+                            />
 
-              <p className="text-lg font-bold">
-                ₹{Number(product.price).toLocaleString()}
-              </p>
+                            <span className="absolute left-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-black text-[9px] font-bold text-white">
+                              {index + 1}
+                            </span>
+                          </div>
 
-              <span className="rounded-full bg-lime-100 px-2 py-1 text-[11px] font-semibold text-lime-700">
-                Added
-              </span>
+                          <div className="min-w-0 flex-1">
+                            <div className="flex justify-between gap-2">
+                              <div>
+                                <h3 className="line-clamp-2 text-sm font-semibold leading-5">
+                                  {product.title}
+                                </h3>
 
-            </div>
+                                <p className="mt-1 text-xs text-neutral-400">
+                                  {product.category?.name}
+                                </p>
+                              </div>
 
-          </div>
+                              <button
+                                type="button"
+                                onClick={() =>
+                                  removeProduct(
+                                    product._id
+                                  )
+                                }
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100"
+                              >
+                                <X className="h-4 w-4" />
+                              </button>
+                            </div>
 
-        </div>
+                            <div className="mt-3 flex items-center justify-between">
+                              <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[10px] font-semibold">
+                                Size{" "}
+                                {selectedSizes[
+                                  product._id
+                                ]}
+                              </span>
 
-        {/* Gallery */}
+                              <span className="font-bold">
+                                ₹
+                                {Number(
+                                  product.price
+                                ).toLocaleString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  )}
 
-        {product.images?.length > 1 && (
-
-          <div className="mt-4 flex gap-2">
-
-            {product.images
-              .slice(0,4)
-              .map((img,index)=>(
-                <img
-                  key={index}
-                  src={img}
-                  className="
-                    h-10
-                    w-10
-                    rounded-xl
-                    object-cover
-                    border
-                    border-neutral-200
-                  "
-                />
-            ))}
-
-            {product.images.length > 4 && (
-              <div
-                className="
-                  h-10
-                  w-10
-                  rounded-xl
-                  bg-neutral-100
-                  flex
-                  items-center
-                  justify-center
-                  text-xs
-                  font-semibold
-                "
-              >
-                +{product.images.length-4}
+                  {selectedProducts.length < 3 && (
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setShowLookDrawer(false)
+                      }
+                      className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-neutral-300 bg-white py-4 text-xs font-semibold uppercase tracking-[0.15em] text-neutral-500"
+                    >
+                      <Plus className="h-4 w-4" />
+                      Add Another Piece
+                    </button>
+                  )}
+                </div>
               </div>
-            )}
 
+              {/* FOOTER */}
+              <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pb-5 pt-4">
+
+                <div className="rounded-2xl bg-neutral-50 p-4">
+                  <div className="flex justify-between text-xs text-neutral-500">
+                    <span>Subtotal</span>
+                    <span className="font-medium text-black">
+                      ₹{subtotal.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="mt-3 flex justify-between text-xs">
+                    <span className="font-medium text-green-600">
+                      Bundle saving
+                    </span>
+
+                    <span className="font-bold text-green-600">
+                      -₹{discount.toLocaleString()}
+                    </span>
+                  </div>
+
+                  <div className="my-3 border-t border-neutral-200" />
+
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold">
+                      Total
+                    </span>
+
+                    <span className="text-2xl font-black">
+                      ₹{total.toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleAddLook}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-black py-4 text-xs font-bold uppercase tracking-[0.18em] text-white"
+                >
+                  Add Look to Cart
+                  <ChevronRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
-
-        )}
-
-      </div>
-    ))}
-
-    {/* Add More */}
-
-    {selectedProducts.length < 3 && (
-
-      <button
-        onClick={() => setShowLookDrawer(false)}
-        className="
-          w-full
-          rounded-2xl
-          border-2
-          border-dashed
-          border-lime-400
-          bg-lime-50
-          py-4
-          font-semibold
-          text-black
-          transition
-          hover:bg-lime-100
-        "
-      >
-        + Add Another Item ({3-selectedProducts.length} Left)
-      </button>
-
-    )}
-
-  </div>
-)}
-
-</div>
-
-{/* ---------- Sticky Footer ---------- */}
-
-<div
-  className="
-    border-t
-    bg-white
-    px-5
-    pt-4
-    pb-5
-    shadow-[0_-8px_30px_rgba(0,0,0,.05)]
-  "
->
-
-  <div className="rounded-3xl bg-neutral-50 p-2">
-
-    <div className="flex justify-between text-sm">
-
-      <span className="text-neutral-500">
-        Subtotal
-      </span>
-
-      <span className="font-medium">
-        ₹{subtotal.toLocaleString()}
-      </span>
-
-    </div>
-
-    <div className="mt-3 flex justify-between text-sm">
-
-      <span className="font-medium text-lime-600">
-        Bundle Saving
-      </span>
-
-      <span className="font-bold text-lime-600">
-        -₹{discount.toLocaleString()}
-      </span>
-
-    </div>
-
-    <div className="my-2 border-t"/>
-
-    <div className="flex justify-between">
-
-      <span className="text-xl font-black">
-        Total
-      </span>
-
-      <span className="text-2xl font-black">
-        ₹{total.toLocaleString()}
-      </span>
-
-    </div>
-
-  </div>
-
-  <button
-    onClick={handleAddLook}
-    disabled={!selectedProducts.length}
-    className="
-      mt-4
-      flex
-      w-full
-      items-center
-      justify-center
-      gap-2
-      rounded-2xl
-      bg-black
-      py-4
-      text-sm
-      font-semibold
-      uppercase
-      tracking-[0.2em]
-      text-white
-      transition
-      hover:bg-neutral-900
-      disabled:opacity-40
-    "
-  >
-    ADD LOOK TO CART
-
-    <ChevronRight
-      size={18}
-      className="text-lime-400"
-    />
-
-  </button>
-
-</div>
-
-{/* End Sticky Footer */}
-
-</div>
-
-{/* End Drawer */}
-
-</div>
-
-
-
-  </>
-)}
-
-
-
-
+        </div>
+      )}
     </div>
   );
 };

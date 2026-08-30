@@ -1316,7 +1316,7 @@ z-0
           >
 
             <Link
-              to={`/product/${p._id}`}
+              to={`/product/${p.publicId}`}
               className="block"
             >
 
@@ -1675,16 +1675,11 @@ z-0
 </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
-          {bundles.slice(0, 4).map((bundle) => {
-            const total =
-              bundle.products?.reduce((sum, p) => sum + Number(p.price || 0), 0) || 0;
-            const bundlePrice = Number(bundle.bundlePrice || total);
-            const fakeOriginal = Math.round(bundlePrice / 0.7);
-            const discountPercent = Math.round(((fakeOriginal - bundlePrice) / fakeOriginal) * 100);
-
+          {bundles.slice(0, 4).map((bundle) => {        
             return (
           <div
   key={bundle._id}
+  onClick={()=>  navigate(`/collections/${bundle?.publicId}`)}
   className="
     group
     overflow-hidden
@@ -1749,7 +1744,7 @@ z-0
         Bundle
       </span>
 
-      {discountPercent > 0 && (
+      {bundle.discount > 0 && (
 
         <span
           className="
@@ -1762,7 +1757,7 @@ z-0
             uppercase
           "
         >
-          {discountPercent}% OFF
+          {Math.round(bundle.discount)}% OFF
         </span>
 
       )}
@@ -1795,11 +1790,11 @@ z-0
   <div className="mt-4 flex items-center gap-3 flex-wrap">
 
     <span className="text-3xl font-black">
-      ₹{bundlePrice.toLocaleString()}
+      ₹{Math.round(bundle.price)}
     </span>
 
     <span className="text-sm text-white/60 line-through">
-      ₹{fakeOriginal.toLocaleString()}
+      ₹{Math.round(bundle.oldPrice)}
     </span>
 
     <span
@@ -1813,7 +1808,7 @@ z-0
         text-black
       "
     >
-      SAVE {discountPercent}%
+      SAVE {Math.round(bundle.discount)}%
     </span>
 
   </div>
@@ -1895,7 +1890,9 @@ z-0
   <div className="mt-7 flex items-center justify-between">
 
     <button
-      onClick={() => openBundleModal(bundle)}
+      onClick={(e) =>{ 
+         e.stopPropagation();
+        openBundleModal(bundle)}}
       className="
         rounded-full
         bg-white
@@ -2476,35 +2473,29 @@ z-0
 
               </div>
 
-              <Select
-                value={selectedSizes[p._id] ?? ""}
-                onValueChange={(val)=>
-                  handleSizeChange(p._id,val)
-                }
-              >
+          <Select
+  value={selectedSizes[p._id] ?? ""}
+  onValueChange={(val) =>
+    handleSizeChange(p._id, val)
+  }
+>
+  <SelectTrigger className="h-12 rounded-xl border-neutral-300">
+    <SelectValue placeholder="Select Size" />
+  </SelectTrigger>
 
-                <SelectTrigger className="h-12 rounded-xl border-neutral-300">
-
-                  <SelectValue placeholder="Select Size"/>
-
-                </SelectTrigger>
-
-                <SelectContent>
-
-                  {["XS","S","M","L","XL","XXL"].map((size)=>(
-
-                    <SelectItem
-                      key={size}
-                      value={size}
-                    >
-                      {size}
-                    </SelectItem>
-
-                  ))}
-
-                </SelectContent>
-
-              </Select>
+  <SelectContent>
+    {(p?.sizes || [])
+      .filter((size) => size?.active !== false)
+      .map((size) => (
+        <SelectItem
+          key={size._id || size.name}
+          value={size.name}
+        >
+          {size.name}
+        </SelectItem>
+      ))}
+  </SelectContent>
+</Select>
 
             </div>
 

@@ -30,6 +30,8 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/state/CartContext";
+import RelatedProducts from "@/components/RelatedProducts";
+import RecentlyViewed from "@/components/RecentlyViewed";
 
 export default function BundlePDP() {
   const { addBundleToCart } = useCart();
@@ -172,6 +174,10 @@ export default function BundlePDP() {
       : 0);
 
   return (
+    <div>
+
+
+    
    <div className="flex flex-col md:flex-row gap-12 p-6 relative mb-40 isolate">
 
       {/* ========================= */}
@@ -852,6 +858,13 @@ export default function BundlePDP() {
         </Accordion>
 
       </div>
+      </div>
+<RelatedProducts
+  type="bundle"
+  publicId={publicId}
+/>
+
+<RecentlyViewed currentProduct={bundle}  type="bundle" />
     </div>
   );
 }

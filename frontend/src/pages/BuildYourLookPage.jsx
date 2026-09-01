@@ -1,6 +1,4 @@
 import React, { useEffect, useMemo, useState } from "react";
-import api from "@/utils/config";
-import { useCart } from "@/state/CartContext";
 import { toast } from "react-hot-toast";
 import { useNavigate } from "react-router-dom";
 import {
@@ -12,30 +10,60 @@ import {
   Plus,
 } from "lucide-react";
 
+import { useCart } from "@/state/CartContext";
+import { useGetCategoriesQuery, useGetProductsQuery } from "@/store/api";
+
 const BuildYourLookPage = () => {
   const { addBundleToCart } = useCart();
   const navigate = useNavigate();
 
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    isError: productsError,
+  } = useGetProductsQuery();
+
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+  } = useGetCategoriesQuery();
+
+  const products = Array.isArray(productsData?.items)
+    ? productsData.items
+    : [];
+
+  const categories = Array.isArray(categoriesData?.categories)
+    ? categoriesData.categories
+    : [];
+
+  const loading = productsLoading || categoriesLoading;
+
   const [showLookDrawer, setShowLookDrawer] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
 
   const [selectedProducts, setSelectedProducts] = useState(() => {
-    const saved = localStorage.getItem("build-look-products");
-    return saved ? JSON.parse(saved) : [];
+    try {
+      const saved = localStorage.getItem(
+        "build-look-products"
+      );
+
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
   });
 
   const [selectedSizes, setSelectedSizes] = useState(() => {
-    const saved = localStorage.getItem("build-look-sizes");
-    return saved ? JSON.parse(saved) : {};
-  });
+    try {
+      const saved = localStorage.getItem(
+        "build-look-sizes"
+      );
 
-  useEffect(() => {
-    fetchProducts();
-    fetchCategories();
-  }, []);
+      return saved ? JSON.parse(saved) : {};
+    } catch {
+      return {};
+    }
+  });
 
   useEffect(() => {
     localStorage.setItem(
@@ -51,36 +79,11 @@ const BuildYourLookPage = () => {
     );
   }, [selectedSizes]);
 
-  async function fetchProducts() {
-    try {
-      const res = await api.get("/products");
-
-      setProducts(
-        Array.isArray(res.data?.items)
-          ? res.data.items
-          : []
-      );
-    } catch (error) {
-      console.error(error);
+  useEffect(() => {
+    if (productsError) {
       toast.error("Unable to load products");
-    } finally {
-      setLoading(false);
     }
-  }
-
-  async function fetchCategories() {
-    try {
-      const res = await api.get("/categories");
-
-      setCategories(
-        Array.isArray(res.data?.categories)
-          ? res.data.categories
-          : []
-      );
-    } catch (error) {
-      console.error(error);
-    }
-  }
+  }, [productsError]);
 
   const filteredProducts = useMemo(() => {
     const list =
@@ -93,15 +96,15 @@ const BuildYourLookPage = () => {
           );
 
     const selectedIds = new Set(
-      selectedProducts.map((p) => p._id)
+      selectedProducts.map((p) => String(p._id))
     );
 
     const selected = list.filter((p) =>
-      selectedIds.has(p._id)
+      selectedIds.has(String(p._id))
     );
 
     const remaining = list.filter(
-      (p) => !selectedIds.has(p._id)
+      (p) => !selectedIds.has(String(p._id))
     );
 
     return [...selected, ...remaining];
@@ -113,7 +116,7 @@ const BuildYourLookPage = () => {
 
   const toggleProduct = (product) => {
     const exists = selectedProducts.some(
-      (p) => p._id === product._id
+      (p) => String(p._id) === String(product._id)
     );
 
     if (exists) {
@@ -122,7 +125,9 @@ const BuildYourLookPage = () => {
     }
 
     if (selectedProducts.length >= 3) {
-      toast.error("Your look can have up to 3 pieces");
+      toast.error(
+        "Your look can have up to 3 pieces"
+      );
       return;
     }
 
@@ -139,7 +144,9 @@ const BuildYourLookPage = () => {
 
   const removeProduct = (productId) => {
     setSelectedProducts((prev) =>
-      prev.filter((p) => p._id !== productId)
+      prev.filter(
+        (p) => String(p._id) !== String(productId)
+      )
     );
 
     setSelectedSizes((prev) => {
@@ -179,8 +186,13 @@ const BuildYourLookPage = () => {
       selectedSizes
     );
 
-    localStorage.removeItem("build-look-products");
-    localStorage.removeItem("build-look-sizes");
+    localStorage.removeItem(
+      "build-look-products"
+    );
+
+    localStorage.removeItem(
+      "build-look-sizes"
+    );
 
     setSelectedProducts([]);
     setSelectedSizes({});
@@ -191,13 +203,10 @@ const BuildYourLookPage = () => {
 
   return (
     <div className="min-h-screen bg-[#fafafa] text-black">
-
       {/* HERO */}
       <section className="border-b border-neutral-200 bg-white">
         <div className="mx-auto max-w-[1800px] px-5 py-10 sm:px-8 md:px-10 md:py-16">
-
           <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-
             <div className="max-w-3xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-neutral-200 bg-neutral-50 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.25em] text-neutral-500">
                 <ShoppingBag className="h-3.5 w-3.5" />
@@ -209,8 +218,8 @@ const BuildYourLookPage = () => {
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-6 text-neutral-500 sm:text-base md:text-lg">
-                Pick your favorite pieces, choose your sizes,
-                and create a complete look with{" "}
+                Pick your favorite pieces, choose your
+                sizes, and create a complete look with{" "}
                 <span className="font-semibold text-black">
                   10% bundle savings.
                 </span>
@@ -218,7 +227,6 @@ const BuildYourLookPage = () => {
             </div>
 
             <div className="flex items-center gap-3">
-
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-5 py-4">
                 <p className="text-2xl font-black">
                   {selectedProducts.length}/3
@@ -238,19 +246,15 @@ const BuildYourLookPage = () => {
                   Bundle Saving
                 </p>
               </div>
-
             </div>
           </div>
         </div>
       </section>
 
       <div className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 md:px-8 md:py-10">
-
         {/* CATEGORY NAV */}
         <div className="sticky top-0 z-30 -mx-4 border-b border-neutral-200 bg-[#fafafa]/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
-
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
-
             <button
               type="button"
               onClick={() =>
@@ -296,10 +300,8 @@ const BuildYourLookPage = () => {
         </div>
 
         <div className="mt-8 grid gap-10 lg:grid-cols-[minmax(0,1fr)_400px] xl:gap-14">
-
           {/* PRODUCTS */}
           <main>
-
             <div className="mb-5 flex items-end justify-between">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.25em] text-neutral-400">
@@ -352,11 +354,12 @@ const BuildYourLookPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
-
                 {filteredProducts.map((product) => {
                   const selected =
                     selectedProducts.some(
-                      (p) => p._id === product._id
+                      (p) =>
+                        String(p._id) ===
+                        String(product._id)
                     );
 
                   const selectedSize =
@@ -384,13 +387,11 @@ const BuildYourLookPage = () => {
                         }
                       `}
                     >
-
-                      {/* IMAGE */}
                       <div
                         className="relative aspect-[3/4] cursor-pointer overflow-hidden bg-neutral-100"
                         onClick={() =>
                           navigate(
-                            `/product/${product._id}`
+                            `/product/${product.publicId || product._id}`
                           )
                         }
                       >
@@ -412,16 +413,23 @@ const BuildYourLookPage = () => {
                           </div>
                         )}
 
-                        {product.isNewProduct && !selected && (
-                          <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] backdrop-blur">
-                            New
-                          </span>
+                        {product.isNewProduct &&
+                          !selected && (
+                            <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] backdrop-blur">
+                              New
+                            </span>
+                          )}
+
+                        {product.isOutOfStock && (
+                          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                            <span className="rounded-full bg-black px-4 py-2 text-xs font-bold uppercase tracking-widest text-white">
+                              Sold Out
+                            </span>
+                          </div>
                         )}
                       </div>
 
-                      {/* INFO */}
                       <div className="p-4 sm:p-5">
-
                         <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
                           {product.category?.name ||
                             "Collection"}
@@ -442,7 +450,10 @@ const BuildYourLookPage = () => {
                           {product.oldPrice &&
                             Number(
                               product.oldPrice
-                            ) > Number(product.price) && (
+                            ) >
+                              Number(
+                                product.price
+                              ) && (
                               <span className="text-xs text-neutral-400 line-through">
                                 ₹
                                 {Number(
@@ -452,7 +463,6 @@ const BuildYourLookPage = () => {
                             )}
                         </div>
 
-                        {/* SIZE */}
                         <div className="mt-4">
                           <div className="mb-2 flex items-center justify-between">
                             <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
@@ -478,7 +488,10 @@ const BuildYourLookPage = () => {
                                     <button
                                       key={size}
                                       type="button"
-                                      disabled={selected}
+                                      disabled={
+                                        selected ||
+                                        product.isOutOfStock
+                                      }
                                       onClick={() =>
                                         setSelectedSizes(
                                           (prev) => ({
@@ -501,7 +514,8 @@ const BuildYourLookPage = () => {
                                             : "border-neutral-200 bg-white text-neutral-700 hover:border-black"
                                         }
                                         ${
-                                          selected
+                                          selected ||
+                                          product.isOutOfStock
                                             ? "cursor-not-allowed opacity-50"
                                             : ""
                                         }
@@ -520,12 +534,12 @@ const BuildYourLookPage = () => {
                           </div>
                         </div>
 
-                        {/* ACTION */}
                         <button
                           type="button"
                           disabled={
-                            !selectedSize &&
-                            !selected
+                            (!selectedSize &&
+                              !selected) ||
+                            product.isOutOfStock
                           }
                           onClick={() =>
                             toggleProduct(product)
@@ -556,7 +570,6 @@ const BuildYourLookPage = () => {
                             </>
                           )}
                         </button>
-
                       </div>
                     </article>
                   );
@@ -568,7 +581,6 @@ const BuildYourLookPage = () => {
           {/* DESKTOP SUMMARY */}
           <aside className="hidden lg:block">
             <div className="sticky top-24 overflow-hidden rounded-3xl border border-neutral-200 bg-white shadow-sm">
-
               <div className="border-b border-neutral-200 p-7">
                 <div className="flex items-start justify-between">
                   <div>
@@ -598,7 +610,6 @@ const BuildYourLookPage = () => {
               </div>
 
               <div className="max-h-[48vh] overflow-y-auto p-6">
-
                 {selectedProducts.length === 0 ? (
                   <div className="flex min-h-[260px] flex-col items-center justify-center text-center">
                     <div className="flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100">
@@ -610,7 +621,8 @@ const BuildYourLookPage = () => {
                     </h3>
 
                     <p className="mt-2 max-w-[230px] text-sm leading-5 text-neutral-400">
-                      Choose up to 3 pieces and select a size for each one.
+                      Choose up to 3 pieces and select
+                      a size for each one.
                     </p>
                   </div>
                 ) : (
@@ -623,7 +635,10 @@ const BuildYourLookPage = () => {
                         >
                           <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl bg-neutral-100">
                             <img
-                              src={product.images?.[0]}
+                              src={
+                                product.images?.[0] ||
+                                "/images/placeholder.png"
+                              }
                               alt={product.title}
                               className="h-full w-full object-cover"
                             />
@@ -661,9 +676,11 @@ const BuildYourLookPage = () => {
                             <div className="mt-3 flex items-center justify-between">
                               <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[10px] font-semibold">
                                 Size{" "}
-                                {selectedSizes[
-                                  product._id
-                                ]}
+                                {
+                                  selectedSizes[
+                                    product._id
+                                  ]
+                                }
                               </span>
 
                               <span className="text-sm font-bold">
@@ -698,7 +715,6 @@ const BuildYourLookPage = () => {
               </div>
 
               <div className="border-t border-neutral-200 bg-neutral-50 p-6">
-
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between text-neutral-500">
                     <span>Subtotal</span>
@@ -749,20 +765,18 @@ const BuildYourLookPage = () => {
         </div>
       </div>
 
-      {/* MOBILE FLOATING BAR */}
+      {/* MOBILE */}
       {selectedProducts.length > 0 && (
         <div className="lg:hidden">
-
           {!showLookDrawer && (
             <button
               type="button"
               onClick={() =>
                 setShowLookDrawer(true)
               }
-              className="fixed bottom-4 left-4 right-4 z-[60] rounded-2xl bg-black px-4 py-3.5 text-white shadow-[0_15px_50px_rgba(0,0,0,.3)] transition active:scale-[.98]"
+              className="fixed bottom-4 left-4 right-4 z-[60] rounded-2xl bg-black px-4 py-3.5 text-white shadow-[0_15px_50px_rgba(0,0,0,.3)]"
             >
               <div className="flex items-center justify-between">
-
                 <div className="flex items-center gap-3">
                   <div className="flex -space-x-2">
                     {selectedProducts
@@ -771,7 +785,8 @@ const BuildYourLookPage = () => {
                         <img
                           key={product._id}
                           src={
-                            product.images?.[0]
+                            product.images?.[0] ||
+                            "/images/placeholder.png"
                           }
                           alt=""
                           className="h-10 w-10 rounded-xl border-2 border-black object-cover"
@@ -781,7 +796,8 @@ const BuildYourLookPage = () => {
 
                   <div className="text-left">
                     <p className="text-sm font-semibold">
-                      {selectedProducts.length}/3 pieces
+                      {selectedProducts.length}/3
+                      pieces
                     </p>
 
                     <p className="text-[11px] text-neutral-400">
@@ -798,14 +814,12 @@ const BuildYourLookPage = () => {
 
                   <ChevronRight
                     size={18}
-                    className="text-white"
                   />
                 </div>
               </div>
             </button>
           )}
 
-          {/* BACKDROP */}
           {showLookDrawer && (
             <div
               onClick={() =>
@@ -815,7 +829,6 @@ const BuildYourLookPage = () => {
             />
           )}
 
-          {/* DRAWER */}
           <div
             className={`
               fixed inset-x-0 bottom-0 z-[70]
@@ -832,7 +845,6 @@ const BuildYourLookPage = () => {
             `}
           >
             <div className="flex max-h-[88vh] flex-col">
-
               <div className="shrink-0 bg-white px-5 pb-4 pt-3">
                 <div className="mx-auto h-1.5 w-12 rounded-full bg-neutral-300" />
 
@@ -870,7 +882,6 @@ const BuildYourLookPage = () => {
               </div>
 
               <div className="flex-1 overflow-y-auto px-4 py-4">
-
                 <div className="space-y-3">
                   {selectedProducts.map(
                     (product, index) => (
@@ -879,11 +890,11 @@ const BuildYourLookPage = () => {
                         className="rounded-2xl border border-neutral-200 bg-white p-3"
                       >
                         <div className="flex gap-3">
-
                           <div className="relative h-24 w-20 shrink-0 overflow-hidden rounded-xl">
                             <img
                               src={
-                                product.images?.[0]
+                                product.images?.[0] ||
+                                "/images/placeholder.png"
                               }
                               alt={product.title}
                               className="h-full w-full object-cover"
@@ -922,9 +933,11 @@ const BuildYourLookPage = () => {
                             <div className="mt-3 flex items-center justify-between">
                               <span className="rounded-full bg-neutral-100 px-2.5 py-1 text-[10px] font-semibold">
                                 Size{" "}
-                                {selectedSizes[
-                                  product._id
-                                ]}
+                                {
+                                  selectedSizes[
+                                    product._id
+                                  ]
+                                }
                               </span>
 
                               <span className="font-bold">
@@ -955,12 +968,11 @@ const BuildYourLookPage = () => {
                 </div>
               </div>
 
-              {/* FOOTER */}
               <div className="shrink-0 border-t border-neutral-200 bg-white px-4 pb-5 pt-4">
-
                 <div className="rounded-2xl bg-neutral-50 p-4">
                   <div className="flex justify-between text-xs text-neutral-500">
                     <span>Subtotal</span>
+
                     <span className="font-medium text-black">
                       ₹{subtotal.toLocaleString()}
                     </span>

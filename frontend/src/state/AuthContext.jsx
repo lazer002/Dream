@@ -1,180 +1,379 @@
+// src/state/AuthContext.jsx
+
 import {
   createContext,
   useContext,
   useEffect,
   useState,
+  useCallback,
 } from "react";
-import api from "../utils/config";
+
+import {
+  useGetMeQuery,
+  useLoginMutation,
+  useRegisterMutation,
+  useGoogleLoginMutation,
+} from "@/store/api";
 
 const AuthContext = createContext(null);
 
+const getOrCreateGuestId = () => {
+  let gid = localStorage.getItem("ds_guest");
+
+  if (!gid) {
+    gid = crypto.randomUUID();
+    localStorage.setItem("ds_guest", gid);
+  }
+
+  return gid;
+};
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
   const [guestId, setGuestId] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [authUser, setAuthUser] = useState(null);
+  const [authToken, setAuthToken] = useState(
+    () => localStorage.getItem("ds_access")
+  );
   const [authStatus, setAuthStatus] = useState("loading");
   const [isMerged, setIsMerged] = useState(false);
 
-  /* ================= INIT ================= */
+  /* =========================
+     GUEST ID
+  ========================= */
 
   useEffect(() => {
-    const initAuth = async () => {
+    setGuestId(getOrCreateGuestId());
+  }, []);
+
+  /* =========================
+     CURRENT USER
+  ========================= */
+
+  const {
+    data,
+    isLoading: isUserLoading,
+    isFetching: isUserFetching,
+    isError: isUserError,
+    error: userError,
+    refetch: refetchUser,
+  } = useGetMeQuery(undefined, {
+    skip: !authToken,
+  });
+
+  /* =========================
+     SERVER USER
+  ========================= */
+
+  useEffect(() => {
+    if (data?.user) {
+      setAuthUser(data.user);
+    }
+  }, [data]);
+
+  /* =========================
+     AUTH STATUS
+  ========================= */
+
+  useEffect(() => {
+    if (!authToken) {
+      setAuthUser(null);
+      setAuthStatus("unauthenticated");
+      return;
+    }
+
+    if (isUserLoading || isUserFetching) {
+      setAuthStatus("loading");
+      return;
+    }
+
+    if (isUserError) {
+      setAuthUser(null);
+      setAuthStatus("unauthenticated");
+      return;
+    }
+
+    if (data?.user) {
+      setAuthStatus("authenticated");
+    }
+  }, [
+    authToken,
+    data,
+    isUserLoading,
+    isUserFetching,
+    isUserError,
+  ]);
+
+  /* =========================
+     GOOGLE CALLBACK
+  ========================= */
+
+  useEffect(() => {
+    const params = new URLSearchParams(
+      window.location.search
+    );
+
+    const accessToken = params.get("accessToken");
+
+    if (!accessToken) return;
+
+    localStorage.setItem(
+      "ds_access",
+      accessToken
+    );
+
+    setAuthToken(accessToken);
+
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname
+    );
+  }, []);
+
+  /* =========================
+     LOGIN
+  ========================= */
+
+  const [loginMutation, { isLoading: isLoggingIn }] =
+    useLoginMutation();
+
+  const login = useCallback(
+    async (email, password) => {
+      setAuthStatus("loading");
+
       try {
-        let gid = localStorage.getItem("ds_guest");
-        if (!gid) {
-          gid = crypto.randomUUID();
-          localStorage.setItem("ds_guest", gid);
-        }
-        setGuestId(gid);
+        const data = await loginMutation({
+          email,
+          password,
+        }).unwrap();
 
-        const token = localStorage.getItem("ds_access");
-
-        // no token → logged out
-        if (!token) {
-          setUser(null);
-          setAuthStatus("unauthenticated");
-          return;
+        if (!data?.accessToken) {
+          throw new Error(
+            "Authentication token missing"
+          );
         }
 
-        // 🔥 IMPORTANT: let interceptor handle refresh automatically
-        const { data } = await api.get("/auth/me");
+        localStorage.setItem(
+          "ds_access",
+          data.accessToken
+        );
 
-        setUser(data.user);
+        setAuthToken(data.accessToken);
+
+        if (data.user) {
+          setAuthUser(data.user);
+        }
+
         setAuthStatus("authenticated");
 
-      } catch (err) {
-        console.log("Auth init failed → user not authenticated");
-
-        setUser(null);
+        return data;
+      } catch (error) {
+        setAuthUser(null);
         setAuthStatus("unauthenticated");
-      } finally {
-        setLoading(false);
+
+        throw error;
       }
-    };
+    },
+    [loginMutation]
+  );
 
-    initAuth();
-  }, []);
+  /* =========================
+     REGISTER
+  ========================= */
 
-  /* ================= GOOGLE CALLBACK ================= */
+  const [
+    registerMutation,
+    { isLoading: isRegistering },
+  ] = useRegisterMutation();
 
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
+  const register = useCallback(
+    async (name, email, password) => {
+      setAuthStatus("loading");
 
-    const at = params.get("accessToken");
-    if (!at) return;
+      try {
+        const data = await registerMutation({
+          name,
+          email,
+          password,
+        }).unwrap();
 
-    localStorage.setItem("ds_access", at);
+        if (!data?.accessToken) {
+          throw new Error(
+            "Authentication token missing"
+          );
+        }
 
-    api.get("/auth/me")
-      .then((res) => {
-        setUser(res.data.user);
+        localStorage.setItem(
+          "ds_access",
+          data.accessToken
+        );
+
+        setAuthToken(data.accessToken);
+
+        if (data.user) {
+          setAuthUser(data.user);
+        }
+
         setAuthStatus("authenticated");
-      })
-      .catch(() => {
-        setUser(null);
+
+        return data;
+      } catch (error) {
+        setAuthUser(null);
         setAuthStatus("unauthenticated");
-      });
 
-    window.history.replaceState({}, document.title, "/");
-  }, []);
+        throw error;
+      }
+    },
+    [registerMutation]
+  );
 
-  /* ================= MERGE ================= */
+  /* =========================
+     GOOGLE LOGIN
+  ========================= */
 
-  const mergeGuestData = async (gid) => {
-    if (!gid || isMerged) return;
+  const [
+    googleLoginMutation,
+    { isLoading: isGoogleLoggingIn },
+  ] = useGoogleLoginMutation();
 
-    try {
-      await api.post("/wishlist/sync");
-      localStorage.removeItem("ds_guest");
-      setGuestId(null);
-      setIsMerged(true);
-    } catch (err) {
-      console.error("Merge error:", err);
-    }
-  };
+  const loginWithGoogle = useCallback(
+    async (googleToken) => {
+      if (!googleToken) {
+        throw new Error(
+          "Google token is required"
+        );
+      }
 
-  useEffect(() => {
-    if (user && guestId) {
-      mergeGuestData(guestId);
-    }
-  }, [user, guestId]);
+      setAuthStatus("loading");
 
-  /* ================= AUTH ================= */
+      try {
+        const data =
+          await googleLoginMutation({
+            token: googleToken,
+          }).unwrap();
 
-  const login = async (email, password) => {
-    setAuthStatus("loading");
+        if (!data?.accessToken) {
+          throw new Error(
+            "Authentication token missing"
+          );
+        }
 
-    const { data } = await api.post("/auth/login", { email, password });
+        localStorage.setItem(
+          "ds_access",
+          data.accessToken
+        );
 
-    localStorage.setItem("ds_access", data.accessToken);
+        setAuthToken(data.accessToken);
 
-    const res = await api.get("/auth/me");
+        if (data.user) {
+          setAuthUser(data.user);
+        }
 
-    setUser(res.data.user);
-    setAuthStatus("authenticated");
-  };
+        setAuthStatus("authenticated");
 
-  const register = async (name, email, password) => {
-    setAuthStatus("loading");
+        return data;
+      } catch (error) {
+        setAuthUser(null);
+        setAuthStatus("unauthenticated");
 
-    const { data } = await api.post("/auth/register", {
-      name,
-      email,
-      password,
-    });
+        throw error;
+      }
+    },
+    [googleLoginMutation]
+  );
 
-    localStorage.setItem("ds_access", data.accessToken);
+  /* =========================
+     LOGOUT
+  ========================= */
 
-    const res = await api.get("/auth/me");
+  const logout = useCallback(() => {
+    localStorage.removeItem("ds_access");
+    localStorage.removeItem("ds_user");
 
-    setUser(res.data.user);
-    setAuthStatus("authenticated");
-  };
+    const newGuestId = crypto.randomUUID();
 
-  const loginWithGoogle = async (token) => {
-    setAuthStatus("loading");
+    localStorage.setItem(
+      "ds_guest",
+      newGuestId
+    );
 
-    const { data } = await api.post("/auth/google", { token });
-
-    localStorage.setItem("ds_access", data.accessToken);
-
-    const res = await api.get("/auth/me");
-
-    setUser(res.data.user);
-    setAuthStatus("authenticated");
-  };
-
-  /* ================= LOGOUT ================= */
-
-  const logout = () => {
-    setUser(null);
+    setGuestId(newGuestId);
+    setAuthToken(null);
+    setAuthUser(null);
+    setIsMerged(false);
     setAuthStatus("unauthenticated");
 
-    localStorage.removeItem("ds_user");
-    localStorage.removeItem("ds_access");
-
-    const gid = crypto.randomUUID();
-    localStorage.setItem("ds_guest", gid);
-    setGuestId(gid);
-
-    setIsMerged(false);
-
     window.location.href = "/login";
-  };
+  }, []);
 
-  /* ================= PROVIDER ================= */
+  /* =========================
+     REFRESH USER
+  ========================= */
+
+  const refreshUser = useCallback(async () => {
+    if (!authToken) return null;
+
+    try {
+      const result = await refetchUser();
+
+      if (result?.data?.user) {
+        setAuthUser(result.data.user);
+        setAuthStatus("authenticated");
+
+        return result.data.user;
+      }
+
+      return null;
+    } catch (error) {
+      console.error(
+        "REFRESH USER ERROR:",
+        error
+      );
+
+      return null;
+    }
+  }, [authToken, refetchUser]);
+
+  /* =========================
+     LOADING
+  ========================= */
+
+  const loading =
+    authStatus === "loading" ||
+    isLoggingIn ||
+    isRegistering ||
+    isGoogleLoggingIn;
+
+  /* =========================
+     PROVIDER
+  ========================= */
+
   return (
     <AuthContext.Provider
       value={{
-        user,
-        setUser,
+        user: authUser,
+
         guestId,
+
         loading,
+
         authStatus,
+
+        isMerged,
+
+        setIsMerged,
+
         login,
+
         register,
+
         loginWithGoogle,
+
         logout,
+
+        refetchUser: refreshUser,
+
+        userError,
       }}
     >
       {children}
@@ -182,4 +381,5 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () =>
+  useContext(AuthContext);

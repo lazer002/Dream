@@ -1,238 +1,350 @@
-import { useEffect, useState, useMemo, useCallback, useRef } from "react";
-import { Link } from "react-router-dom";
+import {
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+} from "react";
+import { Link, useNavigate } from "react-router-dom";
+
 import { Button } from "@/components/ui/button";
 import FAQ from "@/components/Faq";
 import FeaturesCarousel from "@/components/FeaturesCarousel";
-import api  from "@/utils/config";
+
 import { useCart } from "@/state/CartContext";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog.jsx";
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogClose,
+} from "@/components/ui/dialog.jsx";
+
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
+
 import { Swiper, SwiperSlide } from "swiper/react";
-import { X ,ChevronRight} from "lucide-react";
-import { useNavigate } from "react-router-dom";
-/* ---------- small debounce hook ---------- */
+import { X, ChevronRight } from "lucide-react";
+import toast from "react-hot-toast";
+
+import { useGetCategoriesQuery } from "@/store/api";
+import {
+  useGetProductsQuery,
+  useGetBundlesQuery,
+} from "@/store/api";
+
+/* ---------- debounce ---------- */
+
 function useDebounce(value, delay = 350) {
   const [debounced, setDebounced] = useState(value);
+
   useEffect(() => {
-    const id = setTimeout(() => setDebounced(value), delay);
+    const id = setTimeout(() => {
+      setDebounced(value);
+    }, delay);
+
     return () => clearTimeout(id);
   }, [value, delay]);
+
   return debounced;
 }
 
 export default function Home() {
-  const fmt = (v) => Number(v || 0).toLocaleString();
-  const { add, addBundleToCart } = useCart();
-  const [products, setProducts] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [bundles, setBundles] = useState([]);
+  const navigate = useNavigate();
+
+  const fmt = (v) =>
+    Number(v || 0).toLocaleString("en-IN");
+
+  /* =========================
+     CATEGORIES
+  ========================= */
+
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+  } = useGetCategoriesQuery();
+
+  const categories =
+    categoriesData?.categories ||
+    categoriesData ||
+    [];
+
+  /* =========================
+     SEARCH
+  ========================= */
+
   const [q, setQ] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [selectedBundle, setSelectedBundle] = useState(null);
-  const [selectedSizes, setSelectedSizes] = useState({});
+
   const debouncedQ = useDebounce(q, 350);
-  const productAbortRef = useRef(null);
-  const bundleAbortRef = useRef(null);
-  const [loading, setLoading] = useState(false);
-const [form, setForm] = useState({
-  name: "",
-  email: "",
-  phone: "",
-  message: "",
-});
 
+  /* =========================
+     PRODUCTS
+  ========================= */
 
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    isError: productsError,
+  } = useGetProductsQuery({
+    q: debouncedQ || "",
+  });
 
+  const products =
+    productsData?.items ||
+    productsData?.products ||
+    [];
 
+  /* =========================
+     BUNDLES
+  ========================= */
 
-const handleChange = (e) => {
-  setForm({ ...form, [e.target.name]: e.target.value });
-};
+  const {
+    data: bundlesData,
+    isLoading: bundlesLoading,
+    isError: bundlesError,
+  } = useGetBundlesQuery({
+    limit: 4,
+  });
 
-const handleSubmit = async (e) => {
+  const bundles =
+    bundlesData?.items ||
+    bundlesData?.bundles ||
+    [];
 
-  if (!form.name || !form.email || !form.message) {
-    toast.error("Please fill all required fields");
-    return;
-  }
+  /* =========================
+     CART
+  ========================= */
 
-  try {
-    setLoading(true);
+  const {
+    add,
+    addBundleToCart,
+  } = useCart();
 
-    await api.post("/contact", form);
+  /* =========================
+     PRODUCT MODAL
+  ========================= */
 
-    toast.success("Message sent 🚀");
+  const [selectedProduct, setSelectedProduct] =
+    useState(null);
 
-    setForm({
-      name: "",
-      email: "",
-      phone: "",
-      message: "",
-    });
+  const [isModalOpen, setIsModalOpen] =
+    useState(false);
 
-  } catch (err) {
-    toast.error("Failed to send message");
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-const navigate = useNavigate();
-  const openModal = (product) => {
+  const openModal = useCallback((product) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
-  };
-  const handleSelectSize = (sizeKey) => {
-   
-    if (!selectedProduct) return;
-    const qty = Number(selectedProduct.inventory?.[sizeKey] ?? 0);
-    if (qty <= 0) return; // disabled anyway
-
-    add(selectedProduct._id, sizeKey); // 👈 always with size
-    setIsModalOpen(false);
-    setSelectedProduct(null);
-  };
-
-  const openBundleModal = (bundle) => {
-    setSelectedBundle(bundle);
-    const initialSizes = (bundle.products || []).reduce((acc, p) => {
-      acc[p._id] = ""; // no preselection
-      return acc;
-    }, {});
-    setSelectedSizes(initialSizes);
-    setIsOpen(true);
-  };
-  const handleAddBundle = () => {
-    if (!selectedBundle) return;
-    addBundleToCart(selectedBundle, selectedSizes);
-    setIsOpen(false);
-  };
-  useEffect(() => {
-    // abort previous product request if any
-    if (productAbortRef.current) {
-      try {
-        productAbortRef.current.abort();
-      } catch (e) { }
-      productAbortRef.current = null;
-    }
-
-    // abort previous bundle request if any
-    if (bundleAbortRef.current) {
-      try {
-        bundleAbortRef.current.abort();
-      } catch (e) { }
-      bundleAbortRef.current = null;
-    }
-
-    const productController = new AbortController();
-    const bundleController = new AbortController();
-    productAbortRef.current = productController;
-    bundleAbortRef.current = bundleController;
-
-    const fetchProducts = async () => {
-      try {
-        const res = await api.get("/products", {
-          params: { q: debouncedQ || "" },
-          signal: productController.signal,
-        });
-        setProducts(res.data?.items || []);
-      } catch (err) {
-        if (err?.name !== "AbortError" && err?.message !== "canceled") {
-          console.error("Error fetching products:", err);
-          setProducts([]);
-        }
-      } finally {
-        productAbortRef.current = null;
-      }
-    };
-
-    const fetchBundles = async () => {
-      try {
-        const res = await api.get("/bundles", {
-          params: { limit: 4 },
-          signal: bundleController.signal,
-        });
-        setBundles(res.data.items || []);
-      } catch (err) {
-        if (err?.name !== "AbortError" && err?.message !== "canceled") {
-          console.error("Error fetching bundles:", err);
-          setBundles([]);
-          setError("Failed to load bundles. Try again.");
-        }
-      } finally {
-        bundleAbortRef.current = null;
-      }
-    };
-
-    fetchProducts();
-    fetchBundles();
-
-    // cleanup: abort when effect re-runs or unmounts
-    return () => {
-      try {
-        productController.abort();
-        bundleController.abort();
-      } catch (e) { }
-    };
-  }, [debouncedQ]);
-  const handleSizeChange = (productId, size) => {
-    setSelectedSizes((prev) => ({ ...prev, [productId]: size }));
-  };
-
-  // Fetch categories once
-  useEffect(() => {
-    let mounted = true;
-    (async () => {
-      try {
-        const res = await api.get("/categories");
-        if (!mounted) return;
-        const cats = Array.isArray(res.data?.categories) ? res.data.categories : [];
-        setCategories(cats);
-      } catch (error) {
-        console.error("Error fetching categories:", error);
-      } finally {
-        mounted
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
   }, []);
 
-  // normalize product (memoized)
+  const handleSelectSize = useCallback(
+    (sizeKey) => {
+      if (!selectedProduct) return;
+
+      const qty = Number(
+        selectedProduct.inventory?.[sizeKey] ?? 0
+      );
+
+      if (qty <= 0) return;
+
+      add(selectedProduct.publicId, sizeKey);
+
+      setIsModalOpen(false);
+      setSelectedProduct(null);
+    },
+    [selectedProduct, add]
+  );
+
+  /* =========================
+     BUNDLE MODAL
+  ========================= */
+
+  const [selectedBundle, setSelectedBundle] =
+    useState(null);
+
+  const [isOpen, setIsOpen] =
+    useState(false);
+
+  const [selectedSizes, setSelectedSizes] =
+    useState({});
+
+  const openBundleModal = useCallback(
+    (bundle) => {
+      setSelectedBundle(bundle);
+
+      const initialSizes = (
+        bundle.products || []
+      ).reduce((acc, product) => {
+        acc[product._id] = "";
+        return acc;
+      }, {});
+
+      setSelectedSizes(initialSizes);
+      setIsOpen(true);
+    },
+    []
+  );
+
+  const handleSizeChange = useCallback(
+    (productId, size) => {
+      setSelectedSizes((prev) => ({
+        ...prev,
+        [productId]: size,
+      }));
+    },
+    []
+  );
+
+  const handleAddBundle = useCallback(() => {
+    if (!selectedBundle) return;
+
+    addBundleToCart(
+      selectedBundle,
+      selectedSizes
+    );
+
+    setIsOpen(false);
+    setSelectedBundle(null);
+  }, [
+    selectedBundle,
+    selectedSizes,
+    addBundleToCart,
+  ]);
+
+  /* =========================
+     CONTACT
+  ========================= */
+
+  const [loading, setLoading] =
+    useState(false);
+
+  const [form, setForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    message: "",
+  });
+
+  const handleChange = useCallback((e) => {
+    setForm((prev) => ({
+      ...prev,
+      [e.target.name]: e.target.value,
+    }));
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    if (
+      !form.name ||
+      !form.email ||
+      !form.message
+    ) {
+      toast.error(
+        "Please fill all required fields"
+      );
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      // Keep your existing axios instance
+      // only for mutations that are not RTK Query yet.
+      const { default: api } = await import(
+        "@/utils/config"
+      );
+
+      await api.post("/contact", form);
+
+      toast.success("Message sent 🚀");
+
+      setForm({
+        name: "",
+        email: "",
+        phone: "",
+        message: "",
+      });
+    } catch (error) {
+      console.error(error);
+      toast.error(
+        "Failed to send message"
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /* =========================
+     NORMALIZE PRODUCTS
+  ========================= */
+
   const normalize = useCallback((p) => {
-    const original = p.compareAtPrice ?? p.originalPrice ?? p.mrp ?? null;
-    const price = Number(p.price) || 0;
+    const original =
+      p.compareAtPrice ??
+      p.originalPrice ??
+      p.mrp ??
+      p.oldPrice ??
+      null;
+
+    const price =
+      Number(p.price) || 0;
 
     let discountPercent = null;
+
     if (p.discountPercent) {
-      discountPercent = Number(p.discountPercent);
-    } else if (original && Number(original) > price) {
-      discountPercent = Math.round(((Number(original) - price) / Number(original)) * 100);
+      discountPercent =
+        Number(p.discountPercent);
+    } else if (
+      original &&
+      Number(original) > price
+    ) {
+      discountPercent = Math.round(
+        ((Number(original) - price) /
+          Number(original)) *
+          100
+      );
     }
 
     return {
       ...p,
       displayPrice: price,
-      originalPrice: original ? Number(original) : null,
+      originalPrice: original
+        ? Number(original)
+        : null,
       discountPercent,
     };
   }, []);
 
   const normalized = useMemo(
-    () => (Array.isArray(products) ? products.map(normalize) : []),
+    () =>
+      Array.isArray(products)
+        ? products.map(normalize)
+        : [],
     [products, normalize]
   );
 
-  const heroes = useMemo(() => normalized.slice(0, 3), [normalized]);
-useEffect(() => {
-  document.body.style.overflow = isOpen ? "hidden" : "auto";
-  return () => (document.body.style.overflow = "auto");
-}, [isOpen]);
+  const heroes = useMemo(
+    () => normalized.slice(0, 3),
+    [normalized]
+  );
+
+  /* =========================
+     MODAL BODY SCROLL
+  ========================= */
+
+  useEffect(() => {
+    document.body.style.overflow = isOpen
+      ? "hidden"
+      : "";
+
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [isOpen]);
   
   return (
 

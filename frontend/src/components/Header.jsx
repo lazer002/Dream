@@ -1,5 +1,5 @@
 "use client";
-// data-lenis-prevent
+
 import { useEffect, useRef, useState } from "react";
 import {
   Menu,
@@ -12,12 +12,14 @@ import {
   Link,
   useLocation,
 } from "react-router-dom";
-
-import api from "@/utils/config";
-
 import { useCart } from "../state/CartContext.jsx";
 import { useAuth } from "../state/AuthContext.jsx";
 import { useWishlist } from "../state/WishlistContext.jsx";
+
+import {
+  useGetCategoriesQuery,
+  useGetProductsQuery,
+} from "@/store/api";
 
 const navItems = [
   {
@@ -25,20 +27,17 @@ const navItems = [
     title: "HOME",
     url: "/",
   },
-
   {
     id: "men",
     title: "MEN",
     url: "/products",
     megaMenu: true,
   },
-
   {
     id: "collections",
     title: "COLLECTIONS",
     url: "/collections",
   },
-
   {
     id: "new-arrivals",
     title: "NEW ARRIVALS",
@@ -46,32 +45,391 @@ const navItems = [
   },
 ];
 
+
+// 4. ADD THIS COMPONENT AT THE BOTTOM OF Header.jsx
+
+function QuickViewModal({
+  product,
+  onClose,
+}) {
+  const { add } = useCart();
+
+  const [selectedSize, setSelectedSize] =
+    useState("");
+
+  const inventory =
+    product?.inventory || {};
+
+ const stock =
+  inventory?.stock ||
+  inventory ||
+  {};
+
+  const sizes = Object.entries(stock)
+    .filter(
+      ([, qty]) => Number(qty) > 0
+    )
+    .map(([size]) => size);
+
+  const selectedStock = selectedSize
+    ? Number(stock[selectedSize] || 0)
+    : 0;
+
+  const outOfStock =
+    product?.inventory?.trackInventory !==
+      false &&
+    sizes.length === 0;
+
+  const handleAdd = async () => {
+    if (!selectedSize) {
+      toast.error("Please select a size");
+      return;
+    }
+
+    if (
+      product?.inventory?.trackInventory !==
+        false &&
+      selectedStock <= 0
+    ) {
+      toast.error("This size is out of stock");
+      return;
+    }
+
+    await add(
+      product.publicId,
+      selectedSize,
+      1
+    );
+
+    onClose();
+  };
+
+  return (
+<div className="
+  fixed
+  inset-0
+  z-[99999]
+  flex
+  items-center
+  justify-center
+  p-4
+">
+  <button
+    type="button"
+    onClick={onClose}
+    className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+  />
+
+  <div className="
+    relative
+    z-10
+    w-full
+    max-w-4xl
+    max-h-[90vh]
+    overflow-y-auto
+    rounded-2xl
+    bg-white
+    shadow-2xl
+  ">
+        <button
+          type="button"
+          onClick={onClose}
+          className="
+            absolute
+            right-4
+            top-4
+            z-10
+            flex
+            h-10
+            w-10
+            items-center
+            justify-center
+            rounded-full
+            bg-white
+            shadow
+            transition
+            hover:bg-black
+            hover:text-white
+          "
+        >
+          <X size={18} />
+        </button>
+
+        <div className="
+          grid
+          grid-cols-1
+          md:grid-cols-2
+        ">
+          <div className="
+             h-[45vh]
+  min-h-[300px]
+  max-h-[650px]
+  bg-neutral-100
+  overflow-hidden
+  md:h-[70vh]
+          ">
+            <img
+              src={
+                product?.images?.[0] ||
+                product?.mainImage ||
+                "/placeholder.png"
+              }
+              alt={product?.title}
+              className="
+                h-full
+                w-full
+                object-cover
+              "
+            />
+          </div>
+
+          <div className="
+            flex
+            flex-col
+            justify-center
+            p-7
+            md:p-10
+          ">
+            <p className="
+              text-[9px]
+              font-bold
+              uppercase
+              tracking-[0.25em]
+              text-neutral-400
+            ">
+              {product?.category?.name ||
+                "Product"}
+            </p>
+
+            <h2 className="
+              mt-3
+              text-2xl
+              font-black
+              uppercase
+              tracking-tight
+            ">
+              {product?.title}
+            </h2>
+
+            <div className="
+              mt-5
+              flex
+              items-center
+              gap-3
+            ">
+              {product?.onSale && (
+                <span className="
+                  text-sm
+                  text-neutral-400
+                  line-through
+                ">
+                  ₹
+                  {Math.round(
+                    Number(product.price) /
+                      0.7
+                  ).toLocaleString("en-IN")}
+                </span>
+              )}
+
+              <span className="
+                text-xl
+                font-bold
+              ">
+                ₹
+                {Number(
+                  product?.price || 0
+                ).toLocaleString("en-IN")}
+              </span>
+            </div>
+
+            {!outOfStock && (
+              <>
+                <p className="
+                  mt-8
+                  text-[10px]
+                  font-bold
+                  uppercase
+                  tracking-[0.18em]
+                ">
+                  Select size
+                </p>
+
+                <div className="
+                  mt-3
+                  flex
+                  flex-wrap
+                  gap-2
+                ">
+                  {sizes.map((size) => {
+                    const qty =
+                      Number(
+                        stock[size] || 0
+                      );
+
+                    const selected =
+                      selectedSize === size;
+
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        onClick={() =>
+                          setSelectedSize(
+                            size
+                          )
+                        }
+                        className={`
+                          min-w-14
+                          border
+                          px-4
+                          py-3
+                          text-xs
+                          font-bold
+                          transition
+                          ${
+                            selected
+                              ? "border-black bg-black text-white"
+                              : "border-neutral-200 hover:border-black"
+                          }
+                        `}
+                      >
+                        {size}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {selectedSize && (
+                  <p className="
+                    mt-3
+                    text-[10px]
+                    font-semibold
+                    uppercase
+                    tracking-wider
+                    text-neutral-400
+                  ">
+                    {selectedStock} available
+                  </p>
+                )}
+              </>
+            )}
+
+            {outOfStock && (
+              <p className="
+                mt-8
+                text-xs
+                font-bold
+                uppercase
+                tracking-[0.15em]
+                text-red-500
+              ">
+                Out of stock
+              </p>
+            )}
+
+            <button
+              type="button"
+              disabled={
+                outOfStock ||
+                !selectedSize
+              }
+              onClick={handleAdd}
+              className="
+                mt-8
+                flex
+                h-14
+                w-full
+                items-center
+                justify-center
+                bg-black
+                text-xs
+                font-bold
+                uppercase
+                tracking-[0.18em]
+                text-white
+                transition
+                hover:bg-neutral-800
+                disabled:cursor-not-allowed
+                disabled:opacity-30
+              "
+            >
+              Add to bag
+            </button>
+
+            <Link
+              to={`/product/${product?.publicId}`}
+              onClick={onClose}
+              className="
+                mt-3
+                flex
+                h-12
+                w-full
+                items-center
+                justify-center
+                border
+                border-neutral-200
+                text-[10px]
+                font-bold
+                uppercase
+                tracking-[0.16em]
+                transition
+                hover:border-black
+              "
+            >
+              View full product
+            </Link>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Header() {
   const location = useLocation();
+
   const { user, logout } = useAuth();
   const { items } = useCart();
   const { wishlist } = useWishlist();
-const [cartAnimate, setCartAnimate] =
-  useState(false);
+
+  /* =========================
+     CATEGORIES
+  ========================= */
+
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+    isError: categoriesError,
+  } = useGetCategoriesQuery();
+
+  const categories = Array.isArray(
+    categoriesData?.categories
+  )
+    ? categoriesData.categories
+    : Array.isArray(categoriesData)
+      ? categoriesData
+      : [];
+
+  /* =========================
+     STATE
+  ========================= */
+
+  const [cartAnimate, setCartAnimate] =
+    useState(false);
+
   const [mobileOpen, setMobileOpen] =
     useState(false);
 
   const [searchOpen, setSearchOpen] =
     useState(false);
 
-  const [query, setQuery] = useState("");
-
-  const [results, setResults] = useState([]);
-
-  const [loading, setLoading] =
-    useState(false);
-
-  const [categories, setCategories] =
-    useState([]);
+  const [query, setQuery] =
+    useState("");
 
   const [activeMenu, setActiveMenu] =
     useState(null);
-
+const [quickViewProduct, setQuickViewProduct] =
+  useState(null);
   const closeTimeoutRef = useRef(null);
 
   const baseClass = `
@@ -81,9 +439,9 @@ const [cartAnimate, setCartAnimate] =
     uppercase
   `;
 
-  // =========================
-  // MENU INTERACTION
-  // =========================
+  /* =========================
+     MENU
+  ========================= */
 
   const openMenu = (menuId) => {
     if (closeTimeoutRef.current) {
@@ -100,106 +458,49 @@ const [cartAnimate, setCartAnimate] =
       }, 180);
   };
 
-  // =========================
-  // FETCH CATEGORIES
-  // =========================
-
-  const fetchCategories = async () => {
-    try {
-      const res = await api.get(
-        "/categories"
-      );
-
-      setCategories(
-        Array.isArray(
-          res.data.categories
-        )
-          ? res.data.categories
-          : []
-      );
-    } catch (error) {
-      console.error(error);
-    }
-  };
-useEffect(() => {
-  setActiveMenu(null);
-}, [location.pathname, location.search]);
-
   useEffect(() => {
-    fetchCategories();
+    setActiveMenu(null);
+    setMobileOpen(false);
+  }, [
+    location.pathname,
+    location.search,
+  ]);
 
-    return () => {
-      if (closeTimeoutRef.current) {
-        clearTimeout(
-          closeTimeoutRef.current
-        );
-      }
-    };
-  }, []);
-
-  // =========================
-  // SEARCH
-  // =========================
-
-useEffect(() => {
+  /* =========================
+     SEARCH
+  ========================= */
 
   const trimmedQuery = query.trim();
 
-  if (trimmedQuery.length < 2) {
-    setResults([]);
-    setLoading(false);
-    return;
-  }
-
-  const controller = new AbortController();
-
-  const debounce = setTimeout(async () => {
-
-    try {
-
-      setLoading(true);
-
-      const res = await api.get(
-        `/search/products?q=${encodeURIComponent(trimmedQuery)}`,
-        {
-          signal: controller.signal,
-        }
-      );
-
-      setResults(res.data || []);
-
-    } catch (error) {
-
-      if (
-        error.name !== "CanceledError" &&
-        error.name !== "AbortError"
-      ) {
-        console.error(error);
-      }
-
-    } finally {
-
-      setLoading(false);
-
+  const {
+    data: searchData,
+    isFetching: searchLoading,
+  } = useGetProductsQuery(
+    {
+      q: trimmedQuery,
+      limit: 8,
+      page: 1,
+    },
+    {
+      skip: trimmedQuery.length < 2,
     }
+  );
 
-  }, 500);
+  const results =
+    searchData?.items ||
+    searchData?.products ||
+    [];
 
-  return () => {
+  const loading =
+    trimmedQuery.length >= 2 &&
+    searchLoading;
 
-    controller.abort();
+  /* =========================
+     CART ANIMATION
+  ========================= */
 
-    clearTimeout(debounce);
-
-  };
-
-}, [query]);
-
-
-
-useEffect(() => {
-
-  if (items.length > 0) {
+  useEffect(() => {
+    if (!items.length) return;
 
     setCartAnimate(true);
 
@@ -208,16 +509,43 @@ useEffect(() => {
     }, 600);
 
     return () => clearTimeout(timer);
+  }, [items.length]);
 
-  }
+  /* =========================
+     CLEANUP MENU TIMER
+  ========================= */
 
-}, [items.length]);
+  useEffect(() => {
+    return () => {
+      if (closeTimeoutRef.current) {
+        clearTimeout(closeTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  /* =========================
+     SEARCH CLOSE
+  ========================= */
+
+  const closeSearch = () => {
+    setSearchOpen(false);
+    setQuery("");
+  };
+
+  /* =========================
+     SEARCH RESULT CLICK
+  ========================= */
+
+  const handleSearchResult = () => {
+    setSearchOpen(false);
+    setQuery("");
+  };
 
   return (
     <header
       className="
         sticky top-0 z-[10000]
-        bg-white/95 backdrop-blur-xl
+        bg-white/95 
         border-b border-gray-100
       "
     >
@@ -548,7 +876,7 @@ useEffect(() => {
           w-screen
           transition-all duration-300 ease-out
           z-[90]
-
+h-fit
           ${
             activeMenu === "men"
               ? "opacity-100 visible translate-y-0"
@@ -572,248 +900,244 @@ useEffect(() => {
               px-10 pt-10
             "
           >
-            <div className="flex gap-8 justify-center ">
-              {/* PROMO */}
-             <div
-className="
-  hidden xl:flex
-  relative overflow-hidden
-
-  flex-col justify-center items-center
-
-  bg-white
-  rounded-3xl
-
-  px-8
-
-  w-72 h-[36vh]
-
-  border border-gray-200
-  shadow-sm
-
-  transition-all duration-500
-  hover:shadow-xl
-  hover:-translate-y-1
-
-  group
-
-  animate-[promoFloat_6s_ease-in-out_infinite]
-"
->
-
-  {/* SUBTLE SPLASH GLOW */}
+           <div className="flex gap-8 px-6" data-lenis-prevent>
+  {/* PROMO */}
   <div
     className="
-      absolute inset-0
-      opacity-0
-      group-hover:opacity-100
-      transition-opacity duration-700
-      pointer-events-none
+      hidden xl:flex
+      relative shrink-0
+      w-[300px] h-[38vh]
+      overflow-hidden
+      rounded-[2rem]
+      bg-black
+      text-white
+      group
+      
     "
   >
+    {/* Background glow */}
     <div
       className="
-        absolute
-        -top-10 -left-10
-
-        w-40 h-40
+        absolute -top-24 -right-24
+        h-64 w-64
         rounded-full
-
-        bg-gray-200/40
+        bg-white/10
         blur-3xl
-
-        animate-pulse
+        transition-transform duration-700
+        group-hover:scale-125
       "
     />
 
     <div
       className="
-        absolute
-        bottom-0 right-0
-
-        w-32 h-32
+        absolute -bottom-24 -left-24
+        h-64 w-64
         rounded-full
-
-        bg-gray-300/30
+        bg-white/10
         blur-3xl
+        transition-transform duration-700
+        group-hover:scale-125
       "
     />
-  </div>
 
-  {/* CONTENT */}
-  <div className="relative z-10 flex flex-col items-center">
-
-    <h3
+    {/* Content */}
+    <div
       className="
-        text-3xl
-        font-black
-        mb-3
-        tracking-tight
-
-        transition-transform duration-500
-        group-hover:scale-[1.03]
+        relative z-10
+        flex h-full
+        flex-col
+        justify-between
+        p-8
       "
     >
-      🎉 20% OFF
-    </h3>
+      <div>
+        <span
+          className="
+            inline-flex
+            rounded-full
+            border border-white/20
+            bg-white/10
+            px-3 py-1.5
+            text-[10px]
+            font-semibold
+            uppercase
+            tracking-[0.2em]
+            backdrop-blur-md
+          "
+        >
+          Limited Offer
+        </span>
 
-    <p
-      className="
-        text-sm text-gray-500
-        text-center mb-6
-        leading-relaxed
-      "
-    >
-      Get 20% off your first
-      purchase in our app.
-    </p>
+        <h3
+          className="
+            mt-8
+            text-5xl
+            font-black
+            leading-[0.9]
+            tracking-[-0.04em]
+          "
+        >
+          20%
+          <br />
+          OFF
+        </h3>
 
-    <Link
-      to="/app-offer"
-      className="
-        relative overflow-hidden
+        <p className="mt-5 max-w-[210px] text-sm leading-relaxed text-white/60">
+          Your first order deserves something special.
+          Enjoy an exclusive discount when you shop with us.
+        </p>
+      </div>
 
-        bg-black text-white
-        rounded-full
-
-        px-6 py-3
-        text-sm font-semibold
-
-        transition-all duration-300
-
-        hover:bg-gray-800
-        hover:scale-[1.04]
-      "
-    >
-      <span className="relative z-10">
-        Shop Now
-      </span>
-
-      {/* BUTTON SHINE */}
-      <span
+      <Link
+        to="/app-offer"
         className="
-          absolute inset-0
-          -translate-x-full
-          group-hover:translate-x-full
-
-          bg-gradient-to-r
-          from-transparent
-          via-white/20
-          to-transparent
-
-          transition-transform duration-1000
+          flex
+          w-full
+          items-center
+          justify-between
+          rounded-full
+          bg-white
+          px-5 py-3.5
+          text-sm
+          font-semibold
+          text-black
+          transition-all duration-300
+          hover:scale-[1.03]
+          hover:bg-neutral-200
         "
-      />
-    </Link>
+      >
+        <span>Shop the offer</span>
 
+        <span
+          className="
+            flex h-8 w-8
+            items-center justify-center
+            rounded-full
+            bg-black
+            text-white
+            transition-transform duration-300
+            group-hover:translate-x-1
+          "
+        >
+          →
+        </span>
+      </Link>
+    </div>
   </div>
-</div>
 
-              {/* CATEGORIES */}
-              <div className="flex-1 overflow-x-auto justify-between">
+  {/* CATEGORIES */}
+  <div className="min-w-0 flex-1 overflow-x-auto">
+    <div className="flex min-w-max gap-5 pb-6">
+      {categories.map((category) => (
+        <Link
+          key={category._id}
+          to={`/products?category=${category.slug}`}
+          className="
+            group
+            relative
+            w-[260px]
+            shrink-0
+            overflow-hidden
+            rounded-[2rem]
+            bg-neutral-100
+            shadow-sm
+            transition-all
+            duration-500
+            hover:-translate-y-1
+            hover:shadow-2xl
+          "
+        >
+          {/* IMAGE */}
+          <div className="relative h-[350px] overflow-hidden">
+            <img
+              src={
+                category.photo ||
+                `https://via.placeholder.com/300x400?text=${encodeURIComponent(
+                  category.name
+                )}`
+              }
+              alt={category.name}
+              loading="lazy"
+              className="
+                h-full
+                w-full
+                object-cover
+                transition-transform
+                duration-700
+                ease-out
+                group-hover:scale-105
+              "
+            />
+
+            {/* Overlay */}
+            <div
+              className="
+                absolute inset-0
+                bg-gradient-to-t
+                from-black/80
+                via-black/10
+                to-transparent
+              "
+            />
+
+            {/* Top label */}
+            <div className="absolute left-5 top-5">
+              <span
+                className="
+                  rounded-full
+                  border border-white/30
+                  bg-black/20
+                  px-3 py-1.5
+                  text-[10px]
+                  font-semibold
+                  uppercase
+                  tracking-[0.2em]
+                  text-white
+                  backdrop-blur-md
+                "
+              >
+                Collection
+              </span>
+            </div>
+
+            {/* Bottom content */}
+            <div className="absolute bottom-0 left-0 right-0 p-5">
+              <div className="flex items-end justify-between gap-4">
+                <div className="min-w-0">
+                  <p className="mb-1 text-[10px] uppercase tracking-[0.25em] text-white/60">
+                    Explore
+                  </p>
+
+                  <h4 className="truncate text-2xl font-bold tracking-tight text-white">
+                    {category.name}
+                  </h4>
+                </div>
+
                 <div
                   className="
-                    flex gap-6
-                    min-w-max
-                    pb-10
-                    px-6
-                    
+                    flex h-11 w-11
+                    shrink-0
+                    items-center justify-center
+                    rounded-full
+                    bg-white
+                    text-lg
+                    text-black
+                    transition-all
+                    duration-300
+                    group-hover:translate-x-1
+                    group-hover:scale-105
                   "
                 >
-                  {categories.map(
-                    (category) => (
-                      <Link
-                        key={category._id}
-                        to={`/products?category=${category.slug}`}
-                        className="
-                          w-64 flex-shrink-0
-                          bg-white
-                          rounded-3xl
-                          overflow-hidden
-                          border border-gray-100
-                          shadow-sm
-                          hover:shadow-2xl
-                          transition-all duration-500
-                          group
-                        "
-                      >
-                        {/* IMAGE */}
-                        <div
-                          className="
-                            h-[26vh]
-                            overflow-hidden
-                            bg-gray-100
-                          "
-                        >
-                          <img
-                            src={
-                              category.photo ||
-                              `https://via.placeholder.com/300x400?text=${encodeURIComponent(
-                                category.name
-                              )}`
-                            }
-                            alt={category.name}
-                            loading="lazy"
-                            className="
-                              w-full h-full
-                              object-cover
-                              transition-transform duration-700
-                              group-hover:scale-110
-                            "
-                          />
-                        </div>
-
-                        {/* CONTENT */}
-                        <div className="p-5">
-                          <div
-                            className="
-                              flex items-center
-                              justify-between
-                            "
-                          >
-                            <div>
-                              <p
-                                className="
-                                  text-xs uppercase
-                                  tracking-[0.25em]
-                                  text-gray-400
-                                  mb-1
-                                "
-                              >
-                                Category
-                              </p>
-
-                              <h4
-                                className="
-                                  text-lg font-bold
-                                  tracking-tight
-                                "
-                              >
-                                {category.name}
-                              </h4>
-                            </div>
-
-                            <div
-                              className="
-                                w-10 h-10
-                                rounded-full
-                                bg-black text-white
-                                flex items-center justify-center
-                                text-lg
-                                transition-transform duration-300
-                                group-hover:translate-x-1
-                              "
-                            >
-                              →
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    )
-                  )}
+                  →
                 </div>
               </div>
             </div>
+          </div>
+        </Link>
+      ))}
+    </div>
+  </div>
+</div>
           </div>
         </div>
       </div>
@@ -1035,15 +1359,11 @@ max-h-[100vh]
 
     h-full
 
-    bg-transparent
-
-    outline-none
-
-    text-[16px]
-    md:text-[18px]
+    text-[12px]
+    md:text-[15px]
 
     font-light
-
+bg-transparent  focus:border-transparent focus:outline-none 
     placeholder:text-gray-400
   "
 />
@@ -1171,258 +1491,361 @@ max-h-[100vh]
         "
       >
 
-        {results.map((p) => (
+       {results.map((p) => {
+  const inventory = p.inventory || {};
 
-         <Link
-  key={p._id}
+  const stockEntries = Object.entries(
+    inventory.stock || inventory
+  );
 
-  to={`/product/${p._id}`}
+  const totalStock = stockEntries.reduce(
+    (total, [, qty]) =>
+      total + Math.max(0, Number(qty) || 0),
+    0
+  );
 
-  onClick={() =>
-    setSearchOpen(false)
-  }
+ const isTracked = true;
 
+  const reserved = Number(
+    inventory.reserved || 0
+  );
+
+  const availableStock = Math.max(
+    0,
+    totalStock - reserved
+  );
+
+  const isOutOfStock =
+    isTracked &&
+    availableStock <= 0;
+
+  const isLowStock =
+    isTracked &&
+    availableStock > 0 &&
+    availableStock <= 3;
+
+  const salePrice = Number(p.price) || 0;
+
+  const originalPrice = p.onSale
+    ? Math.round(salePrice / 0.7)
+    : null;
+
+  return (
+    <Link
+      key={p.publicId}
+      to={`/product/${p.publicId}`}
+      onClick={() => setSearchOpen(false)}
+      className="group relative flex flex-col"
+    >
+      {/* IMAGE */}
+      <div
+        className={`
+          relative
+          aspect-[3/4]
+          overflow-hidden
+          rounded-[3px]
+          bg-neutral-100
+        `}
+      >
+        <img
+          src={
+            p.images?.[0] ||
+            p.mainImage ||
+            "/placeholder.png"
+          }
+          alt={p.title || "Product"}
+          loading="lazy"
+          className={`
+            h-full
+            w-full
+            object-cover
+            transition-transform
+            duration-700
+            ease-out
+            group-hover:scale-[1.04]
+            ${
+              isOutOfStock
+                ? "opacity-60 grayscale-[20%]"
+                : ""
+            }
+          `}
+          onError={(e) => {
+            e.currentTarget.src =
+              "/placeholder.png";
+          }}
+        />
+
+        {/* SALE */}
+        {p.onSale && !isOutOfStock && (
+          <span
+            className="
+              absolute
+              left-3
+              top-3
+              rounded-full
+              bg-black
+              px-3
+              py-1.5
+              text-[9px]
+              font-bold
+              uppercase
+              tracking-[0.18em]
+              text-white
+            "
+          >
+            Sale
+          </span>
+        )}
+
+        {/* OUT OF STOCK */}
+        {isOutOfStock && (
+          <div
+            className="
+              absolute
+              inset-x-0
+              bottom-0
+              bg-black/85
+              px-3
+              py-3
+              text-center
+              backdrop-blur-sm
+            "
+          >
+            <span
+              className="
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-[0.2em]
+                text-white
+              "
+            >
+              Out of stock
+            </span>
+          </div>
+        )}
+
+        {/* LOW STOCK */}
+        {!isOutOfStock &&
+          isLowStock && (
+            <span
+              className="
+                absolute
+                bottom-3
+                left-3
+                rounded-full
+                bg-white/95
+                px-3
+                py-1.5
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-[0.15em]
+                text-black
+                shadow-sm
+                backdrop-blur-md
+              "
+            >
+              Only {availableStock} left
+            </span>
+          )}
+
+        {/* QUICK VIEW */}
+        {!isOutOfStock && (
+          <div
+            className="
+              absolute
+              bottom-4
+              left-1/2
+              -translate-x-1/2
+              translate-y-3
+              opacity-0
+              transition-all
+              duration-500
+              group-hover:translate-y-0
+              group-hover:opacity-100
+            "
+          >
+            <button
+  type="button"
+  onClick={(e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setQuickViewProduct(p);
+  }}
   className="
-    group
-
-    relative
-
-    flex
-    flex-col
+    whitespace-nowrap
+    bg-white/95
+    backdrop-blur-md
+    text-[11px]
+    font-semibold
+    tracking-[0.18em]
+    uppercase
+    px-5
+    py-3
+    rounded-full
+    shadow-lg
+    hover:bg-black
+    hover:text-white
+    transition
   "
 >
-
-  {/* IMAGE */}
-  <div
-    className="
-      relative
-
-      aspect-[3/4]
-
-      bg-[#f5f5f5]
-
-      overflow-hidden
-
-      rounded-[2px]
-
-      mb-4
-    "
-  >
-
-    {/* IMAGE */}
-    <img
-      src={
-        p.images?.[0]
-        || "/placeholder.png"
-      }
-
-      alt={p.title}
-
-      className="
-        w-full
-        h-full
-
-        object-cover
-
-        transition-transform
-        duration-700
-        ease-out
-
-        group-hover:scale-[1.04]
-      "
-    />
-
-    {/* QUICK VIEW */}
-    <div
-      className="
-        absolute
-        left-1/2
-        bottom-4
-
-        -translate-x-1/2
-        translate-y-3
-
-        opacity-0
-
-        group-hover:opacity-100
-        group-hover:translate-y-0
-
-        transition-all
-        duration-500
-      "
-    >
-
-      <button
-        className="
-          whitespace-nowrap
-
-          bg-white/95
-          backdrop-blur-md
-
-          text-[11px]
-          font-semibold
-          tracking-[0.18em]
-          uppercase
-
-          px-5
-          py-3
-
-          rounded-full
-
-          shadow-lg
-
-          hover:bg-black
-          hover:text-white
-
-          transition
-        "
-      >
-        Quick View
-      </button>
-
-    </div>
-
-    {/* SALE BADGE */}
-    {p.onSale && (
-
-      <div
-        className="
-          absolute
-          top-3
-          left-3
-
-          bg-red-500
-          text-white
-
-          text-[10px]
-          font-bold
-
-          tracking-[0.18em]
-
-          px-3
-          py-1.5
-
-          rounded-full
-        "
-      >
-        SALE
+  Quick View
+</button>
+          </div>
+        )}
       </div>
 
-    )}
-
-  </div>
-
-  {/* INFO */}
-  <div className="space-y-1">
-
-    {/* TITLE */}
-    <h4
-      className="
-        text-[14px]
-        md:text-[15px]
-
-        font-medium
-
-        tracking-tight
-
-        text-black/90
-
-        line-clamp-1
-
-        transition-colors
-        duration-300
-
-        group-hover:text-black
-      "
-    >
-      {p.title}
-    </h4>
-
-    {/* CATEGORY */}
-    {p.category?.name && (
-
-      <p
-        className="
-          text-[11px]
-
-          uppercase
-
-          tracking-[0.18em]
-
-          text-gray-400
-        "
-      >
-        {p.category.name}
-      </p>
-
-    )}
-
-    {/* PRICE */}
-    <div
-      className="
-        flex items-center
-        gap-2
-
-        pt-1
-      "
-    >
-
-      {p.onSale && (
-
-        <span
+      {/* INFO */}
+      <div className="mt-4 space-y-1.5">
+        {/* TITLE */}
+        <h4
           className="
-        text-xs text-gray-500 line-through
+            line-clamp-1
+            text-[14px]
+            font-medium
+            tracking-tight
+            text-black/90
+            transition-colors
+            duration-300
+            group-hover:text-black
           "
         >
-          ₹ 
-          {Math.round(
-            Number(p.price) / 0.7
-          ).toLocaleString()}
-        </span>
+          {p.title}
+        </h4>
 
-      )}
-      <span
-        className="
-     text-md font-bold text-red-600
-        "
-      >
-        ₹ {Number(p.price).toLocaleString()}
-      </span>
+        {/* CATEGORY */}
+        {p.category?.name && (
+          <p
+            className="
+              text-[9px]
+              font-semibold
+              uppercase
+              tracking-[0.2em]
+              text-neutral-400
+            "
+          >
+            {p.category.name}
+          </p>
+        )}
 
+        {/* PRICE */}
+        <div className="flex items-center gap-2 pt-1">
+          <span
+            className="
+              text-[14px]
+              font-bold
+              tracking-tight
+              text-black
+            "
+          >
+            ₹{" "}
+            {salePrice.toLocaleString("en-IN")}
+          </span>
 
-    </div>
+          {p.onSale &&
+            originalPrice && (
+              <span
+                className="
+                  text-[11px]
+                  text-neutral-400
+                  line-through
+                "
+              >
+                ₹{" "}
+                {originalPrice.toLocaleString(
+                  "en-IN"
+                )}
+              </span>
+            )}
 
-    {/* STOCK */}
-    {Object.values(
-      p.inventory || {}
-    ).every(qty => qty === 0) && (
+          {p.onSale && (
+            <span
+              className="
+                text-[9px]
+                font-bold
+                uppercase
+                tracking-wider
+                text-red-500
+              "
+            >
+              30% off
+            </span>
+          )}
+        </div>
 
-      <p
-        className="
-          text-[12px]
+        {/* INVENTORY */}
+        {!isOutOfStock &&
+          isTracked && (
+            <div className="flex items-center gap-2 pt-1">
+              <span
+                className={`
+                  h-1.5
+                  w-1.5
+                  rounded-full
+                  ${
+                    isLowStock
+                      ? "bg-red-500"
+                      : "bg-black"
+                  }
+                `}
+              />
 
-          text-red-500
+              <span
+                className={`
+                  text-[9px]
+                  font-semibold
+                  uppercase
+                  tracking-[0.16em]
+                  ${
+                    isLowStock
+                      ? "text-red-500"
+                      : "text-neutral-400"
+                  }
+                `}
+              >
+                {isLowStock
+                  ? `Only ${availableStock} available`
+                  : "In stock"}
+              </span>
+            </div>
+          )}
 
-          font-medium
+        {!isTracked && (
+          <div className="flex items-center gap-2 pt-1">
+            <span className="h-1.5 w-1.5 rounded-full bg-black" />
 
-          pt-1
-        "
-      >
-        Out of stock
-      </p>
-
-    )}
-
-  </div>
-
-</Link>
-        ))}
+            <span
+              className="
+                text-[9px]
+                font-semibold
+                uppercase
+                tracking-[0.16em]
+                text-neutral-400
+              "
+            >
+              Available
+            </span>
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+})}
 
       </div>
 
     </div>
 
   )}
+  {quickViewProduct && (
+  <QuickViewModal
+    product={quickViewProduct}
+    onClose={() =>
+      setQuickViewProduct(null)
+    }
+  />
+)}
 
 </div>
 

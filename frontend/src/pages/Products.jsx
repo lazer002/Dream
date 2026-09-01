@@ -1,660 +1,974 @@
 // src/pages/Products.jsx
-import { Link } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { Heart, ShoppingBag, Filter, ArrowUpDown, Heart as HeartOutline } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useCart } from "../state/CartContext.jsx"
-import { useWishlist } from "../state/WishlistContext.jsx"
-import api from "@/utils/config";
-import { useLocation } from "react-router-dom";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogClose } from "@/components/ui/dialog.jsx";
+
+import { Link, useLocation } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import {
+  Heart,
+  ShoppingBag,
+  Filter,
+  ArrowUpDown,
+  Heart as HeartOutline,
+} from "lucide-react";
+
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog.jsx";
+
 import FilterDrawer from "@/components/filterDrawer";
 
-export default function Products() {
-  const { add } = useCart()
-  const [products, setProducts] = useState([]);
-  const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
-  const [sort, setSort] = useState("newest");
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const [selectedFilters, setSelectedFilters] = useState({
-    categories: [],
-    priceRange: "",
-    color: [],
-    size: [],
-    fabric: [],
-    fit: [],
-    inStock: false,
-    isNew: false,
-    onSale: false,
-  });
-  const [categories, setCategories] = useState([]);
+import { useCart } from "../state/CartContext.jsx";
+import { useWishlist } from "../state/WishlistContext.jsx";
 
-  const [showTopBtn, setShowTopBtn] = useState(false);
-  const [page, setPage] = useState(1);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(false);
+import {
+  useGetProductsQuery,
+  useGetCategoriesQuery,
+} from "@/store/api";
+
+// =====================================================
+// SKELETON
+// =====================================================
+
+function ProductSkeleton() {
+  return (
+    <div className="bg-white border border-gray-200 p-4 flex flex-col gap-2 animate-pulse">
+      <div className="w-full h-48 bg-gray-200 rounded" />
+      <div className="h-4 bg-gray-200 rounded w-3/4" />
+      <div className="h-4 bg-gray-200 rounded w-1/2" />
+    </div>
+  );
+}
+
+// =====================================================
+// COMPONENT
+// =====================================================
+
+export default function Products() {
   const location = useLocation();
 
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const { add } = useCart();
+
+  const {
+    wishlist,
+    addToWishlist,
+    removeFromWishlist,
+  } = useWishlist();
+
+  // ===================================================
+  // STATE
+  // ===================================================
+
+  const [sort, setSort] =
+    useState("newest");
+
+  const [page, setPage] =
+    useState(1);
+
+  const [allProducts, setAllProducts] =
+    useState([]);
+
+  const [hasMore, setHasMore] =
+    useState(true);
+
+  const [isFilterOpen, setIsFilterOpen] =
+    useState(false);
+
+  const [selectedProduct, setSelectedProduct] =
+    useState(null);
+
+  const [isModalOpen, setIsModalOpen] =
+    useState(false);
+
+  const [showTopBtn, setShowTopBtn] =
+    useState(false);
+
+  const [selectedFilters, setSelectedFilters] =
+    useState({
+      categories: [],
+      priceRange: "",
+      color: [],
+      size: [],
+      fabric: [],
+      fit: [],
+      inStock: false,
+      isNew: false,
+      onSale: false,
+    });
+
+  // ===================================================
+  // CATEGORY FROM URL
+  // ===================================================
+
+  const categoryFromQuery =
+    new URLSearchParams(
+      location.search
+    ).get("category");
+
+  // ===================================================
+  // API PARAMS
+  // ===================================================
+
+
+
+const apiParams = useMemo(() => {
+  const params = {
+    limit: 10,
+    page,
+    sort,
+  };
+
+  if (categoryFromQuery) {
+    params.category =
+      categoryFromQuery.toLowerCase();
+  } else if (
+    selectedFilters.categories?.length
+  ) {
+    params.category =
+      selectedFilters.categories.join(",");
+  }
+
+  if (selectedFilters.priceRange) {
+    params.priceRange =
+      selectedFilters.priceRange;
+  }
+
+  const tags = [
+    ...(selectedFilters.color || []),
+    ...(selectedFilters.size || []),
+    ...(selectedFilters.fabric || []),
+    ...(selectedFilters.fit || []),
+  ];
+
+  if (tags.length) {
+    params.tags = tags.join(",");
+  }
+
+  if (selectedFilters.inStock) {
+    params.inStock = "true";
+  }
+
+  if (selectedFilters.isNew) {
+    params.isNew = "true";
+  }
+
+  if (selectedFilters.onSale) {
+    params.onSale = "true";
+  }
+
+  return params;
+}, [
+  page,
+  sort,
+  categoryFromQuery,
+  selectedFilters.categories,
+  selectedFilters.priceRange,
+  selectedFilters.color,
+  selectedFilters.size,
+  selectedFilters.fabric,
+  selectedFilters.fit,
+  selectedFilters.inStock,
+  selectedFilters.isNew,
+  selectedFilters.onSale,
+]);
+
+const {
+  data: productsData,
+  isLoading,
+  isFetching,
+  isError,
+  error,
+} = useGetProductsQuery(apiParams, {
+  refetchOnMountOrArgChange: true,
+});
+
+console.log("PRODUCT API PARAMS:", apiParams);
+console.log("PRODUCT API DATA:", productsData);
+console.log("PRODUCT API ERROR:", error);
+  // ===================================================
+  // PRODUCTS API
+  // ===================================================
+
+
+
+  // ===================================================
+  // CATEGORIES API
+  // ===================================================
+
+  const {
+    data: categoriesData,
+  } = useGetCategoriesQuery();
+
+  const categories =
+    Array.isArray(categoriesData)
+      ? categoriesData
+      : [];
+
+  // ===================================================
+  // MERGE PAGINATION RESULTS
+  // ===================================================
+
+
+useEffect(() => {
+  const newProducts = productsData?.items || [];
+
+  setAllProducts((prev) => {
+    if (page === 1) {
+      return newProducts;
+    }
+
+    const existingIds = new Set(
+      prev.map(
+        (item) =>
+          item.publicId || item._id
+      )
+    );
+
+    const uniqueProducts =
+      newProducts.filter(
+        (item) =>
+          !existingIds.has(
+            item.publicId || item._id
+          )
+      );
+
+    return [
+      ...prev,
+      ...uniqueProducts,
+    ];
+  });
+
+  setHasMore(
+    Number(productsData?.currentPage || page) <
+      Number(productsData?.totalPages || 0)
+  );
+}, [productsData, page]);
+
+
+// ADD this effect for filter/sort changes
+
+useEffect(() => {
+  setPage(1);
+  setHasMore(true);
+}, [
+  sort,
+  categoryFromQuery,
+  selectedFilters.categories,
+  selectedFilters.priceRange,
+  selectedFilters.color,
+  selectedFilters.size,
+  selectedFilters.fabric,
+  selectedFilters.fit,
+  selectedFilters.inStock,
+  selectedFilters.isNew,
+  selectedFilters.onSale,
+]);
+
+  // ===================================================
+  // INFINITE SCROLL
+  // ===================================================
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowTopBtn(
+        window.scrollY > 500
+      );
+
+      const nearBottom =
+        window.innerHeight +
+          window.scrollY >=
+        document.documentElement
+          .scrollHeight - 300;
+
+      if (
+        nearBottom &&
+        !isFetching &&
+        hasMore &&
+        !isLoading
+      ) {
+        setPage((prev) => prev + 1);
+      }
+    };
+
+    window.addEventListener(
+      "scroll",
+      handleScroll
+    );
+
+    return () =>
+      window.removeEventListener(
+        "scroll",
+        handleScroll
+      );
+  }, [
+    isFetching,
+    isLoading,
+    hasMore,
+  ]);
+
+  // ===================================================
+  // MODAL
+  // ===================================================
 
   const openModal = (product) => {
     setSelectedProduct(product);
     setIsModalOpen(true);
   };
 
-  const handleSelectSize = (sizeKey) => {
+  const handleSelectSize = (
+    sizeKey
+  ) => {
     if (!selectedProduct) return;
-    const qty = Number(selectedProduct.inventory?.[sizeKey] ?? 0);
-    if (qty <= 0) return; // disabled anyway
 
-    add(selectedProduct._id, sizeKey); // 👈 always with size
+    const qty = Number(
+      selectedProduct.inventory?.[
+        sizeKey
+      ] ??
+        selectedProduct.inventory
+          ?.stock?.[sizeKey] ??
+        0
+    );
+
+    if (qty <= 0) return;
+
+    add(
+      selectedProduct.publicId,
+      sizeKey
+    );
+
     setIsModalOpen(false);
     setSelectedProduct(null);
   };
 
-  const fetchProducts = async (reset = false, categoryFromQueryParam = null) => {
-    if (!reset && (loading || !hasMore)) return; // only block when NOT resetting
+  // ===================================================
+  // FILTER
+  // ===================================================
 
-    const currentPage = reset ? 1 : page;
-
-    try {
-      setLoading(true);
-
-      const params = new URLSearchParams();
-      params.append("limit", 10);
-      params.append("page", currentPage);
-      params.append("sort", sort);
-
-      const apiCategory = categoryFromQueryParam
-        ? [categoryFromQueryParam.toLowerCase()] // normalize to lowercase
-        : selectedFilters.categories;
-
-      if (apiCategory.length) params.append("category", apiCategory.join(","));
-
-
-      if (selectedFilters.priceRange)
-        params.append("priceRange", selectedFilters.priceRange);
-      // 🔥 TAG FILTERS
-      let tags = [];
-
-      if (selectedFilters.color.length)
-        tags.push(...selectedFilters.color);
-
-      if (selectedFilters.size.length)
-        tags.push(...selectedFilters.size);
-
-      if (selectedFilters.fabric.length)
-        tags.push(...selectedFilters.fabric);
-
-      if (selectedFilters.fit.length)
-        tags.push(...selectedFilters.fit);
-
-      if (tags.length)
-        params.append("tags", tags.join(","));
-
-      // 🔥 BOOLEAN FILTERS
-      if (selectedFilters.inStock)
-        params.append("inStock", "true");
-
-      if (selectedFilters.isNew)
-        params.append("isNew", "true");
-
-      if (selectedFilters.onSale)
-        params.append("onSale", "true");
-
-      const res = await api.get("/products", {
-        params: Object.fromEntries(params.entries()),
-      });
-
-      const newProducts = res.data.items || [];
-
-      if (reset) {
-        setProducts(newProducts);
-      } else {
-        setProducts((prev) => [...prev, ...newProducts]);
-      }
-
-      if (newProducts.length < 10) setHasMore(false);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-  useEffect(() => {
-    const handleScroll = () => {
-
-      if (window.scrollY > 500) setShowTopBtn(true);
-      else setShowTopBtn(false);
-
-      if (
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - 300 // 300px from bottom
-      ) {
-        if (!loading && hasMore) {
-          setPage((prev) => prev + 1);
+  const handleFilterChange = (
+    type,
+    value
+  ) => {
+    setSelectedFilters(
+      (prev) => {
+        if (
+          Array.isArray(
+            prev[type]
+          )
+        ) {
+          return prev[type].includes(
+            value
+          )
+            ? {
+                ...prev,
+                [type]:
+                  prev[type].filter(
+                    (v) =>
+                      v !== value
+                  ),
+              }
+            : {
+                ...prev,
+                [type]: [
+                  ...prev[type],
+                  value,
+                ],
+              };
         }
+
+        return {
+          ...prev,
+          [type]: value,
+        };
       }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
-  }, [loading, hasMore]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(location.search);
-    const categoryFromQuery = params.get("category");
-
-    setPage(1);
-    setHasMore(true);
-
-    fetchProducts(true, categoryFromQuery); // reset products, force fetch
-  }, [location.search, sort, selectedFilters]);
-
-
-
-
-
-  useEffect(() => {
-    if (page === 1) return; // first page already fetched on category/filter change
-    fetchProducts();         // fetch next pages for infinite scroll
-  }, [page]);
-
-  const fetchCategories = async () => {
-    try {
-      const res = await api.get("/categories");
-      const cats = Array.isArray(res.data.categories)
-        ? res.data.categories
-        : [];
-      setCategories([...cats]);
-    } catch (error) {
-      console.error("Error fetching categories:", error);
-    }
+    );
   };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+  // ===================================================
+  // SOLD OUT
+  // ===================================================
 
+  const isProductSoldOut = (
+    product
+  ) => {
+    const hasAvailableSize =
+      Array.isArray(
+        product.sizes
+      ) &&
+      product.sizes.some(
+        (size) => {
+          const name =
+            typeof size === "string"
+              ? size
+              : size?.name;
 
+          if (!name) return false;
 
-  const handleFilterChange = (type, value) => {
-    setSelectedFilters(prev => {
-      if (Array.isArray(prev[type])) {
-        return prev[type].includes(value)
-          ? { ...prev, [type]: prev[type].filter(v => v !== value) }
-          : { ...prev, [type]: [...prev[type], value] };
-      }
-      return { ...prev, [type]: value };
-    });
+          const qty = Number(
+            product.inventory?.[
+              name
+            ] ??
+              product.inventory
+                ?.stock?.[name] ??
+              0
+          );
+
+          return (
+            (typeof size ===
+              "string" ||
+              size.active !== false) &&
+            qty > 0
+          );
+        }
+      );
+
+    return (
+      !hasAvailableSize &&
+      (
+        product.isOutOfStock ===
+          true ||
+        Number(
+          product.inventory
+            ?.available
+        ) <= 0
+      )
+    );
   };
+
+  // ===================================================
+  // SCROLL TOP
+  // ===================================================
+
   const scrollToTop = () => {
     window.scrollTo({
       top: 0,
       behavior: "smooth",
     });
   };
-  function ProductSkeleton() {
-    return (
-      <div className="bg-white border border-gray-200 p-4 flex flex-col gap-2 animate-pulse">
-        <div className="w-full h-48 bg-gray-200 rounded"></div>
-        <div className="h-4 bg-gray-200 rounded w-3/4"></div>
-        <div className="h-4 bg-gray-200 rounded w-1/2"></div>
-      </div>
-    );
-  }
+
+  // ===================================================
+  // RENDER
+  // ===================================================
+
   return (
     <div className="bg-white min-h-screen text-black relative">
-      {/* Top Controls */}
-      <div className=" mx-auto px-4 py-10 flex flex-wrap gap-4 items-center justify-between">
+      {/* ================================================
+          CONTROLS
+      ================================================= */}
+
+      <div className="mx-auto px-4 py-10 flex flex-wrap gap-4 items-center justify-between">
         <button
-          onClick={() => setIsFilterOpen(true)}
+          onClick={() =>
+            setIsFilterOpen(true)
+          }
           className="flex items-center gap-2 px-4 py-2 bg-black text-white font-bold uppercase hover:bg-black transition"
         >
           <Filter className="w-5 h-5" />
-          <span className="max-[500]:hidden"> Filter</span>
+
+          <span className="max-[500px]:hidden">
+            Filter
+          </span>
         </button>
 
         <div className="w-48">
-          <Select value={sort} onValueChange={(v) => setSort(v)}>
+          <Select
+            value={sort}
+            onValueChange={(value) => {
+              setSort(value);
+            }}
+          >
             <SelectTrigger className="w-full px-1 py-2 bg-gray-100 text-black flex items-center gap-2">
               <ArrowUpDown className="w-5 h-5 text-gray-700" />
+
               <SelectValue placeholder="Sort By" />
             </SelectTrigger>
+
             <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="low-high">Price: Low to High</SelectItem>
-              <SelectItem value="high-low">Price: High to Low</SelectItem>
-              <SelectItem value="popular">Popular</SelectItem>
+              <SelectItem value="newest">
+                Newest
+              </SelectItem>
+
+              <SelectItem value="low-high">
+                Price: Low to High
+              </SelectItem>
+
+              <SelectItem value="high-low">
+                Price: High to Low
+              </SelectItem>
+
+              <SelectItem value="popular">
+                Popular
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
       </div>
 
-      {/* Products Grid */}
+      {/* ================================================
+          PRODUCTS
+      ================================================= */}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 px-4 pb-10">
-        {products.map((p) => {
-          // console.log("[ProductCard] render", { _id: p._id, isWished: wishlist.includes(String(p._id)), wishlistSample: wishlist.slice(0, 6) });
-          const id = String(p._id);
-          return (
-            <Link key={p.publicId} to={`/product/${p.publicId}`} className="cursor-pointer">
-              <div className="bg-white transition border border-gray-100 overflow-hidden relative rounded-2xl">
-                <div className="relative w-full h-[50vh] overflow-hidden">
-                  <img
-                    src={p.images[0]}
-                    alt={p.title}
-                    className="w-full h-full object-cover transition-all duration-500 hover:opacity-0 rounded-xl"
-                  />
-                  {p.images[1] && (
+        {allProducts.map(
+          (p) => {
+            const id = String(
+              p.publicId
+            );
+
+            const soldOut =
+              isProductSoldOut(p);
+
+            return (
+              <Link
+                key={
+                  p.publicId ||
+                  p._id
+                }
+                to={`/product/${p.publicId}`}
+                className="cursor-pointer"
+              >
+                <div className="bg-white transition border border-gray-100 overflow-hidden relative rounded-2xl">
+                  {/* IMAGE */}
+
+                  <div className="relative w-full h-[50vh] overflow-hidden">
                     <img
-                      src={p.images[1]}
-                      alt={p.title + " hover"}
-                      className="w-full h-full object-cover absolute top-0 left-0 opacity-0 hover:opacity-100 transition-opacity duration-500 rounded-xl" />
-                  )}
-                  {p.isNew && (
-                    <span className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 uppercase">
-                      NEW
-                    </span>
-                  )}
-                  {p.discount && (
-                    <span
-                      className="
-    absolute
-    top-3
-    right-3
+                      src={
+                        p.images?.[0] ||
+                        "/images/placeholder.png"
+                      }
+                      alt={p.title}
+                      className={`w-full h-full object-cover transition-all duration-500 rounded-xl ${
+                        soldOut
+                          ? "grayscale"
+                          : ""
+                      }`}
+                    />
 
-    z-20
-
-    bg-red-500
-    text-white
-
-    text-[12px]
-    font-black
-
-    uppercase
-    tracking-wide
-
-    px-4 py-2
-
-    rounded-full
-
-    shadow-lg
-    shadow-red-500/30
-  "
-                    >
-                      {Math.round(p.discount)}% OFF
-                    </span>
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      wishlist.includes(id)
-                        ? removeFromWishlist(id)
-                        : addToWishlist(id);
-                    }}
-                    aria-label={wishlist.includes(id) ? "Remove from wishlist" : "Add to wishlist"}
-                    className="absolute bottom-2 right-2  flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
-                  >
-                    {wishlist.includes(id) ? (
-                      <Heart className="h-10 w-10 text-black fill-black" />
-                    ) : (
-                      <HeartOutline className="h-10 w-10 text-black" />
+                    {p.images?.[1] && (
+                      <img
+                        src={
+                          p.images[1]
+                        }
+                        alt={`${p.title} hover`}
+                        className={`w-full h-full object-cover absolute top-0 left-0 opacity-0 hover:opacity-100 transition-opacity duration-500 rounded-xl ${
+                          soldOut
+                            ? "grayscale"
+                            : ""
+                        }`}
+                      />
                     )}
-                  </button>
 
+                    {/* SOLD OUT */}
 
-                </div>
+                    {soldOut && (
+                      <div className="absolute inset-0 bg-black/10 pointer-events-none" />
+                    )}
 
-                <div className="p-3 flex flex-col gap-1">
+                    {/* NEW */}
 
-<div className="absolute top-3 left-3 z-20 flex flex-col items-start gap-2">
-  {(() => {
-    const hasAvailableSize =
-      Array.isArray(p.sizes) &&
-      p.sizes.some((size) => {
-        const name =
-          typeof size === "string"
-            ? size
-            : size?.name;
+                    {p.isNew && (
+                      <span className="absolute top-2 left-2 bg-green-500 text-white text-xs font-bold px-2 py-1 uppercase">
+                        NEW
+                      </span>
+                    )}
 
-        if (!name) return false;
+                    {/* DISCOUNT */}
 
-        const qty = Number(
-          p.inventory?.[name] ??
-            p.inventory?.stock?.[name] ??
-            0
-        );
+                    {p.discount > 0 && (
+                      <span className="absolute top-3 right-3 z-20 bg-red-500 text-white text-[12px] font-black uppercase tracking-wide px-4 py-2 rounded-full shadow-lg shadow-red-500/30">
+                        {Math.round(
+                          p.discount
+                        )}
+                        % OFF
+                      </span>
+                    )}
 
-        return (
-          (typeof size === "string" ||
-            size.active !== false) &&
-          qty > 0
-        );
-      });
+                    {/* WISHLIST */}
 
-    const soldOut =
-      p.isOutOfStock === true &&
-      !hasAvailableSize;
-
-    if (soldOut) {
-      return (
-        <div
-          className="
-            bg-black/80
-            backdrop-blur-md
-            text-white
-            text-[11px]
-            font-bold
-            tracking-[0.15em]
-            uppercase
-            px-3 py-2
-            rounded-full
-          "
-        >
-          Sold Out
-        </div>
-      );
-    }
-
-    return (
-      <>
-        {p.onSale && (
-          <div
-            className="
-              bg-black/80
-              backdrop-blur-md
-              text-white
-              text-[11px]
-              font-bold
-              tracking-[0.15em]
-              uppercase
-              px-3 py-2
-              rounded-full
-            "
-          >
-            Sale
-          </div>
-        )}
-
-        {p.isNewProduct && (
-          <div
-            className="
-              bg-black/80
-              backdrop-blur-md
-              text-white
-              text-[11px]
-              font-bold
-              tracking-[0.15em]
-              uppercase
-              px-3 py-2
-              rounded-full
-            "
-          >
-            NEW
-          </div>
-        )}
-      </>
-    );
-  })()}
-</div>
-
-
-                  <div className="flex items-center justify-between">
-
-                    <h3 className="text-sm font-bold text-black uppercase truncate">{p.title}</h3>
                     <button
                       onClick={(e) => {
                         e.preventDefault();
-                        openModal(p);
+                        e.stopPropagation();
+
+                        wishlist.includes(
+                          id
+                        )
+                          ? removeFromWishlist(
+                              id
+                            )
+                          : addToWishlist(
+                              id
+                            );
                       }}
-                      className="p-1 w-7 h-7 flex items-center justify-center transition"
-                      title="Add to Cart"
+                      aria-label={
+                        wishlist.includes(
+                          id
+                        )
+                          ? "Remove from wishlist"
+                          : "Add to wishlist"
+                      }
+                      className="absolute bottom-2 right-2 flex items-center justify-center w-10 h-10 hover:scale-110 transition z-10 p-2"
                     >
-                      <ShoppingBag className="w-10 h-10" />
+                      {wishlist.includes(
+                        id
+                      ) ? (
+                        <Heart className="h-10 w-10 text-black fill-black" />
+                      ) : (
+                        <HeartOutline className="h-10 w-10 text-black" />
+                      )}
                     </button>
+
+                    {/* STATUS */}
+
+                    <div className="absolute top-3 left-3 z-20 flex flex-col items-start gap-2">
+                      {soldOut ? (
+                        <div className="bg-black/80 backdrop-blur-md text-white text-[11px] font-bold tracking-[0.15em] uppercase px-3 py-2 rounded-full">
+                          Sold Out
+                        </div>
+                      ) : (
+                        <>
+                          {p.onSale && (
+                            <div className="bg-black/80 backdrop-blur-md text-white text-[11px] font-bold tracking-[0.15em] uppercase px-3 py-2 rounded-full">
+                              Sale
+                            </div>
+                          )}
+
+                          {p.isNewProduct && (
+                            <div className="bg-black/80 backdrop-blur-md text-white text-[11px] font-bold tracking-[0.15em] uppercase px-3 py-2 rounded-full">
+                              NEW
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </div>
 
-                  {/* 💰 Price Section */}
-                  <div className="flex items-center gap-2 flex-wrap">
+                  {/* CONTENT */}
 
-                    {/* If on sale — show a mock original price and discount */}
-                    {p.oldPrice && (
-                      <>
-                        {/* Fake original price (e.g. 30% higher) */}
-                        <span className="text-xs text-gray-500 line-through">
-                          ₹ {p.oldPrice}.00
-                        </span>
+                  <div className="p-3 flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-sm font-bold text-black uppercase truncate">
+                        {p.title}
+                      </h3>
 
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
 
-                      </>
-                    )}
+                          if (!soldOut) {
+                            openModal(p);
+                          }
+                        }}
+                        disabled={soldOut}
+                        className={`p-1 w-7 h-7 flex items-center justify-center transition ${
+                          soldOut
+                            ? "opacity-30 cursor-not-allowed"
+                            : "hover:scale-110"
+                        }`}
+                        title="Add to Cart"
+                      >
+                        <ShoppingBag className="w-10 h-10" />
+                      </button>
+                    </div>
 
-                    {/* Actual Price */}
-                    <span className="text-md font-bold text-red-600">
-                      ₹ {Number(p.price).toLocaleString()}.00
-                    </span>
-                    {/* Discount label */}
-                    {/* <span className="text-[10px] font-semibold bg-red-100 text-red-600 px-2 py-0.5 rounded">
-          30% OFF
-        </span> */}
+                    {/* PRICE */}
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {p.oldPrice &&
+                        Number(
+                          p.oldPrice
+                        ) >
+                          Number(
+                            p.price
+                          ) && (
+                          <span className="text-xs text-gray-500 line-through">
+                            ₹{" "}
+                            {Number(
+                              p.oldPrice
+                            ).toLocaleString(
+                              "en-IN"
+                            )}
+                          </span>
+                        )}
+
+                      <span className="text-md font-bold text-red-600">
+                        ₹{" "}
+                        {Number(
+                          p.price || 0
+                        ).toLocaleString(
+                          "en-IN"
+                        )}
+                      </span>
+                    </div>
                   </div>
-
-
                 </div>
-
-              </div>
-            </Link>
-          )
-        })}
+              </Link>
+            );
+          }
+        )}
       </div>
-      {loading && (
-        <div className="transition-opacity duration-[300ms]">
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <ProductSkeleton key={i} />
-            ))}
+
+      {/* ================================================
+          LOADING
+      ================================================= */}
+
+      {(isLoading ||
+        (isFetching &&
+          page > 1)) && (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4 px-4 pb-10">
+          {Array.from({
+            length: 8,
+          }).map((_, i) => (
+            <ProductSkeleton
+              key={i}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ================================================
+          EMPTY
+      ================================================= */}
+
+      {!isLoading &&
+        !isFetching &&
+        allProducts.length ===
+          0 && (
+          <div className="text-center text-gray-500 mt-20 mb-20">
+            {isError
+              ? "Failed to load products"
+              : "No products found"}
           </div>
-        </div>
-      )}
+        )}
 
+      {/* ================================================
+          SIZE MODAL
+      ================================================= */}
 
-      {!loading && products.length === 0 && (
-        <div className="text-center text-gray-500 mt-20">No products found</div>
-      )}
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={
+          setIsModalOpen
+        }
+      >
+        <DialogContent className="w-[calc(100%-32px)] max-w-md rounded-2xl p-0 overflow-hidden">
+          <DialogHeader className="px-6 pt-6 pb-4 border-b">
+            <DialogTitle className="text-xl font-semibold">
+              Select Size
+            </DialogTitle>
+          </DialogHeader>
 
-      {/* Filter Offcanvas */}
+          {selectedProduct && (
+            <div className="px-6 py-5">
+              {selectedProduct
+                .sizes?.length ? (
+                <>
+                  <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                    {selectedProduct.sizes.map(
+                      (size) => {
+                        const name =
+                          typeof size ===
+                          "string"
+                            ? size
+                            : size?.name;
 
-<Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-  <DialogContent className="w-[calc(100%-32px)] max-w-md rounded-2xl p-0 overflow-hidden">
-    <DialogHeader className="px-6 pt-6 pb-4 border-b">
-      <DialogTitle className="text-xl font-semibold">
-        Select Size
-      </DialogTitle>
-      <p className="text-sm text-muted-foreground">
-        Choose your preferred size
-      </p>
-    </DialogHeader>
+                        if (!name)
+                          return null;
 
-{selectedProduct && (
-  <div className="px-6 py-5">
-    {selectedProduct.sizes?.length ? (
-      <>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-          {selectedProduct.sizes.map((size) => {
-            const name = size.name;
+                        const qty =
+                          Number(
+                            selectedProduct
+                              .inventory?.[
+                              name
+                            ] ??
+                              selectedProduct
+                                .inventory
+                                ?.stock?.[
+                                name
+                              ] ??
+                              0
+                          );
 
-            const qty = Number(
-              selectedProduct.inventory?.[name] ??
-                selectedProduct.inventory?.stock?.[name] ??
-                0
-            );
+                        const isAvailable =
+                          (typeof size ===
+                            "string" ||
+                            size.active !==
+                              false) &&
+                          qty > 0;
 
-            const isAvailable =
-              size.active !== false && qty > 0;
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            disabled={
+                              !isAvailable
+                            }
+                            onClick={() => {
+                              if (
+                                isAvailable
+                              ) {
+                                handleSelectSize(
+                                  name
+                                );
+                              }
+                            }}
+                            className={`group relative min-h-[72px] rounded-xl border px-4 py-3 text-left transition-all duration-200 ${
+                              isAvailable
+                                ? "border-gray-200 bg-white hover:border-black hover:shadow-sm active:scale-[0.98]"
+                                : "cursor-not-allowed border-gray-100 bg-gray-50 text-gray-400"
+                            }`}
+                          >
+                            <div className="flex items-center justify-between">
+                              <span
+                                className={`text-base font-semibold ${
+                                  isAvailable
+                                    ? "text-gray-900"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                {name}
+                              </span>
 
-            return (
-              <button
-                key={name}
-                type="button"
-                disabled={!isAvailable}
-                onClick={() => {
-                  if (isAvailable) {
-                    handleSelectSize(name);
-                  }
-                }}
-                className={`
-                  group
-                  relative
-                  min-h-[72px]
-                  rounded-xl
-                  border
-                  px-4
-                  py-3
-                  text-left
-                  transition-all
-                  duration-200
+                              <span
+                                className={`h-2 w-2 rounded-full ${
+                                  isAvailable
+                                    ? "bg-green-500"
+                                    : "bg-gray-300"
+                                }`}
+                              />
+                            </div>
 
-                  ${
-                    isAvailable
-                      ? `
-                        border-gray-200
-                        bg-white
-                        hover:border-black
-                        hover:shadow-sm
-                        active:scale-[0.98]
-                      `
-                      : `
-                        cursor-not-allowed
-                        border-gray-100
-                        bg-gray-50
-                        text-gray-400
-                      `
-                  }
-                `}
-              >
-                <div className="flex items-center justify-between">
-                  <span
-                    className={`
-                      text-base font-semibold
-                      ${
-                        isAvailable
-                          ? "text-gray-900"
-                          : "text-gray-400"
+                            <span
+                              className={`mt-1 block text-xs ${
+                                isAvailable
+                                  ? "text-gray-500"
+                                  : "text-gray-400"
+                              }`}
+                            >
+                              {isAvailable
+                                ? qty <=
+                                  5
+                                  ? `Only ${qty} left`
+                                  : "Available"
+                                : "Out of stock"}
+                            </span>
+                          </button>
+                        );
                       }
-                    `}
-                  >
-                    {name}
-                  </span>
+                    )}
+                  </div>
 
-                  <span
-                    className={`
-                      h-2 w-2 rounded-full
-                      ${
-                        isAvailable
-                          ? "bg-green-500"
-                          : "bg-gray-300"
-                      }
-                    `}
-                  />
-                </div>
+                  {!selectedProduct.sizes.some(
+                    (size) => {
+                      const name =
+                        typeof size ===
+                        "string"
+                          ? size
+                          : size?.name;
 
-                <span
-                  className={`
-                    mt-1 block text-xs
-                    ${
-                      isAvailable
-                        ? "text-gray-500"
-                        : "text-gray-400"
+                      if (!name)
+                        return false;
+
+                      const qty =
+                        Number(
+                          selectedProduct
+                            .inventory?.[
+                            name
+                          ] ??
+                            selectedProduct
+                              .inventory
+                              ?.stock?.[
+                              name
+                            ] ??
+                            0
+                        );
+
+                      return (
+                        (typeof size ===
+                          "string" ||
+                          size.active !==
+                            false) &&
+                        qty > 0
+                      );
                     }
-                  `}
-                >
-                  {isAvailable
-                    ? qty <= 5
-                      ? `Only ${qty} left`
-                      : "Available"
-                    : "Out of stock"}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {(() => {
-          const hasAvailableSize =
-            selectedProduct.sizes.some((size) => {
-              const qty = Number(
-                selectedProduct.inventory?.[size.name] ??
-                  selectedProduct.inventory?.stock?.[
-                    size.name
-                  ] ??
-                  0
-              );
-
-              return (
-                size.active !== false &&
-                qty > 0
-              );
-            });
-
-          return !hasAvailableSize ? (
-            <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
-              <p className="text-sm font-medium text-red-600">
-                This product is currently out of stock.
-              </p>
+                  ) && (
+                    <div className="mt-5 rounded-xl border border-red-100 bg-red-50 px-4 py-3">
+                      <p className="text-sm font-medium text-red-600">
+                        This product is
+                        currently out
+                        of stock.
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
+                  <p className="text-sm text-gray-500">
+                    No sizes available
+                    for this product.
+                  </p>
+                </div>
+              )}
             </div>
-          ) : null;
-        })()}
-      </>
-    ) : (
-      <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 text-center">
-        <p className="text-sm text-gray-500">
-          No sizes available for this product.
-        </p>
-      </div>
-    )}
-  </div>
-)}
-  </DialogContent>
-</Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
 
+      {/* ================================================
+          FILTER DRAWER
+      ================================================= */}
 
-      {/* Overlay */}
       {isFilterOpen && (
         <div
-          onClick={() => setIsFilterOpen(false)}
+          onClick={() =>
+            setIsFilterOpen(false)
+          }
           className="fixed inset-0 bg-black bg-opacity-40 z-40 transition-opacity duration-300"
         />
       )}
-      {showTopBtn && (
-        <button
-          onClick={scrollToTop}
-          className="fixed bottom-8 right-8 bg-black text-white px-5 py-3 rounded-full shadow-lg hover:bg-white hover:text-black  transition "
-          title="Go to top"
-        >
-          ↑
-        </button>
-      )}
-
 
       <FilterDrawer
         isOpen={isFilterOpen}
-        onClose={() => setIsFilterOpen(false)}
-        selectedFilters={selectedFilters}
-        onChange={handleFilterChange}
+        onClose={() =>
+          setIsFilterOpen(false)
+        }
+        selectedFilters={
+          selectedFilters
+        }
+        onChange={
+          handleFilterChange
+        }
         onApply={() => {
-          setPage(1);        // 🔥 reset pagination
-          setHasMore(true);  // 🔥 allow new fetch
+          setPage(1);
+          setHasMore(true);
+          setAllProducts([]);
           setIsFilterOpen(false);
         }}
         categories={categories}
       />
 
+      {/* ================================================
+          TOP BUTTON
+      ================================================= */}
+
+      {showTopBtn && (
+        <button
+          onClick={scrollToTop}
+          className="fixed bottom-8 right-8 bg-black text-white px-5 py-3 rounded-full shadow-lg hover:bg-white hover:text-black transition z-50"
+          title="Go to top"
+        >
+          ↑
+        </button>
+      )}
     </div>
-
-
   );
 }

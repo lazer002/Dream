@@ -1,34 +1,98 @@
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../state/AuthContext.jsx";
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Pencil, Trash2 } from "lucide-react";
+import {
+  Pencil,
+  Trash2,
+  Plus,
+  Image as ImageIcon,
+  Loader2,
+} from "lucide-react";
 import api from "@/utils/config";
+
+const EMPTY_FORM = {
+  name: "",
+  slug: "",
+  photo: null,
+};
+
 export default function CategoriesAdmin() {
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
 
-  const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ name: "", slug: "", photo: null });
-  const [editId, setEditId] = useState(null);
+  const [categories, setCategories] =
+    useState([]);
 
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteId, setDeleteId] = useState(null);
+  const [loading, setLoading] =
+    useState(true);
+
+  const [saving, setSaving] =
+    useState(false);
+
+  const [deleting, setDeleting] =
+    useState(false);
+
+  const [open, setOpen] =
+    useState(false);
+
+  const [deleteOpen, setDeleteOpen] =
+    useState(false);
+
+  const [form, setForm] =
+    useState(EMPTY_FORM);
+
+  const [editId, setEditId] =
+    useState(null);
+
+  const [deleteId, setDeleteId] =
+    useState(null);
+
+  const [preview, setPreview] =
+    useState(null);
 
   const fetchCategories = async () => {
     setLoading(true);
+
     try {
-      const { data } = await api.get("/admin/getCategory");
-      if (data.success) setCategories(data.categories);
-    } catch (err) {
-      console.error(err);
+      const { data } =
+        await api.get(
+          "/admin/getCategory"
+        );
+
+      if (data?.success) {
+        setCategories(
+          Array.isArray(data.categories)
+            ? data.categories
+            : []
+        );
+      } else {
+        setCategories([]);
+      }
+    } catch (error) {
+      console.error(
+        "FETCH CATEGORIES ERROR:",
+        error
+      );
     } finally {
       setLoading(false);
     }
@@ -38,225 +102,684 @@ export default function CategoriesAdmin() {
     fetchCategories();
   }, []);
 
-const saveCategory = async () => {
-  if (!form.name.trim()) {
-    alert("Category name is required");
-    return;
-  }
+  const resetForm = () => {
+    setForm({
+      ...EMPTY_FORM,
+    });
 
-  try {
-    if (!form.slug || !form.slug.trim()) {
-      form.slug = form.name.toLowerCase().replace(/\s+/g, "-");
-    }
-
-    let photoUrl = null;
-
-    // Upload image if selected
-    if (form.photo) {
-      const imageData = new FormData();
-      imageData.append("file", form.photo);
-
-      const { data } = await api.post("/admin/upload/image", imageData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-
-      console.log("Image upload response:", data); // you can inspect this
-      photoUrl = data.url; // replace with actual field from response
-    }
-
-    const payload = {
-      name: form.name,
-      slug: form.slug,
-      ...(photoUrl && { photo: photoUrl }),
-    };
-
-    if (editId) {
-      // Edit
-      const { data } = await api.put(`/admin/category/${editId}`, payload);
-      if (!data.success) throw new Error(data.message || "Update failed");
-    } else {
-      // Create
-      const { data } = await api.post("/admin/createCategory", payload);
-      if (!data.success) throw new Error(data.message || "Create failed");
-    }
-
-    setOpen(false);
-    setForm({ name: "", slug: "", photo: null });
     setEditId(null);
-    fetchCategories();
-  } catch (err) {
-    console.error(err);
-    alert(err.message || "Something went wrong");
-  }
-};
-
-
-  const confirmDelete = async () => {
-    try {
-      const { data } = await api.delete(`/admin/category/${deleteId}`);
-      if (!data.success) throw new Error(data.message || "Delete failed");
-      setDeleteOpen(false);
-      setDeleteId(null);
-      fetchCategories();
-    } catch (err) {
-      console.error(err);
-      alert(err.message || "Something went wrong");
-    }
+    setPreview(null);
   };
 
-  const openEditModal = (category) => {
-    setForm({ name: category.name, slug: category.slug || "", photo: null });
-    setEditId(category._id);
-    setOpen(true);
+  const closeForm = () => {
+    if (saving) return;
+
+    setOpen(false);
+    resetForm();
   };
 
   const openCreateModal = () => {
-    setForm({ name: "", slug: "", photo: null });
-    setEditId(null);
+    resetForm();
     setOpen(true);
   };
 
+  const openEditModal = (category) => {
+    setEditId(category._id);
+
+    setForm({
+      name: category.name || "",
+      slug: category.slug || "",
+      photo: null,
+    });
+
+    setPreview(
+      category.photo || null
+    );
+
+    setOpen(true);
+  };
+
+  const handleNameChange = (value) => {
+    setForm((prev) => ({
+      ...prev,
+      name: value,
+      slug:
+        editId || prev.slug
+          ? prev.slug
+          : value
+              .toLowerCase()
+              .trim()
+              .replace(/[^a-z0-9\s-]/g, "")
+              .replace(/\s+/g, "-")
+              .replace(/-+/g, "-"),
+    }));
+  };
+
+  const handlePhotoChange = (file) => {
+    if (!file) return;
+
+    if (!file.type.startsWith("image/")) {
+      alert("Please select an image");
+      return;
+    }
+
+    if (file.size > 5 * 1024 * 1024) {
+      alert(
+        "Image must be smaller than 5MB"
+      );
+      return;
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      photo: file,
+    }));
+
+    const objectUrl =
+      URL.createObjectURL(file);
+
+    setPreview(objectUrl);
+  };
+
+  const uploadPhoto = async () => {
+    if (!form.photo) {
+      return null;
+    }
+
+    const imageData = new FormData();
+
+    imageData.append(
+      "files",
+      form.photo
+    );
+
+    const { data } =
+      await api.post(
+        "/admin/upload/images",
+        imageData,
+        {
+          headers: {
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    console.log(
+      "IMAGE UPLOAD RESPONSE:",
+      data
+    );
+
+    return (
+      data?.url ||
+      data?.image?.url ||
+      data?.images?.[0]?.url ||
+      data?.files?.[0]?.url ||
+      data?.data?.url ||
+      null
+    );
+  };
+
+  const saveCategory = async () => {
+    const name =
+      form.name.trim();
+
+    if (!name) {
+      alert(
+        "Category name is required"
+      );
+      return;
+    }
+
+    const slug =
+      form.slug.trim() ||
+      name
+        .toLowerCase()
+        .replace(
+          /[^a-z0-9\s-]/g,
+          ""
+        )
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-");
+
+    setSaving(true);
+
+    try {
+      let photoUrl = null;
+
+      if (form.photo) {
+        photoUrl =
+          await uploadPhoto();
+
+        if (!photoUrl) {
+          throw new Error(
+            "Image upload succeeded but no image URL was returned"
+          );
+        }
+      }
+
+      const payload = {
+        name,
+        slug,
+        ...(photoUrl
+          ? {
+              photo: photoUrl,
+            }
+          : {}),
+      };
+
+      console.log(
+        "CATEGORY PAYLOAD:",
+        payload
+      );
+
+      let response;
+
+      if (editId) {
+        response =
+          await api.put(
+            `/admin/category/${editId}`,
+            payload
+          );
+      } else {
+        response =
+          await api.post(
+            "/admin/createCategory",
+            payload
+          );
+      }
+
+      if (!response?.data?.success) {
+        throw new Error(
+          response?.data?.message ||
+            response?.data?.error ||
+            "Category save failed"
+        );
+      }
+
+      setOpen(false);
+      resetForm();
+
+      await fetchCategories();
+    } catch (error) {
+      console.error(
+        "SAVE CATEGORY ERROR:",
+        error
+      );
+
+      alert(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "Something went wrong"
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const openDeleteModal = (id) => {
+    setDeleteId(id);
+    setDeleteOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!deleteId) return;
+
+    setDeleting(true);
+
+    try {
+      const { data } =
+        await api.delete(
+          `/admin/category/${deleteId}`
+        );
+
+      if (!data?.success) {
+        throw new Error(
+          data?.message ||
+            data?.error ||
+            "Delete failed"
+        );
+      }
+
+      setDeleteOpen(false);
+      setDeleteId(null);
+
+      await fetchCategories();
+    } catch (error) {
+      console.error(
+        "DELETE CATEGORY ERROR:",
+        error
+      );
+
+      alert(
+        error?.response?.data?.message ||
+          error?.response?.data?.error ||
+          error?.message ||
+          "Something went wrong"
+      );
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
-    <div className=" mx-auto py-2">
-      <Card>
-        <div className="flex justify-between p-5">
-          <div className="text-2xl font-semibold">Categories</div>
-          <Button onClick={openCreateModal} className="bg-blue-800 text-white hover:bg-blue-900">
+    <div className="mx-auto py-4">
+      <Card className="overflow-hidden border-gray-200 shadow-sm">
+        {/* HEADER */}
+        <div className="flex items-center justify-between border-b px-6 py-5">
+          <div>
+            <h1 className="text-2xl font-semibold tracking-tight">
+              Categories
+            </h1>
+
+            <p className="mt-1 text-sm text-gray-500">
+              Manage your product categories
+            </p>
+          </div>
+
+          <Button
+            onClick={openCreateModal}
+            className="
+              gap-2
+              bg-blue-800
+              text-white
+              hover:bg-blue-900
+            "
+          >
+            <Plus className="h-4 w-4" />
             Add Category
           </Button>
         </div>
-        <CardContent>
+
+        <CardContent className="p-0">
           {loading ? (
-            <p>Loading...</p>
+            <div className="flex min-h-[250px] items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-blue-800" />
+            </div>
+          ) : categories.length === 0 ? (
+            <div className="flex min-h-[250px] flex-col items-center justify-center">
+              <ImageIcon className="mb-3 h-10 w-10 text-gray-300" />
+
+              <p className="text-sm font-medium text-gray-600">
+                No categories found
+              </p>
+
+              <p className="mt-1 text-xs text-gray-400">
+                Create your first category
+              </p>
+            </div>
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Photo</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>
+                    Name
+                  </TableHead>
+
+                  <TableHead>
+                    Slug
+                  </TableHead>
+
+                  <TableHead>
+                    Photo
+                  </TableHead>
+
+                  <TableHead className="text-right">
+                    Actions
+                  </TableHead>
                 </TableRow>
               </TableHeader>
+
               <TableBody>
-                {categories.map((c) => (
-                  <TableRow key={c._id}>
-                    <TableCell>{c.name}</TableCell>
-                    <TableCell>
-                      {c.photo ? <img src={c.photo} alt={c.name} className="h-10 w-10 object-cover rounded" /> : "No Image"}
-                    </TableCell>
-                    <TableCell className="flex justify-end gap-2">
-                      <Button
-                        size="icon"
-                        variant="outline"
-                        onClick={() => openEditModal(c)}
-                        className="border-blue-800 text-blue-800 hover:bg-blue-50"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        onClick={() => {
-                          setDeleteId(c._id);
-                          setDeleteOpen(true);
-                        }}
-                        className="bg-blue-800 text-white hover:bg-blue-900"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
+                {categories.map(
+                  (category) => (
+                    <TableRow
+                      key={category._id}
+                    >
+                      <TableCell className="font-medium">
+                        {category.name}
+                      </TableCell>
+
+                      <TableCell>
+                        <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-600">
+                          {category.slug ||
+                            "-"}
+                        </span>
+                      </TableCell>
+
+                      <TableCell>
+                        {category.photo ? (
+                          <img
+                            src={
+                              category.photo
+                            }
+                            alt={
+                              category.name
+                            }
+                            className="
+                              h-12
+                              w-12
+                              rounded-lg
+                              object-cover
+                              ring-1
+                              ring-gray-200
+                            "
+                            onError={(
+                              event
+                            ) => {
+                              event.currentTarget.style.display =
+                                "none";
+                            }}
+                          />
+                        ) : (
+                          <div className="
+                            flex
+                            h-12
+                            w-12
+                            items-center
+                            justify-center
+                            rounded-lg
+                            bg-gray-100
+                          ">
+                            <ImageIcon className="h-5 w-5 text-gray-400" />
+                          </div>
+                        )}
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex justify-end gap-2">
+                          <Button
+                            size="icon"
+                            variant="outline"
+                            onClick={() =>
+                              openEditModal(
+                                category
+                              )
+                            }
+                            className="
+                              border-blue-800
+                              text-blue-800
+                              hover:bg-blue-50
+                            "
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+
+                          <Button
+                            size="icon"
+                            onClick={() =>
+                              openDeleteModal(
+                                category._id
+                              )
+                            }
+                            className="
+                              bg-blue-800
+                              text-white
+                              hover:bg-blue-900
+                            "
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  )
+                )}
               </TableBody>
             </Table>
           )}
         </CardContent>
       </Card>
 
-      {/* CREATE / EDIT MODAL */}
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md w-full rounded-2xl shadow-lg bg-white flex flex-col">
-          <DialogHeader className="border-b px-6 py-4">
+      {/* CREATE / EDIT */}
+      <Dialog
+        open={open}
+        onOpenChange={(value) => {
+          if (!value) {
+            closeForm();
+          } else {
+            setOpen(true);
+          }
+        }}
+      >
+        <DialogContent className="w-full max-w-md overflow-hidden rounded-2xl bg-white p-0">
+          <DialogHeader className="border-b px-6 py-5">
             <DialogTitle className="text-xl font-semibold text-gray-900">
-              {editId ? "Edit Category" : "Add Category"}
+              {editId
+                ? "Edit Category"
+                : "Add Category"}
             </DialogTitle>
           </DialogHeader>
 
-          <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
-            <div className="space-y-1.5">
-              <Label>Name</Label>
+          <div className="space-y-5 px-6 py-6">
+            {/* NAME */}
+            <div className="space-y-2">
+              <Label>
+                Category Name
+              </Label>
+
               <Input
                 value={form.name}
-                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                disabled={saving}
+                placeholder="e.g. Jackets"
+                onChange={(event) =>
+                  handleNameChange(
+                    event.target.value
+                  )
+                }
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Slug</Label>
+
+            {/* SLUG */}
+            <div className="space-y-2">
+              <Label>
+                Slug
+              </Label>
+
               <Input
                 value={form.slug}
-                onChange={(e) => setForm({ ...form, slug: e.target.value })}
-                placeholder="optional, auto-generated from name"
+                disabled={saving}
+                placeholder="jackets"
+                onChange={(event) =>
+                  setForm((prev) => ({
+                    ...prev,
+                    slug: event.target.value
+                      .toLowerCase()
+                      .replace(
+                        /[^a-z0-9-]/g,
+                        "-"
+                      )
+                      .replace(
+                        /-+/g,
+                        "-"
+                      ),
+                  }))
+                }
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Photo</Label>
+
+            {/* PHOTO */}
+            <div className="space-y-2">
+              <Label>
+                Category Photo
+              </Label>
+
               <Input
                 type="file"
                 accept="image/*"
-                onChange={(e) => setForm({ ...form, photo: e.target.files[0] })}
+                disabled={saving}
+                onChange={(event) =>
+                  handlePhotoChange(
+                    event.target.files?.[0]
+                  )
+                }
               />
-              {editId && form.photo && (
-                <img
-                  src={URL.createObjectURL(form.photo)}
-                  alt="Preview"
-                  className="h-20 w-20 object-cover rounded mt-2"
-                />
+
+              {preview && (
+                <div className="relative mt-3 w-fit">
+                  <img
+                    src={preview}
+                    alt="Preview"
+                    className="
+                      h-28
+                      w-28
+                      rounded-xl
+                      object-cover
+                      ring-1
+                      ring-gray-200
+                    "
+                  />
+
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => {
+                      setForm(
+                        (prev) => ({
+                          ...prev,
+                          photo: null,
+                        })
+                      );
+
+                      setPreview(
+                        editId
+                          ? categories.find(
+                              (c) =>
+                                c._id ===
+                                editId
+                            )?.photo ||
+                              null
+                          : null
+                      );
+                    }}
+                    className="
+                      absolute
+                      -right-2
+                      -top-2
+                      flex
+                      h-6
+                      w-6
+                      items-center
+                      justify-center
+                      rounded-full
+                      bg-black
+                      text-xs
+                      text-white
+                    "
+                  >
+                    ×
+                  </button>
+                </div>
+              )}
+
+              {editId && !form.photo && (
+                <p className="text-xs text-gray-400">
+                  Leave empty to keep the
+                  existing photo.
+                </p>
               )}
             </div>
           </div>
 
-          <DialogFooter className="sticky bottom-0 border-t bg-white px-6 py-4 flex justify-end gap-3">
+          <DialogFooter className="border-t bg-gray-50 px-6 py-4">
             <Button
               variant="outline"
-              onClick={() => {
-                setOpen(false);
-                setForm({ name: "", slug: "", photo: null });
-                setEditId(null);
-              }}
-              className="border-blue-800 text-blue-800 hover:bg-blue-50"
+              disabled={saving}
+              onClick={closeForm}
+              className="
+                border-blue-800
+                text-blue-800
+                hover:bg-blue-50
+              "
             >
               Cancel
             </Button>
-            <Button className="bg-blue-800 text-white hover:bg-blue-900" onClick={saveCategory}>
-              Save
+
+            <Button
+              disabled={saving}
+              onClick={saveCategory}
+              className="
+                min-w-24
+                bg-blue-800
+                text-white
+                hover:bg-blue-900
+              "
+            >
+              {saving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving
+                </>
+              ) : editId ? (
+                "Update"
+              ) : (
+                "Save"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* DELETE CONFIRM MODAL */}
-      <Dialog open={deleteOpen} onOpenChange={setDeleteOpen}>
-        <DialogContent className="max-w-sm rounded-xl bg-white shadow-lg">
+      {/* DELETE */}
+      <Dialog
+        open={deleteOpen}
+        onOpenChange={(value) => {
+          if (!deleting) {
+            setDeleteOpen(value);
+
+            if (!value) {
+              setDeleteId(null);
+            }
+          }
+        }}
+      >
+        <DialogContent className="max-w-sm rounded-2xl bg-white">
           <DialogHeader>
             <DialogTitle className="text-lg font-semibold text-gray-900">
-              Confirm Deletion
+              Delete Category
             </DialogTitle>
           </DialogHeader>
-          <p className="text-sm text-gray-600 px-6">
-            Are you sure you want to delete this category? This action cannot be undone.
+
+          <p className="text-sm leading-6 text-gray-600">
+            Are you sure you want to delete
+            this category? This action cannot
+            be undone.
           </p>
-          <DialogFooter className="flex justify-end gap-3 pt-4 px-6 pb-4">
+
+          <DialogFooter className="gap-2">
             <Button
               variant="outline"
-              onClick={() => setDeleteOpen(false)}
-              className="border-blue-800 text-blue-800 hover:bg-blue-50"
+              disabled={deleting}
+              onClick={() =>
+                setDeleteOpen(false)
+              }
+              className="
+                border-blue-800
+                text-blue-800
+                hover:bg-blue-50
+              "
             >
               Cancel
             </Button>
+
             <Button
+              disabled={deleting}
               onClick={confirmDelete}
-              className="bg-blue-800 text-white hover:bg-blue-900"
+              className="
+                bg-red-600
+                text-white
+                hover:bg-red-700
+              "
             >
-              Delete
+              {deleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting
+                </>
+              ) : (
+                "Delete"
+              )}
             </Button>
           </DialogFooter>
         </DialogContent>

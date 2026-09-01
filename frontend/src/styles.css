@@ -271,22 +271,6 @@ input[type="radio"]:checked {
    PROMO
 ========================= */
 
-@keyframes promoFloat {
-  0% {
-    transform: translateY(0px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  }
-
-  50% {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 35px rgba(0, 0, 0, 0.08);
-  }
-
-  100% {
-    transform: translateY(0px);
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.04);
-  }
-}
 
 @keyframes heroZoom {
   0% {

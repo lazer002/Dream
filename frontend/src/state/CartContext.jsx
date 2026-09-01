@@ -1,338 +1,712 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
-import { useAuth } from './AuthContext.jsx';
+// src/state/CartContext.jsx
+
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useCallback,
+  useState,
+} from "react";
+
 import { toast } from "react-hot-toast";
-import api  from '@/utils/config.js';
+
+import {
+  useAddBundleToCartMutation,
+  useAddCartItemMutation,
+  useClearCartMutation,
+  useGetCartQuery,
+  useMergeCartMutation,
+  useRemoveCartItemMutation,
+  useUpdateCartItemMutation,
+} from "@/store/api";
+
+import { useAuth } from "./AuthContext.jsx";
 
 const CartContext = createContext(null);
 
-function ensureGuestId() {
-  let gid = localStorage.getItem('ds_guest');
-  if (!gid) {
-    gid = crypto.randomUUID();
-    localStorage.setItem('ds_guest', gid);
+/* =========================================================
+   GUEST ID
+========================================================= */
+
+const ensureGuestId = () => {
+  let guestId = localStorage.getItem("ds_guest");
+
+  if (!guestId) {
+    guestId = crypto.randomUUID();
+
+    localStorage.setItem(
+      "ds_guest",
+      guestId
+    );
   }
-  return gid;
-}
+
+  return guestId;
+};
+
+/* =========================================================
+   PROVIDER
+========================================================= */
 
 export function CartProvider({ children }) {
-  const { user } = useAuth();
-   const [loading, setLoading] = useState(true);
-  const [items, setItems] = useState([]);
-  const [guestId] = useState(() => ensureGuestId());
+  const { user, guestId } = useAuth();
 
-  // Function to call cart endpoints with guest header
-const client = () => {
-  const token = localStorage.getItem("ds_access");
+  /* =======================================================
+     ENSURE GUEST
+  ======================================================= */
 
-  return {
-    get: (url) =>
-      api.get(`/cart${url}`, {
-        headers: {
-          "x-guest-id": guestId,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      }),
+  useEffect(() => {
+    ensureGuestId();
+  }, []);
 
-    post: (url, data) =>
-      api.post(`/cart${url}`, data, {
-        headers: {
-          "x-guest-id": guestId,
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-      }),
-  };
-};
+  /* =======================================================
+     GET CART
+  ======================================================= */
 
-  const refresh = async () => {
-     setLoading(true); // start loading
-    try {
-      const { data } = await client().get('/');
-      // console.log("Cart refreshed:", data);
-      setItems(data.items || []);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to refresh cart");
-    } finally {
-      setLoading(false); // stop loading
-    }
-  };
-
-  // Fetch cart on load
-  useEffect(() => { refresh() }, []);
-
-
-
-  // Merge guest cart after login
-  const mergeGuestCart = async () => {
-    const token = localStorage.getItem('ds_access');
-    if (!user || !token) return;
-
-    try {
-      await client().post('/merge', { guestId });
-      
-      await refresh();
-      toast.success("Guest cart merged successfully");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to merge guest cart");
-    }
-  };
-
-useEffect(() => {
-  if (!user) return;
-
-  if (!sessionStorage.getItem("cart_merged")) {
-    mergeGuestCart();
-    sessionStorage.setItem("cart_merged", "true");
-  } else {
-    refresh(); // 🔥 THIS WAS MISSING
-  }
-}, [user]);
-  
-const add = async (productId, size, quantity = 1) => {
-  if (!size) {
-    toast.error("Please select a size!");
-    return;
-  }
-
-  // Check if the item with same product + size exists in frontend cart
-  const existing = items.find(
-    i => i.product && i.product._id === productId && i.size === size
-  );
-
-  if (existing) {
-    setItems(prev =>
-      prev.map(i =>
-        i.product && i.product._id === productId && i.size === size
-          ? { ...i, quantity: i.quantity + quantity }
-          : i
-      )
-    );
-
-  } else {
-    setItems(prev => [...prev, { product: { _id: productId }, size, quantity }]);
-  }
-
-  try {
-    // Send to backend: include size to avoid duplicate key errors
-    await client().post('/add', { productId, size, quantity });
-    
-    // Refresh cart state from backend
-    await refresh();
-
-    toast.success("Added to cart");
-  } catch (err) {
-    console.error(err);
-
-    // Likely duplicate key issue if backend index not updated
-    if (err.response?.data?.code === 11000) {
-      toast.error("This product & size is already in cart");
-    } else {
-      toast.error("Failed to add item");
-    }
-
-    refresh();
-  }
-};
-
-
-const update = async (id, quantity, size, isBundle = false) => {
-  setItems((prev) =>
-    prev.map((i) => {
-      if (isBundle) {
-        // match bundle by id
-        return i._id === id ? { ...i, quantity } : i;
-      } else {
-        // match single product by id + size
-        return i.product?._id === id && i.size === size
-          ? { ...i, quantity }
-          : i;
-      }
-    })
-  );
-
-  try {
-    await client().post("/update", {
-      quantity,
-      size: isBundle ? undefined : size,
-      productId: isBundle ? undefined : id,
-      bundleId: isBundle ? id : undefined,
-    });
-    // await refresh();
-    toast.success("Cart updated");
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to update cart");
-    await refresh();
-  }
-};
-
-
-  // 🧩 Remove item
-const remove = async (id, size, isBundle = false) => {
-  console.log("Removing item from cart:", { id, size, isBundle });
-  if (isBundle) {
-    // Remove bundle locally
-    setItems((prev) => prev.filter((i) => i._id !== id));
-  } else {
-    // Remove single product locally
-    setItems((prev) =>
-      prev.filter((i) => !(i.product?._id === id && i.size === size))
-    );
-  }
-
-  try {
-    if (isBundle) {
-      await client().post("/remove", { cartItemId: id });
-    } else {
-      await client().post("/remove", { productId: id, size });
-    }
-    // await refresh();
-    toast.success(isBundle ? "Bundle removed from cart" : "Product removed from cart");
-  } catch (err) {
-    console.error(err);
-    toast.error(err.response?.data?.error || "Failed to remove item");
-    await refresh();
-  }
-};
-
-const clearCart = async (opts = { server: true }) => {
-  setLoading(true);
-  try {
-    setItems([]);
-
-    if (opts.server) {
-      await client().post("/clear"); // backend should handle guestId or user from header/token
-    }
-    toast.success("Cart cleared");
-  } catch (err) {
-    console.error("Failed to clear cart:", err);
-    toast.error("Failed to clear cart");
-    await refresh();
-  } finally {
-    setLoading(false);
-  }
-};
-
-const addBundleToCart = async (bundle, selectedSizes) => {
-  console.log("Adding bundle to cart:", bundle, selectedSizes);
-
-  // Ensure all products have a selected size
-  const allSizesSelected =
-    bundle.products.every((p) => selectedSizes[p._id]) &&
-    Object.keys(selectedSizes).length === bundle.products.length;
-
-  if (!allSizesSelected) {
-    toast.error("Please select size for all products in the bundle!");
-    return;
-  }
-
-  // Check if bundle already exists in cart (with same sizes)
-  const existing = items.find((item) => {
-    const sameBundle = bundle.custom
-  ? item.customBundle?.title === bundle.title
-  : item.bundle?._id === bundle._id;
-
-if (!sameBundle) return false;
-
-    return item.bundleProducts.every((bp) => {
-      const productId = bp.product?._id || bp.product;
-      return (
-        selectedSizes[productId] && bp.size === selectedSizes[productId]
-      );
-    });
+  const {
+    data,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useGetCartQuery(undefined, {
+    skip: !user && !guestId,
   });
 
-  if (existing) {
-    // Increase quantity
-    setItems((prev) =>
-      prev.map((item) =>
-        item === existing ? { ...item, quantity: item.quantity + 1 } : item
-      )
-    );
-  } else {
-    // Build new bundle object for cart
-    const bundleProducts = bundle.products.map((p) => ({
-      product: {
-        _id: p._id,
-        title: p.title,
-        price: p.price,
-        images: p.images,
-      },
-      size: selectedSizes[p._id],
-      quantity: 1,
-    }));
+  const items = Array.isArray(data?.items)
+    ? data.items
+    : [];
 
-    setItems((prev) => [
-      ...prev,
- {
-  ...(bundle.custom
-    ? {
-        customBundle: {
-          title: bundle.title,
-          price: bundle.price,
-        },
+  /* =======================================================
+     MUTATIONS
+  ======================================================= */
+const [updatingItemId, setUpdatingItemId] =
+  useState(null);
+
+  const [
+    addCartItem,
+    { isLoading: isAdding },
+  ] = useAddCartItemMutation();
+
+  const [
+    updateCartItem,
+    { isLoading: isUpdating },
+  ] = useUpdateCartItemMutation();
+
+  const [
+    removeCartItem,
+    { isLoading: isRemoving },
+  ] = useRemoveCartItemMutation();
+
+  const [
+    clearCartMutation,
+    { isLoading: isClearing },
+  ] = useClearCartMutation();
+
+  const [
+    mergeCartMutation,
+    { isLoading: isMerging },
+  ] = useMergeCartMutation();
+
+  const [
+    addBundleMutation,
+    { isLoading: isAddingBundle },
+  ] = useAddBundleToCartMutation();
+
+  /* =======================================================
+     HELPERS
+  ======================================================= */
+
+  const getProductPublicId = useCallback(
+    (item) => {
+      if (!item) return null;
+
+      /*
+       * Normal product
+       */
+      if (
+        item.type === "product" &&
+        item.publicId
+      ) {
+        return String(item.publicId);
       }
-    : {
-        bundle: {
-          _id: bundle._id,
-          title: bundle.title,
-          price: bundle.price,
-        },
-      }),
 
-  mainImage:
-    bundle.products?.[0]?.images?.[0] ||
-    bundle.mainImages?.[0] ||
-    "/placeholder.jpg",
+      /*
+       * Bundle product
+       */
+      if (
+        item.type === "bundle" &&
+        Array.isArray(item.bundleProducts) &&
+        item.bundleProducts.length
+      ) {
+        return (
+          item.bundleProducts[0]?.publicId ||
+          null
+        );
+      }
 
-  bundleProducts,
-  quantity: 1,
-},
+      return null;
+    },
+    []
+  );
+
+  const getCartItemId = useCallback(
+    (item) => {
+      return item?._id
+        ? String(item._id)
+        : null;
+    },
+    []
+  );
+
+  const isBundle = useCallback(
+    (item) => {
+      return item?.type === "bundle";
+    },
+    []
+  );
+
+  /* =======================================================
+     REFRESH
+  ======================================================= */
+
+  const refresh = useCallback(
+    async () => {
+      return refetch();
+    },
+    [refetch]
+  );
+
+  /* =======================================================
+     MERGE GUEST CART
+  ======================================================= */
+
+  const mergeGuestCart =
+    useCallback(async () => {
+      if (!user) return;
+
+      const gid =
+        guestId ||
+        localStorage.getItem(
+          "ds_guest"
+        );
+
+      if (!gid) return;
+
+      try {
+        await mergeCartMutation({
+          guestId: gid,
+        }).unwrap();
+
+        await refetch();
+
+        sessionStorage.setItem(
+          "cart_merged",
+          "true"
+        );
+      } catch (error) {
+        console.error(
+          "MERGE CART ERROR:",
+          error
+        );
+
+        toast.error(
+          error?.data?.error ||
+            error?.data?.message ||
+            "Failed to merge guest cart"
+        );
+      }
+    }, [
+      user,
+      guestId,
+      mergeCartMutation,
+      refetch,
     ]);
-  }
 
-  // 🔗 Send to backend
-  try {
-const payload = {
-  bundleProducts: bundle.products.map((p) => ({
-    productId: p._id,
-    size: selectedSizes[p._id],
-    quantity: 1,
-  })),
-};
+  useEffect(() => {
+    if (!user || !guestId) return;
 
-if (bundle.custom) {
-  payload.customBundle = {
-    title: bundle.title,
-    price: bundle.price,
+    const alreadyMerged =
+      sessionStorage.getItem(
+        "cart_merged"
+      );
+
+    if (alreadyMerged) return;
+
+    mergeGuestCart();
+  }, [
+    user,
+    guestId,
+    mergeGuestCart,
+  ]);
+
+  /* =======================================================
+     ADD PRODUCT
+
+     ALWAYS:
+     publicId
+  ======================================================= */
+
+  const add = useCallback(
+    async (
+      publicId,
+      size,
+      quantity = 1
+    ) => {
+      if (!publicId) {
+        toast.error(
+          "Product publicId is required"
+        );
+        return;
+      }
+
+      if (!size) {
+        toast.error(
+          "Please select a size!"
+        );
+        return;
+      }
+
+      try {
+        await addCartItem({
+          publicId: String(publicId),
+          size: String(size),
+          quantity: Number(quantity),
+        }).unwrap();
+
+        await refetch();
+
+        toast.success(
+          "Added to cart"
+        );
+      } catch (error) {
+        console.error(
+          "ADD CART ERROR:",
+          error
+        );
+
+        toast.error(
+          error?.data?.error ||
+            error?.data?.message ||
+            error?.error ||
+            "Failed to add item"
+        );
+
+        await refetch();
+      }
+    },
+    [
+      addCartItem,
+      refetch,
+    ]
+  );
+
+  /* =======================================================
+     UPDATE
+
+     PRODUCT:
+       publicId + size
+
+     BUNDLE:
+       cartItemId
+  ======================================================= */
+
+
+const update = useCallback(
+  async (
+    id,
+    quantity,
+    size = null,
+    bundle = false
+  ) => {
+    if (!id) return;
+
+    const nextQuantity =
+      Number(quantity);
+
+    if (
+      !Number.isFinite(nextQuantity) ||
+      nextQuantity < 1
+    ) {
+      return;
+    }
+
+    const loadingId = bundle
+      ? `bundle-${id}`
+      : `product-${id}-${size}`;
+
+    setUpdatingItemId(loadingId);
+
+    try {
+      await updateCartItem({
+        isBundle: bundle,
+
+        ...(bundle
+          ? {
+              cartItemId: String(id),
+            }
+          : {
+              publicId: String(id),
+              size: size
+                ? String(size)
+                : undefined,
+            }),
+
+        quantity: nextQuantity,
+      }).unwrap();
+    } catch (error) {
+      console.error(
+        "UPDATE CART ERROR:",
+        error
+      );
+
+      toast.error(
+        error?.data?.error ||
+          error?.data?.message ||
+          "Failed to update cart"
+      );
+    } finally {
+      setUpdatingItemId(null);
+    }
+  },
+  [updateCartItem]
+);
+  /* =======================================================
+     REMOVE
+
+     PRODUCT:
+       publicId + size
+
+     BUNDLE:
+       cartItemId
+  ======================================================= */
+
+  const remove = useCallback(
+    async (
+      id,
+      size,
+      bundle = false
+    ) => {
+      if (!id) {
+        return;
+      }
+
+      try {
+        if (bundle) {
+          await removeCartItem({
+            cartItemId: String(id),
+          }).unwrap();
+        } else {
+          await removeCartItem({
+            publicId: String(id),
+            size: size
+              ? String(size)
+              : undefined,
+          }).unwrap();
+        }
+
+        await refetch();
+
+        toast.success(
+          bundle
+            ? "Bundle removed from cart"
+            : "Product removed from cart"
+        );
+      } catch (error) {
+        console.error(
+          "REMOVE CART ERROR:",
+          error
+        );
+
+        toast.error(
+          error?.data?.error ||
+            error?.data?.message ||
+            error?.error ||
+            "Failed to remove item"
+        );
+
+        await refetch();
+      }
+    },
+    [
+      removeCartItem,
+      refetch,
+    ]
+  );
+
+  /* =======================================================
+     CLEAR
+  ======================================================= */
+
+  const clearCart =
+    useCallback(async () => {
+      try {
+        await clearCartMutation()
+          .unwrap();
+
+        await refetch();
+
+        toast.success(
+          "Cart cleared"
+        );
+      } catch (error) {
+        console.error(
+          "CLEAR CART ERROR:",
+          error
+        );
+
+        toast.error(
+          error?.data?.error ||
+            error?.data?.message ||
+            "Failed to clear cart"
+        );
+
+        await refetch();
+      }
+    }, [
+      clearCartMutation,
+      refetch,
+    ]);
+
+  /* =======================================================
+     ADD BUNDLE
+
+     BOTH CUSTOM + PREBUILT USE:
+
+     {
+       isCustomBundle: true/false,
+       bundle: {...},
+       bundleProducts: [...]
+     }
+
+     Products ALWAYS use publicId.
+  ======================================================= */
+
+  const addBundleToCart =
+    useCallback(
+      async (
+        bundle,
+        selectedSizes
+      ) => {
+        if (
+          !bundle?.products?.length
+        ) {
+          toast.error(
+            "Bundle has no products"
+          );
+          return;
+        }
+
+        const isCustomBundle =
+          Boolean(
+            bundle.custom
+          );
+
+        const bundleProducts =
+          [];
+
+        for (
+          const product of
+            bundle.products
+        ) {
+          const publicId =
+            product?.publicId;
+
+          if (!publicId) {
+            toast.error(
+              `Missing publicId for ${
+                product?.title ||
+                "product"
+              }`
+            );
+            return;
+          }
+
+          /*
+           * Prefer publicId as the
+           * selectedSizes key.
+           *
+           * _id fallback is kept only
+           * for old UI state.
+           */
+          const size =
+            selectedSizes?.[
+              publicId
+            ] ??
+            selectedSizes?.[
+              product?._id
+            ];
+
+          if (!size) {
+            toast.error(
+              `Please select size for ${
+                product.title ||
+                "product"
+              }`
+            );
+            return;
+          }
+
+          bundleProducts.push({
+            publicId:
+              String(publicId),
+
+            size:
+              String(size),
+
+            quantity: 1,
+          });
+        }
+
+        /* =================================================
+           SAME BUNDLE STRUCTURE
+        ================================================= */
+
+        const payload = {
+          isCustomBundle,
+
+          bundle: {
+            publicId:
+              isCustomBundle
+                ? null
+                : String(
+                    bundle.publicId ||
+                      ""
+                  ),
+
+            title:
+              bundle.title ||
+              (isCustomBundle
+                ? "Custom Bundle"
+                : null),
+
+            price:
+              Number(
+                bundle.price || 0
+              ),
+
+            mainImage:
+              bundle.mainImage ||
+              bundle.mainImages?.[0] ||
+              bundle.images?.[0] ||
+              bundle.products?.[0]
+                ?.images?.[0] ||
+              null,
+          },
+
+          bundleProducts,
+        };
+
+        /*
+         * Custom bundle MUST NOT
+         * send a fake bundle publicId.
+         */
+        if (isCustomBundle) {
+          payload.bundle.publicId =
+            null;
+        }
+
+        /*
+         * Prebuilt bundle MUST
+         * have publicId.
+         */
+        if (
+          !isCustomBundle &&
+          !payload.bundle.publicId
+        ) {
+          toast.error(
+            "Bundle publicId is required"
+          );
+          return;
+        }
+
+        try {
+          await addBundleMutation(
+            payload
+          ).unwrap();
+
+          await refetch();
+
+          toast.success(
+            "Bundle added to cart!"
+          );
+        } catch (error) {
+          console.error(
+            "ADD BUNDLE ERROR:",
+            error
+          );
+
+          toast.error(
+            error?.data?.error ||
+              error?.data?.message ||
+              error?.error ||
+              "Failed to add bundle"
+          );
+
+          await refetch();
+        }
+      },
+      [
+        addBundleMutation,
+        refetch,
+      ]
+    );
+
+  /* =======================================================
+     VALUE
+  ======================================================= */
+
+  const value = {
+    items,
+
+    loading:
+      isLoading ||
+      isFetching ||
+      isAdding ||
+      isRemoving ||
+      isClearing ||
+      isMerging ||
+      isAddingBundle,
+
+    isLoading,
+    isFetching,
+    isAdding,
+    isUpdating,
+    isRemoving,
+    isClearing,
+    isMerging,
+    isAddingBundle,
+
+ updatingItemId,
+
+
+    add,
+    update,
+    remove,
+
+    refresh,
+    mergeGuestCart,
+    addBundleToCart,
+    clearCart,
+
+    getProductPublicId,
+    getCartItemId,
+    isBundle,
   };
 
-  payload.mainImage =
-    bundle.products?.[0]?.images?.[0] || "";
-} else {
-  payload.bundleId = bundle._id;
-
-  payload.mainImage =
-    bundle.mainImages?.[0] || "";
+  return (
+    <CartContext.Provider
+      value={value}
+    >
+      {children}
+    </CartContext.Provider>
+  );
 }
 
-await client().post("/addbundle", payload);
-
-    await refresh();
-    toast.success("Bundle added to cart!");
-  } catch (err) {
-    console.error(err);
-    toast.error("Failed to add bundle");
-    await refresh();
-  }
-};
-
-  const value = { items, add, update, remove, refresh, mergeGuestCart, addBundleToCart, clearCart, loading };
-
-  return <CartContext.Provider value={value}>{children}</CartContext.Provider>;
-}
+/* =========================================================
+   HOOK
+========================================================= */
 
 export function useCart() {
-  return useContext(CartContext);
+  return useContext(
+    CartContext
+  );
 }

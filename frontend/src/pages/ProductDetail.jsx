@@ -1,45 +1,121 @@
 // src/pages/ProductDetail.jsx
-import { useState, useEffect, useRef } from "react"
-import { useParams, useNavigate } from "react-router-dom"
-import { useCart } from "../state/CartContext.jsx"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion"
-import { Card } from "@/components/ui/card"
-import { Separator } from "@/components/ui/separator"
+
+import { useState, useEffect, useRef } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { useCart } from "../state/CartContext.jsx";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionItem,
+  AccordionTrigger,
+  AccordionContent,
+} from "@/components/ui/accordion";
+import { Card } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import RecentlyViewed from "@/components/RecentlyViewed";
-import { ChevronLeft, ChevronRight, X, ShoppingCart, Heart, CreditCard, Gift } from "lucide-react"
-import api from "@/utils/config"
-import toast from "react-hot-toast"
+import {
+  ChevronLeft,
+  ChevronRight,
+  X,
+  ShoppingCart,
+  Heart,
+  CreditCard,
+  Gift,
+} from "lucide-react";
+import toast from "react-hot-toast";
 import { useWishlist } from "../state/WishlistContext.jsx";
-import RelatedProducts from "@/components/RelatedProducts.jsx"
+import RelatedProducts from "@/components/RelatedProducts.jsx";
+
+import {
+  useGetProductQuery,
+  useGetRelatedProductsQuery,
+} from "@/store/api";
+
 export default function ProductDetail() {
-  const { wishlist, addToWishlist, removeFromWishlist } = useWishlist();
-  const { publicId } = useParams()
-  const navigate = useNavigate()
-  const { add } = useCart()
-  const [product, setProduct] = useState(null)
-  const [selectedSize, setSelectedSize] = useState("")
-  const [recommendedProducts, setRecommendedProducts] = useState([])
-  const [activeImage, setActiveImage] = useState(0)
-  const [openZoom, setOpenZoom] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const { wishlist, addToWishlist, removeFromWishlist } =
+    useWishlist();
+
+  const { publicId } = useParams();
+  const navigate = useNavigate();
+  const { add } = useCart();
+
+  // =====================================================
+  // REDUX API
+  // =====================================================
+
+  const {
+    data: product,
+    isLoading: loading,
+    isFetching: productFetching,
+    isError: productError,
+  } = useGetProductQuery(publicId, {
+    skip: !publicId,
+  });
+
+  const {
+    data: relatedData,
+    isLoading: relatedLoading,
+  } = useGetRelatedProductsQuery(
+    {
+      type: "product",
+      publicId,
+    },
+    {
+      skip: !publicId,
+    }
+  );
+
+  const recommendedProducts =
+    relatedData?.products ||
+    relatedData?.items ||
+    [];
+
+  // =====================================================
+  // STATE
+  // =====================================================
+
+  const [selectedSize, setSelectedSize] =
+    useState("");
+
+  const [activeImage, setActiveImage] =
+    useState(0);
+
+  const [openZoom, setOpenZoom] =
+    useState(false);
+
   const [showMagnifier, setShowMagnifier] =
-    useState(false)
-  const [showRequest, setShowRequest] = useState(false);
+    useState(false);
+
+  const [showRequest, setShowRequest] =
+    useState(false);
+
   const [request, setRequest] = useState({
     email: "",
     size: "",
   });
+
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
 
   const [zoomPosition, setZoomPosition] =
-    useState({ x: 50, y: 50 })
+    useState({
+      x: 50,
+      y: 50,
+    });
 
+  // =====================================================
+  // RESET WHEN PRODUCT CHANGES
+  // =====================================================
 
+  useEffect(() => {
+    setActiveImage(0);
+    setSelectedSize("");
+  }, [publicId]);
 
-
+  // =====================================================
+  // PRODUCT REQUEST
+  // =====================================================
 
   const handleRequestSubmit = async () => {
     if (!request.email || !request.size) {
@@ -48,218 +124,52 @@ export default function ProductDetail() {
     }
 
     try {
+      const { default: api } = await import(
+        "@/utils/config"
+      );
+
       await api.post("/product-request", {
         productId: product.publicId,
         email: request.email,
         size: request.size,
       });
 
-      toast.success("We’ll notify you when available 🚀");
+      toast.success(
+        "We’ll notify you when available 🚀"
+      );
 
       setShowRequest(false);
-      setRequest({ email: "", size: "" });
 
+      setRequest({
+        email: "",
+        size: "",
+      });
     } catch (err) {
       console.error(err);
       toast.error("Failed to send request");
     }
   };
 
+  // =====================================================
+  // PRODUCT NOT FOUND
+  // =====================================================
 
-
-  useEffect(() => {
-    const getProduct = async () => {
-      setLoading(true)
-      try {
-        const { data } = await api.get(`/products/${publicId}`)
-        setProduct(data)
-        setActiveImage(0) // reset image index when product changes
-      } catch (error) {
-        console.error("Failed to fetch product:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    if (publicId) getProduct()
-  }, [publicId])
-
-  useEffect(() => {
-    if (!product?.category) return
-
-    const fetchRecommended = async () => {
-      try {
-        const params = new URLSearchParams()
-        params.append("limit", 3)
-        params.append("page", 1)
-
-        const categoryValue =
-          typeof product.category === "string"
-            ? product.category
-            : product.category?.name || product.category?._id
-
-        if (categoryValue) params.append("category", categoryValue)
-
-        const res = await api.get("/products", {
-          params: Object.fromEntries(params.entries()),
-        })
-
-        // filter out the same product
-        const items = res.data?.items || []
-        const filtered = items.filter(
-          (p) => p.publicId !== product.publicId
-        )
-        setRecommendedProducts(filtered)
-      } catch (error) {
-        console.error("Failed to fetch related products:", error)
-      }
-    }
-
-    fetchRecommended()
-  }, [product])
-
-  if (loading) {
-    return (
-      <div className="px-4 py-4 md:p-6">
-        <div className="flex flex-col md:flex-row gap-6 md:gap-12 animate-pulse">
-
-          {/* Images */}
-          <div className="w-full md:w-1/2 flex flex-col-reverse md:flex-row gap-4">
-
-            {/* Thumbnails */}
-            <div className="flex md:flex-col gap-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div
-                  key={i}
-                  className="
-                  w-16 h-20
-                  md:w-20 md:h-24
-                  rounded-lg
-                  bg-gray-200
-                "
-                />
-              ))}
-            </div>
-
-            {/* Main Image */}
-            <div
-              className="
-              flex-1
-              rounded-2xl
-              bg-gray-200
-
-              h-[55vh]
-              md:h-[82vh]
-            "
-            />
-          </div>
-
-          {/* Product Info */}
-          <div className="w-full md:w-1/2 flex flex-col gap-5">
-
-            {/* Title */}
-            <div className="space-y-3">
-              <div className="h-10 w-4/5 bg-gray-200 rounded-lg" />
-              <div className="h-10 w-2/3 bg-gray-200 rounded-lg" />
-            </div>
-
-            {/* Description */}
-            <div className="space-y-2">
-              <div className="h-4 w-full bg-gray-200 rounded" />
-              <div className="h-4 w-[95%] bg-gray-200 rounded" />
-              <div className="h-4 w-[80%] bg-gray-200 rounded" />
-            </div>
-
-            {/* Price */}
-            <div className="flex gap-3 items-center">
-              <div className="h-8 w-28 bg-gray-200 rounded" />
-              <div className="h-6 w-20 bg-gray-200 rounded" />
-              <div className="h-6 w-16 bg-gray-200 rounded" />
-            </div>
-
-            <div className="h-5 w-40 bg-gray-200 rounded" />
-
-            {/* Sizes */}
-            <div>
-              <div className="h-6 w-24 bg-gray-200 rounded mb-4" />
-
-              <div className="flex gap-3 flex-wrap">
-                {[1, 2, 3, 4, 5, 6].map((i) => (
-                  <div
-                    key={i}
-                    className="
-                    w-12 h-12
-                    md:w-14 md:h-14
-                    rounded-full
-                    bg-gray-200
-                  "
-                  />
-                ))}
-              </div>
-            </div>
-
-            {/* Buttons */}
-            <div className="space-y-3 mt-2">
-              <div className="h-14 rounded-xl bg-gray-200" />
-              <div className="h-14 rounded-xl bg-gray-200" />
-              <div className="h-14 rounded-xl bg-gray-200" />
-            </div>
-
-            {/* Offer Cards */}
-            <div className="space-y-3 mt-4">
-              <div className="h-20 rounded-xl bg-gray-200" />
-              <div className="h-20 rounded-xl bg-gray-200" />
-            </div>
-
-            {/* Accordion */}
-            <div className="space-y-3 mt-4">
-              <div className="h-14 rounded-xl bg-gray-200" />
-              <div className="h-14 rounded-xl bg-gray-200" />
-              <div className="h-14 rounded-xl bg-gray-200" />
-            </div>
-          </div>
-        </div>
-
-        {/* Recommended Products Skeleton */}
-        <section className="mt-20">
-          <div className="h-10 w-72 bg-gray-200 rounded mb-8 animate-pulse" />
-
-          <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-            {[1, 2, 3].map((i) => (
-              <div
-                key={i}
-                className="
-                aspect-[3/4]
-                rounded-2xl
-                bg-gray-200
-                animate-pulse
-              "
-              />
-            ))}
-          </div>
-        </section>
-      </div>
-    );
-  }
-
-  if (!product) {
+  if (!loading && (!product || productError)) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center px-4">
         <div className="max-w-md text-center">
           <div
             className="
-            mx-auto mb-6
-
-            w-24 h-24
-
-            rounded-full
-
-            bg-gray-100
-
-            flex items-center justify-center
-          "
+              mx-auto mb-6
+              w-24 h-24
+              rounded-full
+              bg-gray-100
+              flex items-center justify-center
+            "
           >
-            <span className="text-4xl">📦</span>
+            <span className="text-4xl">
+              📦
+            </span>
           </div>
 
           <h1 className="text-2xl md:text-3xl font-bold text-gray-900 mb-3">
@@ -267,40 +177,37 @@ export default function ProductDetail() {
           </h1>
 
           <p className="text-gray-500 mb-8">
-            The product you're looking for may have been removed,
-            renamed, or is temporarily unavailable.
+            The product you're looking for may have
+            been removed, renamed, or is temporarily
+            unavailable.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-3 justify-center">
             <button
               onClick={() => navigate(-1)}
               className="
-              px-6 py-3
-
-              border border-gray-300
-
-              rounded-xl
-
-              hover:bg-gray-50
-              transition
-            "
+                px-6 py-3
+                border border-gray-300
+                rounded-xl
+                hover:bg-gray-50
+                transition
+              "
             >
               Go Back
             </button>
 
             <button
-              onClick={() => navigate('/products')}
+              onClick={() =>
+                navigate("/products")
+              }
               className="
-              px-6 py-3
-
-              bg-black
-              text-white
-
-              rounded-xl
-
-              hover:bg-neutral-800
-              transition
-            "
+                px-6 py-3
+                bg-black
+                text-white
+                rounded-xl
+                hover:bg-neutral-800
+                transition
+              "
             >
               Browse Products
             </button>
@@ -310,126 +217,268 @@ export default function ProductDetail() {
     );
   }
 
+  // =====================================================
+  // LOADING
+  // =====================================================
+
+  if (loading) {
+    return (
+      <div className="px-4 py-4 md:p-6">
+        <div className="flex flex-col md:flex-row gap-6 md:gap-12 animate-pulse">
+          <div className="w-full md:w-1/2 flex flex-col-reverse md:flex-row gap-4">
+            <div className="flex md:flex-col gap-3">
+              {[1, 2, 3, 4].map((i) => (
+                <div
+                  key={i}
+                  className="
+                    w-16 h-20
+                    md:w-20 md:h-24
+                    rounded-lg
+                    bg-gray-200
+                  "
+                />
+              ))}
+            </div>
+
+            <div
+              className="
+                flex-1
+                rounded-2xl
+                bg-gray-200
+                h-[55vh]
+                md:h-[82vh]
+              "
+            />
+          </div>
+
+          <div className="w-full md:w-1/2 flex flex-col gap-5">
+            <div className="space-y-3">
+              <div className="h-10 w-4/5 bg-gray-200 rounded-lg" />
+              <div className="h-10 w-2/3 bg-gray-200 rounded-lg" />
+            </div>
+
+            <div className="space-y-2">
+              <div className="h-4 w-full bg-gray-200 rounded" />
+              <div className="h-4 w-[95%] bg-gray-200 rounded" />
+              <div className="h-4 w-[80%] bg-gray-200 rounded" />
+            </div>
+
+            <div className="flex gap-3 items-center">
+              <div className="h-8 w-28 bg-gray-200 rounded" />
+              <div className="h-6 w-20 bg-gray-200 rounded" />
+              <div className="h-6 w-16 bg-gray-200 rounded" />
+            </div>
+
+            <div className="h-5 w-40 bg-gray-200 rounded" />
+
+            <div>
+              <div className="h-6 w-24 bg-gray-200 rounded mb-4" />
+
+              <div className="flex gap-3 flex-wrap">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <div
+                    key={i}
+                    className="
+                      w-12 h-12
+                      md:w-14 md:h-14
+                      rounded-full
+                      bg-gray-200
+                    "
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="space-y-3 mt-2">
+              <div className="h-14 rounded-xl bg-gray-200" />
+              <div className="h-14 rounded-xl bg-gray-200" />
+              <div className="h-14 rounded-xl bg-gray-200" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =====================================================
+  // TOUCH
+  // =====================================================
 
   const minSwipeDistance = 50;
 
   const onTouchStart = (e) => {
     touchEndX.current = null;
-    touchStartX.current = e.targetTouches[0].clientX;
+    touchStartX.current =
+      e.targetTouches[0].clientX;
   };
 
   const onTouchMove = (e) => {
-    touchEndX.current = e.targetTouches[0].clientX;
+    touchEndX.current =
+      e.targetTouches[0].clientX;
   };
 
   const onTouchEnd = () => {
-    if (!touchStartX.current || !touchEndX.current) return;
+    if (
+      !touchStartX.current ||
+      !touchEndX.current
+    ) {
+      return;
+    }
 
     const distance =
-      touchStartX.current - touchEndX.current;
+      touchStartX.current -
+      touchEndX.current;
 
-    const isLeftSwipe =
-      distance > minSwipeDistance;
-
-    const isRightSwipe =
-      distance < -minSwipeDistance;
-
-    if (isLeftSwipe) {
+    if (distance > minSwipeDistance) {
       nextImage();
     }
 
-    if (isRightSwipe) {
+    if (distance < -minSwipeDistance) {
       prevImage();
     }
   };
 
+  // =====================================================
+  // IMAGES
+  // =====================================================
 
+  const images =
+    Array.isArray(product?.images) &&
+    product.images.length
+      ? product.images
+      : ["/images/placeholder.png"];
 
-
-  const images = Array.isArray(product.images) && product.images.length ? product.images : ["/images/placeholder.png"]
-  const imageCount = images.length
+  const imageCount = images.length;
 
   const nextImage = () => {
-    if (imageCount <= 1) return
-    setActiveImage((prev) => (prev + 1) % imageCount)
-  }
+    if (imageCount <= 1) return;
+
+    setActiveImage(
+      (prev) =>
+        (prev + 1) % imageCount
+    );
+  };
 
   const prevImage = () => {
-    if (imageCount <= 1) return
-    setActiveImage((prev) => (prev - 1 + imageCount) % imageCount)
-  }
+    if (imageCount <= 1) return;
 
-  const price = Number(product.price ?? 0)
-  const mrp = (price * 1.2)
+    setActiveImage(
+      (prev) =>
+        (prev - 1 + imageCount) %
+        imageCount
+    );
+  };
 
-  const handleAddToCart = () => {
-    const activeSizes =
-      product.sizes?.filter(
-        (size) => size.active !== false
-      ) || [];
+  // =====================================================
+  // PRICE
+  // =====================================================
 
-    const availableSizes = activeSizes.filter(
-      ({ name }) =>
-        Number(product.inventory?.[name] || 0) > 0
+  const price = Number(
+    product?.price ?? 0
+  );
+
+  const mrp = price * 1.2;
+
+  // =====================================================
+  // SIZES / STOCK
+  // =====================================================
+
+  const activeSizes =
+    product?.sizes?.filter(
+      (size) => size.active !== false
+    ) || [];
+
+  const getSizeQty = (name) =>
+    Number(
+      product?.inventory?.[name] ??
+        product?.inventory?.stock?.[name] ??
+        0
     );
 
-    if (availableSizes.length > 0 && !selectedSize) {
+  const availableSizes =
+    activeSizes.filter(
+      ({ name }) =>
+        getSizeQty(name) > 0
+    );
+
+  const isOutOfStock =
+    activeSizes.length > 0 &&
+    availableSizes.length === 0;
+
+  // =====================================================
+  // ADD TO CART
+  // =====================================================
+
+  const handleAddToCart = () => {
+    if (isOutOfStock) {
+      toast.error("Product is out of stock");
+      return;
+    }
+
+    if (
+      availableSizes.length > 0 &&
+      !selectedSize
+    ) {
       toast.error(
         "Please select a size before adding to cart."
       );
       return;
     }
 
-    add(product._id, selectedSize || null);
+    add(
+      product.publicId,
+      selectedSize || null
+    );
   };
 
+  // =====================================================
+  // BUY NOW
+  // =====================================================
 
-  // inside the component
   const handleBuyNow = () => {
-    const activeSizes =
-      product.sizes?.filter(
-        (size) => size.active !== false
-      ) || [];
+    if (isOutOfStock) {
+      toast.error("Product is out of stock");
+      return;
+    }
 
-    const availableSizes = activeSizes.filter(
-      ({ name }) =>
-        Number(product.inventory?.[name] || 0) > 0
-    );
-
-    if (availableSizes.length > 0 && !selectedSize) {
+    if (
+      availableSizes.length > 0 &&
+      !selectedSize
+    ) {
       toast.error(
         "Please select a size before buying."
       );
       return;
     }
 
-    add(product._id, selectedSize || null);
+    add(
+      product.publicId,
+      selectedSize || null
+    );
+
     navigate("/checkout");
   };
 
-  const activeSizes =
-    product.sizes?.filter(
-      (size) => size.active !== false
-    ) || [];
+  // =====================================================
+  // WISHLIST
+  // =====================================================
 
-  const isOutOfStock =
-    activeSizes.length > 0 &&
-    activeSizes.every(
-      ({ name }) =>
-        Number(product.inventory?.[name] || 0) <= 0
-    );
+  const productId = String(
+    product.publicId 
+  );
+
+  const wishlisted =
+    wishlist.includes(productId);
 
   const handleWishlist = (e) => {
     e.preventDefault();
     e.stopPropagation();
 
     wishlisted
-      ? removeFromWishlist(product._id)
-      : addToWishlist(product._id);
+      ? removeFromWishlist(productId)
+      : addToWishlist(productId);
   };
-  const wishlisted = wishlist.includes(product._id);
 
-  console.log("recommendedProducts",recommendedProducts)
   return (
     <>
       <div

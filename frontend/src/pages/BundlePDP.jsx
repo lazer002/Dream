@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { useParams } from "react-router-dom";
 import api from "@/utils/config";
-
+import { useGetBundleQuery } from "@/store/api";
 import {
   Select,
   SelectTrigger,
@@ -35,10 +35,16 @@ import RecentlyViewed from "@/components/RecentlyViewed";
 
 export default function BundlePDP() {
   const { addBundleToCart } = useCart();
-  const { publicId } = useParams();
 
-  const [bundle, setBundle] = useState(null);
-  const [loading, setLoading] = useState(true);
+const { publicId } = useParams();
+
+const {
+  data: bundle,
+  isLoading: loading,
+  isError,
+} = useGetBundleQuery(publicId, {
+  skip: !publicId,
+});
   const [activeImage, setActiveImage] = useState(0);
   const [wishlisted, setWishlisted] = useState(false);
   const [selectedSizes, setSelectedSizes] = useState({});

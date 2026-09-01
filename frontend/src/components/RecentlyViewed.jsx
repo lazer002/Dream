@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+// src/components/RecentlyViewed.jsx
 
-const STORAGE_KEY = "recently_viewed_items";
+import { useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useDispatch, useSelector } from "react-redux";
+
+import {
+  addRecentlyViewed,
+  clearRecentlyViewed,
+} from "@/store/recentlyViewedSlice";
+
 const MAX_ITEMS = 8;
 
 export default function RecentlyViewed({
@@ -9,7 +16,11 @@ export default function RecentlyViewed({
   type = "product",
 }) {
   const navigate = useNavigate();
-  const [products, setProducts] = useState([]);
+  const dispatch = useDispatch();
+
+  const items = useSelector(
+    (state) => state.recentlyViewed.items
+  );
 
   const isBundle = type === "bundle";
 
@@ -21,16 +32,8 @@ export default function RecentlyViewed({
       return;
     }
 
-    const currentId =
-      currentProduct.publicId ||
-      currentProduct._id;
-
-    try {
-      const stored = JSON.parse(
-        localStorage.getItem(STORAGE_KEY) || "[]"
-      );
-
-      const recentItem = {
+    dispatch(
+      addRecentlyViewed({
         _id: currentProduct._id,
         publicId: currentProduct.publicId,
         title: currentProduct.title,
@@ -42,7 +45,6 @@ export default function RecentlyViewed({
           ? "bundle"
           : "product",
 
-        // IMPORTANT
         images: isBundle
           ? Array.isArray(currentProduct.mainImages)
             ? currentProduct.mainImages
@@ -58,6 +60,7 @@ export default function RecentlyViewed({
           : [],
 
         onSale: currentProduct.onSale || false,
+
         isOutOfStock:
           currentProduct.isOutOfStock || false,
 
@@ -66,53 +69,22 @@ export default function RecentlyViewed({
 
         isNewBundle:
           currentProduct.isNewBundle || false,
-      };
-
-      const filtered = stored.filter(
-        (item) =>
-          String(
-            item.publicId || item._id
-          ) !== String(currentId)
-      );
-
-      const updated = [
-        recentItem,
-        ...filtered,
-      ].slice(0, MAX_ITEMS);
-
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify(updated)
-      );
-
-      setProducts(
-        updated.filter(
-          (item) =>
-            String(
-              item.publicId || item._id
-            ) !== String(currentId)
-        )
-      );
-    } catch (error) {
-      console.error(
-        "RECENTLY VIEWED ERROR:",
-        error
-      );
-    }
-  }, [currentProduct, isBundle]);
+      })
+    );
+  }, [
+    currentProduct,
+    isBundle,
+    dispatch,
+  ]);
 
   const openItem = (item) => {
     if (!item?.publicId) return;
 
-    if (item.type === "bundle") {
-      navigate(
-        `/collections/${item.publicId}`
-      );
-    } else {
-      navigate(
-        `/product/${item.publicId}`
-      );
-    }
+    navigate(
+      item.type === "bundle"
+        ? `/collections/${item.publicId}`
+        : `/product/${item.publicId}`
+    );
 
     window.scrollTo({
       top: 0,
@@ -121,14 +93,10 @@ export default function RecentlyViewed({
   };
 
   const clearHistory = () => {
-    localStorage.removeItem(STORAGE_KEY);
-    localStorage.removeItem(
-      "recently_viewed_products"
-    );
-    setProducts([]);
+    dispatch(clearRecentlyViewed());
   };
 
-  if (!products.length) return null;
+  if (!items.length) return null;
 
   return (
     <section className="w-full border-t border-neutral-100 bg-white py-16 sm:py-20">
@@ -163,10 +131,11 @@ export default function RecentlyViewed({
         </div>
 
         <div className="grid grid-cols-2 gap-4 md:gap-6 lg:grid-cols-4">
-          {products.map((item) => {
+          {items.slice(0, MAX_ITEMS).map((item) => {
             const image =
               item.type === "bundle"
-                ? item.mainImages?.[0]
+                ? item.mainImages?.[0] ||
+                  item.images?.[0]
                 : item.images?.[0];
 
             return (
@@ -216,8 +185,8 @@ export default function RecentlyViewed({
                         group-hover:scale-110
                       "
                       onError={(e) => {
-                        e.currentTarget.style.display =
-                          "none";
+                        e.currentTarget.src =
+                          "/images/placeholder.png";
                       }}
                     />
                   ) : (
@@ -239,59 +208,53 @@ export default function RecentlyViewed({
 
                   <div className="absolute left-3 top-3 flex flex-col gap-2">
                     {item.isOutOfStock ? (
-                      <span
-                        className="
-                          rounded-full
-                          bg-black/80
-                          px-3
-                          py-1.5
-                          text-[10px]
-                          font-bold
-                          uppercase
-                          tracking-[0.15em]
-                          text-white
-                          backdrop-blur-md
-                        "
-                      >
+                      <span className="
+                        rounded-full
+                        bg-black/80
+                        px-3
+                        py-1.5
+                        text-[10px]
+                        font-bold
+                        uppercase
+                        tracking-[0.15em]
+                        text-white
+                        backdrop-blur-md
+                      ">
                         Sold Out
                       </span>
                     ) : (
                       <>
                         {item.onSale && (
-                          <span
-                            className="
-                              rounded-full
-                              bg-white/90
-                              px-3
-                              py-1.5
-                              text-[10px]
-                              font-bold
-                              uppercase
-                              tracking-[0.15em]
-                              text-black
-                              backdrop-blur-md
-                            "
-                          >
+                          <span className="
+                            rounded-full
+                            bg-white/90
+                            px-3
+                            py-1.5
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-[0.15em]
+                            text-black
+                            backdrop-blur-md
+                          ">
                             Sale
                           </span>
                         )}
 
                         {(item.isNewProduct ||
                           item.isNewBundle) && (
-                          <span
-                            className="
-                              rounded-full
-                              bg-black/80
-                              px-3
-                              py-1.5
-                              text-[10px]
-                              font-bold
-                              uppercase
-                              tracking-[0.15em]
-                              text-white
-                              backdrop-blur-md
-                            "
-                          >
+                          <span className="
+                            rounded-full
+                            bg-black/80
+                            px-3
+                            py-1.5
+                            text-[10px]
+                            font-bold
+                            uppercase
+                            tracking-[0.15em]
+                            text-white
+                            backdrop-blur-md
+                          ">
                             New
                           </span>
                         )}
@@ -299,22 +262,20 @@ export default function RecentlyViewed({
                     )}
                   </div>
 
-                  <div
-                    className="
-                      absolute
-                      right-3
-                      top-3
-                      rounded-full
-                      bg-white/90
-                      px-3
-                      py-1.5
-                      text-xs
-                      font-semibold
-                      text-black
-                      backdrop-blur-md
-                      md:text-sm
-                    "
-                  >
+                  <div className="
+                    absolute
+                    right-3
+                    top-3
+                    rounded-full
+                    bg-white/90
+                    px-3
+                    py-1.5
+                    text-xs
+                    font-semibold
+                    text-black
+                    backdrop-blur-md
+                    md:text-sm
+                  ">
                     ₹
                     {Number(
                       item.price || 0
@@ -323,37 +284,31 @@ export default function RecentlyViewed({
                     )}
                   </div>
 
-                  <div
-                    className="
-                      absolute
-                      bottom-0
-                      left-0
-                      right-0
-                      p-4
-                      text-white
-                      md:p-5
-                    "
-                  >
-                    <h3
-                      className="
-                        line-clamp-2
-                        text-sm
-                        font-semibold
-                        leading-tight
-                        md:text-lg
-                      "
-                    >
+                  <div className="
+                    absolute
+                    bottom-0
+                    left-0
+                    right-0
+                    p-4
+                    text-white
+                    md:p-5
+                  ">
+                    <h3 className="
+                      line-clamp-2
+                      text-sm
+                      font-semibold
+                      leading-tight
+                      md:text-lg
+                    ">
                       {item.title}
                     </h3>
 
-                    <p
-                      className="
-                        mt-1
-                        text-xs
-                        text-white/70
-                        md:text-sm
-                      "
-                    >
+                    <p className="
+                      mt-1
+                      text-xs
+                      text-white/70
+                      md:text-sm
+                    ">
                       {item.type === "bundle"
                         ? "Premium Bundle"
                         : "Premium Collection"}
@@ -367,7 +322,12 @@ export default function RecentlyViewed({
                           Number(
                             item.price || 0
                           ) && (
-                          <span className="text-xs text-white/50 line-through md:text-sm">
+                          <span className="
+                            text-xs
+                            text-white/50
+                            line-through
+                            md:text-sm
+                          ">
                             ₹
                             {Number(
                               item.oldPrice
@@ -377,23 +337,25 @@ export default function RecentlyViewed({
                           </span>
                         )}
 
-                        <span className="text-xs text-white/90 md:text-sm">
+                        <span className="
+                          text-xs
+                          text-white/90
+                          md:text-sm
+                        ">
                           Inclusive of taxes
                         </span>
                       </div>
 
-                      <span
-                        className="
-                          translate-x-3
-                          text-sm
-                          font-medium
-                          opacity-0
-                          transition-all
-                          duration-300
-                          group-hover:translate-x-0
-                          group-hover:opacity-100
-                        "
-                      >
+                      <span className="
+                        translate-x-3
+                        text-sm
+                        font-medium
+                        opacity-0
+                        transition-all
+                        duration-300
+                        group-hover:translate-x-0
+                        group-hover:opacity-100
+                      ">
                         View →
                       </span>
                     </div>
@@ -425,6 +387,7 @@ export default function RecentlyViewed({
         >
           Clear Recently Viewed
         </button>
+
       </div>
     </section>
   );

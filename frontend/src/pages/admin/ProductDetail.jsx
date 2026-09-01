@@ -184,7 +184,7 @@ export default function AdminProductDetail() {
 
       const { data: updateData } =
         await api.put(
-          `/products/${product._id}`,
+          `/admin/products/${product._id}`,
           {
             images: updatedImages,
           }
@@ -247,7 +247,7 @@ export default function AdminProductDetail() {
       setDeletingImage(image);
 
       const { data } = await api.delete(
-        `/products/${product._id}/images`,
+        `/admin/products/${product._id}/images`,
         {
           data: {
             image,
@@ -351,7 +351,7 @@ export default function AdminProductDetail() {
       };
 
       const { data } = await api.put(
-        `/products/${product._id}`,
+        `/admin/products/${product._id}`,
         payload
       );
 
@@ -392,7 +392,7 @@ export default function AdminProductDetail() {
       setDeleting(true);
 
       await api.delete(
-        `/products/${product._id}`
+        `/admin/products/${product._id}`
       );
 
       navigate("/admin/products");

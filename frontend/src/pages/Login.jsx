@@ -3,10 +3,10 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 import toast from "react-hot-toast";
 import { loadGoogleScript } from "../utils/loader.js";
-import api from "@/utils/config.js";
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
+
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -29,94 +29,149 @@ export default function Login() {
       [e.target.name]: e.target.value,
     }));
 
-    if (error) setError("");
+    if (error) {
+      setError("");
+    }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    if (loading) return;
+
     try {
       setLoading(true);
       setError("");
 
-      await login(form.email, form.password);
+      const loggedInUser = await login(
+        form.email.trim(),
+        form.password
+      );
 
-      const me = await api.get("/auth/me");
+      toast.success("Welcome back!");
 
-      if (me.data.user.role === "admin") {
-        navigate("/admin", { replace: true });
+      if (loggedInUser?.role === "admin") {
+        navigate("/admin", {
+          replace: true,
+        });
       } else {
-        navigate(from, { replace: true });
+        navigate(from, {
+          replace: true,
+        });
       }
     } catch (error) {
-      setError(
+      console.error("LOGIN ERROR:", error);
+
+      const message =
         error?.response?.data?.message ||
-          "Invalid email or password"
-      );
+        error?.response?.data?.error ||
+        error?.message ||
+        "Invalid email or password";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   const handleGoogleLogin = async (res) => {
-    if (!res?.credential) return;
+    if (!res?.credential || loading) return;
 
     try {
       setLoading(true);
       setError("");
 
-      await loginWithGoogle(res.credential);
+      const loggedInUser =
+        await loginWithGoogle(res.credential);
 
       toast.success("Logged in with Google");
-      navigate(from, { replace: true });
+
+      if (loggedInUser?.role === "admin") {
+        navigate("/admin", {
+          replace: true,
+        });
+      } else {
+        navigate(from, {
+          replace: true,
+        });
+      }
     } catch (error) {
-      setError(
+      console.error("GOOGLE LOGIN ERROR:", error);
+
+      const message =
         error?.response?.data?.message ||
-          "Google login failed"
-      );
+        error?.response?.data?.error ||
+        "Google login failed";
+
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    let mounted = true;
+
     const initGoogle = async () => {
-      const loaded = await loadGoogleScript();
+      try {
+        const loaded = await loadGoogleScript();
 
-      if (!loaded || !googleBtnRef.current) return;
-
-      window.google.accounts.id.initialize({
-        client_id:
-          import.meta.env.VITE_GOOGLE_CLIENT_ID,
-        callback: handleGoogleLogin,
-      });
-
-      window.google.accounts.id.renderButton(
-        googleBtnRef.current,
-        {
-          theme: "outline",
-          size: "large",
-          width: "100%",
-          text: "signin_with",
-          shape: "pill",
+        if (
+          !mounted ||
+          !loaded ||
+          !googleBtnRef.current ||
+          !window.google?.accounts?.id
+        ) {
+          return;
         }
-      );
 
-      const inner =
-        googleBtnRef.current.querySelector(
-          "div[role='button']"
+        window.google.accounts.id.initialize({
+          client_id:
+            import.meta.env.VITE_GOOGLE_CLIENT_ID,
+          callback: handleGoogleLogin,
+        });
+
+        window.google.accounts.id.renderButton(
+          googleBtnRef.current,
+          {
+            theme: "outline",
+            size: "large",
+            width: "100%",
+            text: "signin_with",
+            shape: "pill",
+          }
         );
 
-      if (inner) {
-        innerBtnRef.current = inner;
-        inner.style.width = "100%";
+        const inner =
+          googleBtnRef.current.querySelector(
+            "div[role='button']"
+          );
+
+        if (inner) {
+          innerBtnRef.current = inner;
+          inner.style.width = "100%";
+        }
+      } catch (error) {
+        console.error(
+          "GOOGLE SCRIPT ERROR:",
+          error
+        );
       }
     };
 
     initGoogle();
+
+    return () => {
+      mounted = false;
+      innerBtnRef.current = null;
+    };
   }, []);
 
   const handleGoogleClick = () => {
+    if (loading) return;
+
     innerBtnRef.current?.click();
   };
 
@@ -190,12 +245,14 @@ export default function Login() {
                 </div>
               )}
 
-              {/* EMAIL + PASSWORD */}
+              {/* FORM */}
               <form
                 onSubmit={handleSubmit}
                 className="space-y-5"
               >
-                <div className=" border-b">
+
+                {/* EMAIL */}
+                <div>
                   <label className="mb-2 block text-xs font-medium text-gray-600">
                     Email
                   </label>
@@ -208,11 +265,13 @@ export default function Login() {
                     placeholder="you@example.com"
                     autoComplete="email"
                     required
-                    className="h-13 w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black outline-none transition focus:border-black focus:ring-2 focus:ring-black/5"
+                    disabled={loading}
+                    className="h-13 w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black outline-none transition focus:border-black focus:ring-2 focus:ring-black/5 disabled:cursor-not-allowed disabled:bg-gray-50"
                   />
                 </div>
 
-                <div className=" border-b">
+                {/* PASSWORD */}
+                <div>
                   <label className="mb-2 block text-xs font-medium text-gray-600">
                     Password
                   </label>
@@ -225,10 +284,12 @@ export default function Login() {
                     placeholder="Enter your password"
                     autoComplete="current-password"
                     required
-                    className="h-13 w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black outline-none transition focus:border-black focus:ring-2 focus:ring-black/5"
+                    disabled={loading}
+                    className="h-13 w-full rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-black outline-none transition focus:border-black focus:ring-2 focus:ring-black/5 disabled:cursor-not-allowed disabled:bg-gray-50"
                   />
                 </div>
 
+                {/* SIGN IN */}
                 <button
                   type="submit"
                   disabled={loading}
@@ -256,7 +317,7 @@ export default function Login() {
                 type="button"
                 onClick={handleGoogleClick}
                 disabled={loading}
-                className="relative flex h-[54px] w-full items-center justify-center gap-3 rounded-full border border-black bg-white text-sm font-semibold text-black transition hover:bg-black hover:text-white disabled:opacity-50"
+                className="relative flex h-[54px] w-full items-center justify-center gap-3 overflow-hidden rounded-full border border-black bg-white text-sm font-semibold text-black transition hover:bg-black hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
               >
                 <img
                   src="/images/icons8-google-logo-100.png"
@@ -264,7 +325,11 @@ export default function Login() {
                   className="h-5 w-5"
                 />
 
-                <span>Continue with Google</span>
+                <span>
+                  {loading
+                    ? "Signing in..."
+                    : "Continue with Google"}
+                </span>
 
                 <div
                   ref={googleBtnRef}
@@ -275,6 +340,7 @@ export default function Login() {
               {/* REGISTER */}
               <p className="mt-9 text-center text-xs text-gray-500">
                 Don't have an account?
+
                 <Link
                   to="/register"
                   className="ml-2 font-semibold text-black underline underline-offset-4"

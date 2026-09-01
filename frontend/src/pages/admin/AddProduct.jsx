@@ -302,7 +302,7 @@ async function submit(e) {
     };
 
     const { data } = await api.post(
-      "/products",
+      "/admin/products",
       payload
     );
 

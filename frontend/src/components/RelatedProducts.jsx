@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   ChevronLeft,
@@ -10,6 +11,9 @@ export default function RelatedProducts({
   publicId,
 }) {
   const navigate = useNavigate();
+  const scrollerRef = useRef(null);
+  const animationRef = useRef(null);
+
   const isBundle = type === "bundle";
 
   const {
@@ -46,28 +50,80 @@ export default function RelatedProducts({
     });
   };
 
-  const scrollRelated = (direction) => {
-    const container = document.getElementById(
-      "related-products-scroll"
+  const smoothScroll = (direction) => {
+    const el = scrollerRef.current;
+
+    if (!el) return;
+
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+
+    const start = el.scrollLeft;
+    const maxScroll = el.scrollWidth - el.clientWidth;
+
+    const distance =
+      direction === "left"
+        ? -350
+        : 350;
+
+    const target = Math.max(
+      0,
+      Math.min(
+        start + distance,
+        maxScroll
+      )
     );
 
-    if (!container) return;
+    if (target === start) return;
 
-    container.scrollBy({
-      left:
-        direction === "left"
-          ? -360
-          : 360,
-      behavior: "smooth",
-    });
+    const duration = 650;
+
+    let startTime = null;
+
+    const easeInOut = (t) => {
+      return t < 0.5
+        ? 4 * t * t * t
+        : 1 -
+            Math.pow(-2 * t + 2, 3) /
+              2;
+    };
+
+    const animate = (time) => {
+      if (startTime === null) {
+        startTime = time;
+      }
+
+      const progress = Math.min(
+        (time - startTime) / duration,
+        1
+      );
+
+      const eased = easeInOut(progress);
+
+      el.scrollLeft =
+        start +
+        (target - start) * eased;
+
+      if (progress < 1) {
+        animationRef.current =
+          requestAnimationFrame(animate);
+      } else {
+        animationRef.current = null;
+      }
+    };
+
+    animationRef.current =
+      requestAnimationFrame(animate);
   };
 
   if (loading) {
     return (
-      <section className="w-full border-t border-neutral-100 bg-white py-16 sm:py-20">
+      <section className="w-full border-t border-neutral-100 bg-white pt-16 pb-6  sm:py-20">
         <div className="mx-auto px-4">
           <div className="mb-8">
             <div className="h-3 w-28 animate-pulse rounded-full bg-neutral-200" />
+
             <div className="mt-3 h-9 w-60 animate-pulse rounded-lg bg-neutral-200" />
           </div>
 
@@ -85,7 +141,9 @@ export default function RelatedProducts({
                   "
                 >
                   <div className="aspect-[3/4] animate-pulse rounded-2xl bg-neutral-100" />
+
                   <div className="mt-4 h-4 w-3/4 animate-pulse rounded bg-neutral-100" />
+
                   <div className="mt-2 h-4 w-1/3 animate-pulse rounded bg-neutral-100" />
                 </div>
               )
@@ -96,7 +154,9 @@ export default function RelatedProducts({
     );
   }
 
-  if (!items.length) return null;
+  if (!items.length) {
+    return null;
+  }
 
   return (
     <section className="w-full border-t border-neutral-100 bg-white py-16 sm:py-20">
@@ -117,21 +177,32 @@ export default function RelatedProducts({
             </h2>
           </div>
 
+          {/* DESKTOP ARROWS */}
           <div className="hidden items-center gap-2 md:flex">
             <button
               type="button"
               onClick={() =>
-                scrollRelated("left")
+                smoothScroll("left")
               }
+              aria-label="Previous related products"
               className="
-                flex h-11 w-11
-                items-center justify-center
+                flex
+                h-11
+                w-11
+                shrink-0
+                items-center
+                justify-center
                 rounded-full
-                border border-neutral-200
-                transition
+                border
+                border-neutral-200
+                bg-white
+                text-black
+                transition-all
+                duration-200
                 hover:border-black
                 hover:bg-black
                 hover:text-white
+                active:scale-95
               "
             >
               <ChevronLeft size={18} />
@@ -140,17 +211,27 @@ export default function RelatedProducts({
             <button
               type="button"
               onClick={() =>
-                scrollRelated("right")
+                smoothScroll("right")
               }
+              aria-label="Next related products"
               className="
-                flex h-11 w-11
-                items-center justify-center
+                flex
+                h-11
+                w-11
+                shrink-0
+                items-center
+                justify-center
                 rounded-full
-                border border-neutral-200
-                transition
+                border
+                border-neutral-200
+                bg-white
+                text-black
+                transition-all
+                duration-200
                 hover:border-black
                 hover:bg-black
                 hover:text-white
+                active:scale-95
               "
             >
               <ChevronRight size={18} />
@@ -158,18 +239,23 @@ export default function RelatedProducts({
           </div>
         </div>
 
-        {/* ITEMS */}
+        {/* PRODUCTS */}
         <div
+          ref={scrollerRef}
           id="related-products-scroll"
           className="
             flex
             gap-4
             overflow-x-auto
-            scroll-smooth
             pb-4
             scrollbar-hide
             md:gap-6
           "
+          style={{
+            scrollSnapType: "none",
+            scrollBehavior: "auto",
+            overscrollBehaviorX: "contain",
+          }}
         >
           {items.slice(0, 8).map((item) => {
             const image = isBundle
@@ -224,6 +310,7 @@ export default function RelatedProducts({
                     group-hover:shadow-2xl
                   "
                 >
+                  {/* IMAGE */}
                   {image ? (
                     <>
                       <img
@@ -279,65 +366,84 @@ export default function RelatedProducts({
                     </div>
                   )}
 
-                  <div className="
-                    pointer-events-none
-                    absolute inset-0
-                    bg-gradient-to-t
-                    from-black/75
-                    via-black/10
-                    to-transparent
-                  " />
+                  {/* GRADIENT */}
+                  <div
+                    className="
+                      pointer-events-none
+                      absolute
+                      inset-0
+                      bg-gradient-to-t
+                      from-black/75
+                      via-black/10
+                      to-transparent
+                    "
+                  />
 
                   {/* BADGES */}
-                  <div className="
-                    absolute left-3 top-3
-                    flex flex-col gap-2
-                  ">
+                  <div
+                    className="
+                      absolute
+                      left-3
+                      top-3
+                      flex
+                      flex-col
+                      gap-2
+                    "
+                  >
                     {item.isOutOfStock ? (
-                      <span className="
-                        rounded-full
-                        bg-black/85
-                        px-3 py-1.5
-                        text-[10px]
-                        font-bold
-                        uppercase
-                        tracking-[0.15em]
-                        text-white
-                        backdrop-blur-md
-                      ">
+                      <span
+                        className="
+                          rounded-full
+                          bg-black/85
+                          px-3
+                          py-1.5
+                          text-[10px]
+                          font-bold
+                          uppercase
+                          tracking-[0.15em]
+                          text-white
+                          backdrop-blur-md
+                        "
+                      >
                         Sold Out
                       </span>
                     ) : (
                       <>
                         {item.onSale && (
-                          <span className="
-                            rounded-full
-                            bg-white/90
-                            px-3 py-1.5
-                            text-[10px]
-                            font-bold
-                            uppercase
-                            tracking-[0.15em]
-                            text-black
-                            backdrop-blur-md
-                          ">
+                          <span
+                            className="
+                              rounded-full
+                              bg-white/90
+                              px-3
+                              py-1.5
+                              text-[10px]
+                              font-bold
+                              uppercase
+                              tracking-[0.15em]
+                              text-black
+                              backdrop-blur-md
+                            "
+                          >
                             Sale
                           </span>
                         )}
 
                         {(item.isNewProduct ||
                           item.isNewBundle) && (
-                          <span className="
-                            rounded-full
-                            bg-black/85
-                            px-3 py-1.5
-                            text-[10px]
-                            font-bold
-                            uppercase
-                            tracking-[0.15em]
-                            text-white
-                            backdrop-blur-md
-                          ">
+                          <span
+                            className="
+                              rounded-full
+                              bg-black/85
+                              px-3
+                              py-1.5
+                              text-[10px]
+                              font-bold
+                              uppercase
+                              tracking-[0.15em]
+                              text-white
+                              backdrop-blur-md
+                            "
+                          >
                             New
                           </span>
                         )}
@@ -345,17 +451,20 @@ export default function RelatedProducts({
                         {Number(
                           item.discount || 0
                         ) > 0 && (
-                          <span className="
-                            rounded-full
-                            bg-white/90
-                            px-3 py-1.5
-                            text-[10px]
-                            font-bold
-                            uppercase
-                            tracking-[0.15em]
-                            text-black
-                            backdrop-blur-md
-                          ">
+                          <span
+                            className="
+                              rounded-full
+                              bg-white/90
+                              px-3
+                              py-1.5
+                              text-[10px]
+                              font-bold
+                              uppercase
+                              tracking-[0.15em]
+                              text-black
+                              backdrop-blur-md
+                            "
+                          >
                             {Math.round(
                               item.discount
                             )}
@@ -367,17 +476,22 @@ export default function RelatedProducts({
                   </div>
 
                   {/* PRICE */}
-                  <div className="
-                    absolute right-3 top-3
-                    rounded-full
-                    bg-white/90
-                    px-3 py-1.5
-                    text-xs
-                    font-semibold
-                    text-black
-                    backdrop-blur-md
-                    md:text-sm
-                  ">
+                  <div
+                    className="
+                      absolute
+                      right-3
+                      top-3
+                      rounded-full
+                      bg-white/90
+                      px-3
+                      py-1.5
+                      text-xs
+                      font-semibold
+                      text-black
+                      backdrop-blur-md
+                      md:text-sm
+                    "
+                  >
                     ₹
                     {Number(
                       item.price || 0
@@ -387,39 +501,50 @@ export default function RelatedProducts({
                   </div>
 
                   {/* CONTENT */}
-                  <div className="
-                    absolute bottom-0
-                    left-0 right-0
-                    p-4 text-white
-                    md:p-5
-                  ">
-                    <h3 className="
-                      line-clamp-2
-                      text-sm
-                      font-semibold
-                      leading-tight
-                      md:text-lg
-                    ">
+                  <div
+                    className="
+                      absolute
+                      bottom-0
+                      left-0
+                      right-0
+                      p-4
+                      text-white
+                      md:p-5
+                    "
+                  >
+                    <h3
+                      className="
+                        line-clamp-2
+                        text-sm
+                        font-semibold
+                        leading-tight
+                        md:text-lg
+                      "
+                    >
                       {item.title}
                     </h3>
 
-                    <p className="
-                      mt-1
-                      text-xs
-                      text-white/70
-                      md:text-sm
-                    ">
+                    <p
+                      className="
+                        mt-1
+                        text-xs
+                        text-white/70
+                        md:text-sm
+                      "
+                    >
                       {isBundle
                         ? "Premium Bundle"
                         : "Premium Collection"}
                     </p>
 
-                    <div className="
-                      mt-3
-                      flex
-                      items-center
-                      justify-between
-                    ">
+                    <div
+                      className="
+                        mt-3
+                        flex
+                        items-center
+                        justify-between
+                      "
+                    >
                       <div className="flex items-center gap-2">
                         {Number(
                           item.oldPrice || 0
@@ -427,12 +552,14 @@ export default function RelatedProducts({
                           Number(
                             item.price || 0
                           ) && (
-                          <span className="
-                            text-xs
-                            text-white/50
-                            line-through
-                            md:text-sm
-                          ">
+                          <span
+                            className="
+                              text-xs
+                              text-white/50
+                              line-through
+                              md:text-sm
+                            "
+                          >
                             ₹
                             {Number(
                               item.oldPrice
@@ -442,25 +569,29 @@ export default function RelatedProducts({
                           </span>
                         )}
 
-                        <span className="
-                          text-xs
-                          text-white/90
-                          md:text-sm
-                        ">
+                        <span
+                          className="
+                            text-xs
+                            text-white/90
+                            md:text-sm
+                          "
+                        >
                           Inclusive of taxes
                         </span>
                       </div>
 
-                      <span className="
-                        translate-x-3
-                        text-sm
-                        font-medium
-                        opacity-0
-                        transition-all
-                        duration-300
-                        group-hover:translate-x-0
-                        group-hover:opacity-100
-                      ">
+                      <span
+                        className="
+                          translate-x-3
+                          text-sm
+                          font-medium
+                          opacity-0
+                          transition-all
+                          duration-300
+                          group-hover:translate-x-0
+                          group-hover:opacity-100
+                        "
+                      >
                         View →
                       </span>
                     </div>

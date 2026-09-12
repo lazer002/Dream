@@ -157,6 +157,9 @@ export const api = createApi({
     "User",
      "Orders",
   "Addresses",
+   "Inventory",
+   "AdminStats",
+    "Returns",
   ],
 
   keepUnusedDataFor: 300,
@@ -948,6 +951,659 @@ deleteAddress: builder.mutation({
   ],
 }),
 
+/* =====================================================
+   INVENTORY
+===================================================== */
+
+getInventory: builder.query({
+  query: () => "/inventory",
+
+  transformResponse: (response) => {
+    return Array.isArray(response?.items)
+      ? response.items
+      : [];
+  },
+
+  providesTags: (result) => [
+    ...(Array.isArray(result)
+      ? result.map((inventory) => ({
+          type: "Inventory",
+          id: String(inventory._id),
+        }))
+      : []),
+
+    {
+      type: "Inventory",
+      id: "LIST",
+    },
+  ],
+}),
+
+getInventoryById: builder.query({
+  query: (id) => `/inventory/${id}`,
+
+  providesTags: (result, error, id) => [
+    {
+      type: "Inventory",
+      id: String(id),
+    },
+  ],
+}),
+
+getInventoryByProduct: builder.query({
+  query: (productId) =>
+    `/inventory/product/${productId}`,
+
+  providesTags: (result, error, productId) => [
+    {
+      type: "Inventory",
+      id: `PRODUCT-${productId}`,
+    },
+  ],
+}),
+
+createInventory: builder.mutation({
+  query: (body) => ({
+    url: "/inventory",
+    method: "POST",
+    body,
+  }),
+
+  invalidatesTags: [
+    {
+      type: "Inventory",
+      id: "LIST",
+    },
+    "Products",
+  ],
+}),
+
+updateInventory: builder.mutation({
+  query: ({ id, ...body }) => ({
+    url: `/inventory/${id}`,
+    method: "PUT",
+    body,
+  }),
+
+  invalidatesTags: (result, error, { id }) => [
+    {
+      type: "Inventory",
+      id: String(id),
+    },
+    {
+      type: "Inventory",
+      id: "LIST",
+    },
+    "Products",
+  ],
+}),
+
+updateProductInventory: builder.mutation({
+  query: ({ productId, ...body }) => ({
+    url: `/inventory/product/${productId}`,
+    method: "PUT",
+    body,
+  }),
+
+  invalidatesTags: (result, error, { productId }) => [
+    {
+      type: "Inventory",
+      id: `PRODUCT-${productId}`,
+    },
+    {
+      type: "Inventory",
+      id: "LIST",
+    },
+    "Products",
+  ],
+}),
+
+deleteInventory: builder.mutation({
+  query: (id) => ({
+    url: `/inventory/${id}`,
+    method: "DELETE",
+  }),
+
+  invalidatesTags: [
+    {
+      type: "Inventory",
+      id: "LIST",
+    },
+    "Products",
+  ],
+}),
+
+
+// =====================================================
+// ADMIN PRODUCTS
+// =====================================================
+// ADMIN STATS
+getAdminStats: builder.query({
+  query: (range = 30) => ({
+    url: "/admin/stats",
+    method: "GET",
+    params: { range },
+  }),
+  providesTags: ["AdminStats"],
+}),
+
+// ADMIN ORDERS
+getAdminOrders: builder.query({
+  query: ({
+    search = "",
+    status = "",
+    source = "",
+    page = 1,
+    limit = 20,
+    sort = "newest",
+  } = {}) => ({
+    url: "/admin/orders",
+    method: "GET",
+    params: {
+      ...(search && { search }),
+      ...(status && { status }),
+      ...(source && { source }),
+      page,
+      limit,
+      sort,
+    },
+  }),
+  providesTags: ["Orders"],
+}),
+
+// ADMIN PRODUCTS
+
+
+getAdminProducts: builder.query({
+  query: () => "/admin/products",
+
+  transformResponse: (response) => {
+    if (Array.isArray(response)) return response;
+
+    return (
+      response?.products ||
+      response?.items ||
+      response?.data ||
+      []
+    );
+  },
+
+  providesTags: (result) => [
+    ...(Array.isArray(result)
+      ? result.map((product) => ({
+          type: "Products",
+          id: String(
+            product.publicId ||
+              product._id
+          ),
+        }))
+      : []),
+    {
+      type: "Products",
+      id: "LIST",
+    },
+  ],
+}),
+
+
+updateAdminProduct: builder.mutation({
+  query: ({ id, data }) => ({
+    url: `/admin/products/${id}`,
+    method: "PUT",
+    body: data,
+  }),
+  invalidatesTags: [
+    "Products",
+    "Inventory",
+    "AdminStats",
+  ],
+}),
+
+deleteAdminProduct: builder.mutation({
+  query: (id) => ({
+    url: `/admin/products/${id}`,
+    method: "DELETE",
+  }),
+  invalidatesTags: [
+    "Products",
+    "Inventory",
+    "AdminStats",
+  ],
+}),
+createAdminProduct: builder.mutation({
+  query: (body) => ({
+    url: "/admin/products",
+    method: "POST",
+    body,
+  }),
+  invalidatesTags: [
+    "Products",
+    "Inventory",
+    "AdminStats",
+  ],
+}),
+
+getAdminProductById: builder.query({
+  query: (publicId) => `/admin/products/${publicId}`,
+
+  transformResponse: (response) =>
+    response?.product ||
+    response?.data ||
+    response ||
+    null,
+
+  providesTags: (result, error, publicId) => [
+    {
+      type: "Products",
+      id: String(publicId),
+    },
+  ],
+}),
+
+deleteAdminProductImage: builder.mutation({
+  query: ({ id, image }) => ({
+    url: `/admin/products/${id}/images`,
+    method: "DELETE",
+    body: { image },
+  }),
+
+  invalidatesTags: (result, error, { id }) => [
+    {
+      type: "Products",
+      id: String(id),
+    },
+    {
+      type: "Products",
+      id: "LIST",
+    },
+  ],
+}),
+
+uploadAdminImages: builder.mutation({
+  query: (formData) => ({
+    url: "/admin/upload/images",
+    method: "POST",
+    body: formData,
+  }),
+}),
+createBundle: builder.mutation({
+  query: (body) => ({
+    url: "/bundles",
+    method: "POST",
+    body,
+  }),
+  invalidatesTags: [
+    "Bundles",
+    "Products",
+    "AdminStats",
+  ],
+}),
+
+
+getUsers: builder.query({
+  query: () => "/admin",
+  transformResponse: (response) => {
+    if (Array.isArray(response)) return response;
+
+    return (
+      response?.items ||
+      response?.users ||
+      response?.data ||
+      []
+    );
+  },
+  providesTags: (result) => [
+    ...(Array.isArray(result)
+      ? result.map((user) => ({
+          type: "User",
+          id: String(user._id),
+        }))
+      : []),
+    { type: "User", id: "LIST" },
+  ],
+}),
+
+updateUserRole: builder.mutation({
+  query: ({ id, role }) => ({
+    url: `/admin/${id}`,
+    method: "PATCH",
+    body: { role },
+  }),
+  invalidatesTags: (result, error, { id }) => [
+    { type: "User", id: String(id) },
+    { type: "User", id: "LIST" },
+  ],
+}),
+
+deleteUser: builder.mutation({
+  query: (id) => ({
+    url: `/admin/${id}`,
+    method: "DELETE",
+  }),
+  invalidatesTags: [
+    { type: "User", id: "LIST" },
+    "AdminStats",
+  ],
+}),
+
+//======================================================
+// admin categories
+// ======================================================
+getAdminCategories: builder.query({
+  query: () => "/admin/getCategory",
+  transformResponse: (response) => {
+    return Array.isArray(response?.categories)
+      ? response.categories
+      : [];
+  },
+  providesTags: (result) => [
+    ...(Array.isArray(result)
+      ? result.map((category) => ({
+          type: "Categories",
+          id: String(category._id),
+        }))
+      : []),
+    {
+      type: "Categories",
+      id: "LIST",
+    },
+  ],
+}),
+
+createCategory: builder.mutation({
+  query: (body) => ({
+    url: "/admin/createCategory",
+    method: "POST",
+    body,
+  }),
+  invalidatesTags: [
+    {
+      type: "Categories",
+      id: "LIST",
+    },
+    "Categories",
+    "Products",
+    "AdminStats",
+  ],
+}),
+
+updateCategory: builder.mutation({
+  query: ({ id, data }) => ({
+    url: `/admin/category/${id}`,
+    method: "PUT",
+    body: data,
+  }),
+  invalidatesTags: (result, error, { id }) => [
+    {
+      type: "Categories",
+      id: String(id),
+    },
+    {
+      type: "Categories",
+      id: "LIST",
+    },
+    "Categories",
+    "Products",
+    "AdminStats",
+  ],
+}),
+
+deleteCategory: builder.mutation({
+  query: (id) => ({
+    url: `/admin/category/${id}`,
+    method: "DELETE",
+  }),
+  invalidatesTags: [
+    {
+      type: "Categories",
+      id: "LIST",
+    },
+    "Categories",
+    "Products",
+    "AdminStats",
+  ],
+}),
+getReturns: builder.query({
+  query: (params = {}) => ({
+    url: "/returns",
+    method: "GET",
+    params: {
+      limit: 100,
+      ...params,
+    },
+  }),
+
+  transformResponse: (response) => {
+    if (Array.isArray(response)) {
+      return response;
+    }
+
+    return (
+      response?.items ||
+      response?.returns ||
+      response?.data ||
+      []
+    );
+  },
+
+  providesTags: (result) => [
+    ...(Array.isArray(result)
+      ? result.map((returnItem) => ({
+          type: "Returns",
+          id: String(returnItem._id),
+        }))
+      : []),
+
+    {
+      type: "Returns",
+      id: "LIST",
+    },
+  ],
+}),
+getReturnByRma: builder.query({
+  query: (rmaNumber) =>
+    `/returns/${encodeURIComponent(rmaNumber)}`,
+
+  transformResponse: (response) =>
+    response?.returnRequest ||
+    response?.return ||
+    response?.data ||
+    response ||
+    null,
+
+  providesTags: (result, error, rmaNumber) => [
+    {
+      type: "Returns",
+      id: String(rmaNumber),
+    },
+  ],
+}),
+
+updateReturnStatus: builder.mutation({
+  query: ({ id, status, note = "" }) => ({
+    url: `/returns/${id}/status`,
+    method: "PATCH",
+    body: {
+      status,
+      note,
+    },
+  }),
+
+  invalidatesTags: (result, error, { id }) => [
+    {
+      type: "Returns",
+      id: String(id),
+    },
+    "Returns",
+    "AdminStats",
+  ],
+}),
+// ======================================================
+// admin bunlde detailed page 
+// =====================================================
+
+getAdminBundleById: builder.query({
+  query: (publicId) => `/admin/bundles/${publicId}`,
+
+  transformResponse: (response) => {
+    return (
+      response?.bundle ||
+      response?.data ||
+      response ||
+      null
+    );
+  },
+
+  providesTags: (result, error, publicId) => [
+    {
+      type: "Bundles",
+      id: String(publicId),
+    },
+  ],
+}),
+
+updateBundle: builder.mutation({
+  query: ({ publicId, data }) => ({
+    url: `/admin/bundles/${publicId}`,
+    method: "PUT",
+    body: data,
+  }),
+
+  invalidatesTags: (result, error, { publicId }) => [
+    {
+      type: "Bundles",
+      id: String(publicId),
+    },
+    {
+      type: "Bundles",
+      id: "LIST",
+    },
+    "Products",
+    "AdminStats",
+  ],
+}),
+
+
+deleteBundleImage: builder.mutation({
+  query: ({ publicId, image }) => ({
+    url: `/admin/bundles/${publicId}/images`,
+    method: "DELETE",
+    body: { image },
+  }),
+
+  invalidatesTags: (result, error, { publicId }) => [
+    {
+      type: "Bundles",
+      id: String(publicId),
+    },
+    {
+      type: "Bundles",
+      id: "LIST",
+    },
+  ],
+}),
+deleteBundle: builder.mutation({
+  query: (publicId) => ({
+    url: `/admin/bundles/${publicId}`,
+    method: "DELETE",
+  }),
+
+  invalidatesTags: [
+    {
+      type: "Bundles",
+      id: "LIST",
+    },
+    "Products",
+    "AdminStats",
+  ],
+}),
+// =====================================================
+// order detail page
+// =====================================================
+getAdminOrderById: builder.query({
+  query: (publicOrderId) =>
+    `/admin/orders/${publicOrderId}`,
+
+  transformResponse: (response) =>
+    response?.order ||
+    response?.data ||
+    response ||
+    null,
+
+  providesTags: (result, error, publicOrderId) => [
+    {
+      type: "Orders",
+      id: String(publicOrderId),
+    },
+  ],
+}),
+
+updateAdminOrderStatus: builder.mutation({
+  query: ({ publicOrderId, status }) => ({
+    url: `/admin/orders/${publicOrderId}/status`,
+    method: "PATCH",
+    body: { status },
+  }),
+
+  invalidatesTags: (result, error, { publicOrderId }) => [
+    {
+      type: "Orders",
+      id: String(publicOrderId),
+    },
+    {
+      type: "Orders",
+      id: "LIST",
+    },
+    "AdminStats",
+  ],
+}),
+
+updateAdminOrderShipment: builder.mutation({
+  query: ({ publicOrderId, trackingNumber }) => ({
+    url: `/admin/orders/${publicOrderId}/shipment`,
+    method: "PATCH",
+    body: { trackingNumber },
+  }),
+
+  invalidatesTags: (result, error, { publicOrderId }) => [
+    {
+      type: "Orders",
+      id: String(publicOrderId),
+    },
+    {
+      type: "Orders",
+      id: "LIST",
+    },
+  ],
+}),
+
+addAdminOrderNote: builder.mutation({
+  query: ({ publicOrderId, text }) => ({
+    url: `/admin/orders/${publicOrderId}/notes`,
+    method: "POST",
+    body: { text },
+  }),
+
+  invalidatesTags: (result, error, { publicOrderId }) => [
+    {
+      type: "Orders",
+      id: String(publicOrderId),
+    },
+  ],
+}),
+
+sendAdminOrderEmail: builder.mutation({
+  query: ({ publicOrderId, template = "status_change" }) => ({
+    url: `/admin/orders/${publicOrderId}/send-email`,
+    method: "POST",
+    body: { template },
+  }),
+}),
+
+
+
+
+
 
 
 
@@ -1001,5 +1657,64 @@ export const {
   useAddAddressMutation,
   useUpdateAddressMutation,
   useDeleteAddressMutation,
+
+/* Inventory */
+useGetInventoryQuery,
+useGetInventoryByIdQuery,
+useGetInventoryByProductQuery,
+useCreateInventoryMutation,
+useUpdateInventoryMutation,
+useUpdateProductInventoryMutation,
+useDeleteInventoryMutation,
+
+
+
+//  Admin Products
+  useGetAdminStatsQuery,
+  useGetAdminOrdersQuery,
+useGetAdminProductsQuery,
+  useUpdateAdminProductMutation,
+  useDeleteAdminProductMutation,
+useGetAdminProductByIdQuery,
+useDeleteAdminProductImageMutation,
+
+  // add product
+    useCreateAdminProductMutation,
+    // upload images admin
+  useUploadAdminImagesMutation,
+
+  // add bundle
+  useCreateBundleMutation,
+useUpdateBundleMutation,
+useDeleteBundleMutation,
+ useGetAdminBundleByIdQuery,
+  useDeleteBundleImageMutation,
+
+
+  // Admin Users
+  useGetUsersQuery,
+useUpdateUserRoleMutation,
+useDeleteUserMutation,
+
+// admin categories
+useCreateCategoryMutation,
+useUpdateCategoryMutation,
+useDeleteCategoryMutation,
+useGetAdminCategoriesQuery,
+
+// return
+useGetReturnsQuery,
+useGetReturnByRmaQuery,
+useUpdateReturnStatusMutation,
+
+// admin order details
+useGetAdminOrderByIdQuery,
+useUpdateAdminOrderStatusMutation,
+useUpdateAdminOrderShipmentMutation,
+useAddAdminOrderNoteMutation,
+useSendAdminOrderEmailMutation,
+
+
+
   
 } = api;

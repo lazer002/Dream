@@ -17,7 +17,7 @@ import api from "@/utils/config";
 
 export default function ThankYouPage() {
   const { state } = useLocation();
-  const { id } = useParams();
+  const { publicOrderId } = useParams();
   const navigate = useNavigate();
 
   const [order, setOrder] = useState(state?.order || null);
@@ -25,10 +25,10 @@ export default function ThankYouPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!order && id) {
+    if (!order && publicOrderId) {
       const fetchOrder = async () => {
         try {
-          const res = await api.get(`/orders/${id}`);
+          const res = await api.get(`/orders/${publicOrderId}`);
           setOrder(res.data.order);
         } catch (err) {
           console.error("Failed to fetch order", err);
@@ -39,7 +39,7 @@ export default function ThankYouPage() {
 
       fetchOrder();
     }
-  }, [id, order]);
+  }, [publicOrderId, order]);
 
   if (loading) {
     return (
@@ -91,8 +91,7 @@ export default function ThankYouPage() {
     paymentMethod,
   } = order;
 
-  const isPaid = paymentStatus === "success";
-
+const isPaid = paymentStatus === "paid";
   const formatPrice = (value = 0) =>
     `₹${Number(value || 0).toLocaleString("en-IN", {
       minimumFractionDigits: 2,
@@ -405,10 +404,15 @@ const currentIndex = statusIndex[currentStatus] ?? 0;
                   !!item.bundleId ||
                   !!item.customBundle;
 
-                const image =
-                  item.mainImage ||
-                  item.bundleProducts?.[0]?.mainImage ||
-                  "/placeholder.jpg";
+             const image =
+  item.mainImage &&
+  item.mainImage !== "default.jpg"
+    ? item.mainImage
+    : item.bundleProducts?.find(
+        (bp) =>
+          bp.mainImage &&
+          bp.mainImage !== "default.jpg"
+      )?.mainImage || "/placeholder.jpg";
 
                 return (
                   <div
@@ -433,11 +437,11 @@ const currentIndex = statusIndex[currentStatus] ?? 0;
                                   "Product"}
                               </h3>
 
-                              {isBundle && (
-                                <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
-                                  Bundle
-                                </span>
-                              )}
+                         {isBundle && (
+  <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
+    {item.customBundle ? "Custom Bundle" : "Bundle"}
+  </span>
+)}
                             </div>
 
                             {!isBundle &&

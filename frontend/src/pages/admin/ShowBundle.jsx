@@ -1,4 +1,8 @@
-import { useEffect, useMemo, useState } from "react";
+
+
+import { useState, useMemo } from "react";
+
+
 import {
   Table,
   TableBody,
@@ -17,7 +21,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import api from "@/utils/config";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Pencil,
@@ -31,60 +34,151 @@ import {
   EyeOff,
   Star,
   Sparkles,
-  Tag,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import {
+  useGetBundlesQuery,
+  useGetProductsQuery,
+  useUpdateBundleMutation,
+  useDeleteBundleMutation,
+  useUploadAdminImagesMutation,
+} from "@/store/api";
+
+const getInventoryStock = (product) => {
+  if (!product) return null;
+
+  if (product.trackInventory === false) {
+    return null;
+  }
+
+  const inventory = product.inventory;
+
+  if (!inventory || typeof inventory !== "object") {
+    return null;
+  }
+
+  const stock =
+    inventory.stock &&
+    typeof inventory.stock === "object"
+      ? inventory.stock
+      : inventory;
+
+  const values = Object.values(stock);
+
+  if (!values.length) {
+    return null;
+  }
+
+  return values.reduce((total, value) => {
+    const number = Number(value);
+
+    return Number.isFinite(number) && number > 0
+      ? total + number
+      : total;
+  }, 0);
+};
+
+const isProductOutOfStock = (product) => {
+  if (!product) return true;
+
+  if (product.trackInventory === false) {
+    return false;
+  }
+
+  const availableStock = getInventoryStock(product);
+
+  if (availableStock !== null) {
+    return availableStock <= 0;
+  }
+
+  return false;
+};
+
+const getBundleProducts = (bundle, allProducts) =>
+  Array.isArray(bundle?.products)
+    ? bundle.products
+        .map((product) => {
+          const productId =
+            typeof product === "object"
+              ? product?._id || product?.publicId
+              : product;
+
+          const fullProduct = allProducts.find(
+            (item) =>
+              String(item._id) === String(productId) ||
+              String(item.publicId) === String(productId)
+          );
+
+          /*
+           * Prefer the product from allProducts because
+           * that response contains the latest inventory.
+           */
+          return fullProduct || product;
+        })
+        .filter(Boolean)
+    : [];
+
+const isBundleOutOfStock = (bundle, allProducts) => {
+  const products = getBundleProducts(
+    bundle,
+    allProducts
+  );
+
+  if (!products.length) {
+    return false;
+  }
+
+  return products.some((product) =>
+    isProductOutOfStock(product)
+  );
+};
 
 export default function ShowBundle() {
-  const navigate = useNavigate()
-  const [bundles, setBundles] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
-
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const navigate = useNavigate();
 
   const [editBundle, setEditBundle] = useState(null);
-
   const [selectedProducts, setSelectedProducts] = useState([]);
   const [images, setImages] = useState([]);
-
   const [productSearch, setProductSearch] = useState("");
   const [bundleSearch, setBundleSearch] = useState("");
 
-  const fetchBundles = async () => {
-    try {
-      setLoading(true);
+  const {
+    data: bundlesData,
+    isLoading: bundlesLoading,
+  } = useGetBundlesQuery();
 
-      const res = await api.get("/bundles");
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+  } = useGetProductsQuery({
+    limit: 100,
+  });
 
-      setBundles(res.data.items || []);
-    } catch (err) {
-      console.error("Error fetching bundles:", err);
-      toast.error("Failed to load bundles");
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [updateBundle, { isLoading: updatingBundle }] =
+    useUpdateBundleMutation();
 
-  const fetchProducts = async () => {
-    try {
-      const res = await api.get("/products", {
-        params: {
-          limit: 100,
-        },
-      });
+  const [deleteBundle, { isLoading: deletingBundle }] =
+    useDeleteBundleMutation();
 
-      setAllProducts(res.data.items || []);
-    } catch (err) {
-      console.error("Error fetching products:", err);
-      toast.error("Failed to load products");
-    }
-  };
+  const [uploadAdminImages, { isLoading: uploadingImages }] =
+    useUploadAdminImagesMutation();
 
-  useEffect(() => {
-    fetchBundles();
-    fetchProducts();
-  }, []);
+  const bundles = Array.isArray(bundlesData)
+    ? bundlesData
+    : bundlesData?.items || [];
+
+  const allProducts = Array.isArray(productsData)
+    ? productsData
+    : productsData?.items ||
+      productsData?.products ||
+      [];
+
+  const saving =
+    updatingBundle ||
+    deletingBundle ||
+    uploadingImages;
+
+  const loading = bundlesLoading || productsLoading;
 
   const filteredBundles = useMemo(() => {
     const query = bundleSearch.trim().toLowerCase();
@@ -120,24 +214,21 @@ export default function ShowBundle() {
     selectedProducts,
   ]);
 
-  const deleteBundle = async (id) => {
+  const handleDeleteBundle = async (id) => {
     if (!confirm("Are you sure you want to delete this bundle?")) {
       return;
     }
 
     try {
-      await api.delete(`/bundles/${id}`);
-
-      setBundles((prev) =>
-        prev.filter((bundle) => bundle._id !== id)
-      );
-
+      await deleteBundle(id).unwrap();
       toast.success("Bundle deleted");
     } catch (err) {
       console.error("Failed to delete:", err);
 
       toast.error(
-        err?.response?.data?.error ||
+        err?.data?.error ||
+          err?.data?.message ||
+          err?.error ||
           "Failed to delete bundle"
       );
     }
@@ -301,29 +392,37 @@ export default function ShowBundle() {
     }
 
     if (!selectedProducts.length) {
+      toast.error("Select at least one product");
+      return;
+    }
+
+    const selectedProductObjects = selectedProducts
+      .map((id) =>
+        allProducts.find(
+          (product) => String(product._id) === String(id)
+        )
+      )
+      .filter(Boolean);
+
+    const unavailableProducts = selectedProductObjects.filter(
+      isProductOutOfStock
+    );
+
+    if (unavailableProducts.length) {
       toast.error(
-        "Select at least one product"
+        `${unavailableProducts.length} selected product${
+          unavailableProducts.length > 1 ? "s are" : " is"
+        } out of stock`
       );
       return;
     }
 
     try {
-      setSaving(true);
-
-      const imageUrls = [];
-
-      const existingImages = images
-        .filter(
-          (image) =>
-            image.existing && !image.file
-        )
+      const imageUrls = images
+        .filter((image) => image.existing && !image.file)
         .map((image) => image.preview);
 
-      imageUrls.push(...existingImages);
-
-      const newFiles = images.filter(
-        (image) => image.file
-      );
+      const newFiles = images.filter((image) => image.file);
 
       if (newFiles.length) {
         const formData = new FormData();
@@ -333,13 +432,10 @@ export default function ShowBundle() {
         });
 
         const uploadResponse =
-          await api.post(
-            "/admin/upload/images",
-            formData
-          );
+          await uploadAdminImages(formData).unwrap();
 
         imageUrls.push(
-          ...(uploadResponse.data.images || []).map(
+          ...(uploadResponse?.images || []).map(
             (image) => image.url
           )
         );
@@ -354,82 +450,46 @@ export default function ShowBundle() {
       const discount =
         oldPrice > price && oldPrice > 0
           ? Math.round(
-              ((oldPrice - price) /
-                oldPrice) *
-                100
+              ((oldPrice - price) / oldPrice) * 100
             )
           : 0;
 
-      const tags = String(
-        editBundle.tags || ""
-      )
+      const tags = String(editBundle.tags || "")
         .split(",")
         .map((tag) => tag.trim())
         .filter(Boolean);
 
-      await api.put(
-        `/bundles/${editBundle._id}`,
-        {
-          title:
-            editBundle.title.trim(),
-
-          description:
-            editBundle.description || "",
-
-          products:
-            selectedProducts,
-
-          category:
-            editBundle.category || "",
-
+      await updateBundle({
+        id: editBundle._id,
+        data: {
+          title: editBundle.title.trim(),
+          description: editBundle.description || "",
+          products: selectedProducts,
+          category: editBundle.category || "",
           tags,
-
-          mainImages:
-            imageUrls,
-
+          mainImages: imageUrls,
           price,
-
           oldPrice,
-
           discount,
+          onSale: oldPrice > price,
+          active: editBundle.active !== false,
+          published: editBundle.published !== false,
+          featured: editBundle.featured === true,
+          isNewBundle: editBundle.isNewBundle === true,
+        },
+      }).unwrap();
 
-          onSale:
-            oldPrice > price,
-
-          active:
-            editBundle.active !== false,
-
-          published:
-            editBundle.published !== false,
-
-          featured:
-            editBundle.featured === true,
-
-          isNewBundle:
-            editBundle.isNewBundle === true,
-        }
-      );
-
-      toast.success(
-        "Bundle updated successfully"
-      );
-
+      toast.success("Bundle updated successfully");
       closeEdit();
-
-      await fetchBundles();
     } catch (err) {
-      console.error(
-        "Failed to update bundle:",
-        err
-      );
+      console.error("Failed to update bundle:", err);
 
       toast.error(
-        err?.response?.data?.error ||
-          err?.response?.data?.message ||
+        err?.data?.error ||
+          err?.data?.message ||
+          err?.error ||
           "Failed to update bundle"
       );
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -549,6 +609,9 @@ export default function ShowBundle() {
       <TableBody>
         {filteredBundles.length > 0 ? (
           filteredBundles.map((bundle) => {
+            const bundleOutOfStock =
+              isBundleOutOfStock(bundle, allProducts);
+
             const oldPrice =
               Number(bundle.oldPrice || 0);
 
@@ -646,7 +709,7 @@ export default function ShowBundle() {
                         </span>
                       )}
 
-                      {bundle.isOutOfStock && (
+                      {bundleOutOfStock && (
                         <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-700">
                           Out of Stock
                         </span>
@@ -698,7 +761,7 @@ export default function ShowBundle() {
             ₹{Number(product.price || 0).toLocaleString("en-IN")}
           </span>
 
-          {product.isOutOfStock && (
+          {isProductOutOfStock(product) && (
             <span className="text-[10px] font-medium text-red-500">
               Out of stock
             </span>
@@ -827,7 +890,7 @@ export default function ShowBundle() {
                       )}
                     </span>
 
-                    {bundle.isOutOfStock ? (
+                    {bundleOutOfStock ? (
                       <span className="text-[10px] font-medium text-red-500">
                         Out of Stock
                       </span>
@@ -930,7 +993,7 @@ export default function ShowBundle() {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        deleteBundle(bundle._id)
+                        handleDeleteBundle(bundle._id)
                       }
                       className="h-9 w-9 rounded-lg border-red-200 p-0 hover:bg-red-50"
                     >
@@ -1215,73 +1278,72 @@ export default function ShowBundle() {
                       </div>
 
                       <div className="grid max-h-[440px] grid-cols-2 gap-3 overflow-y-auto pr-1 sm:grid-cols-3 lg:grid-cols-4">
-                        {filteredProducts.map(
-                          (product) => {
-                            const isSelected =
-                              selectedProducts.includes(
-                                product._id
-                              );
+               {filteredProducts.map((product) => {
+  const isSelected = selectedProducts.includes(product._id);
 
-                            return (
-                              <button
-                                key={
-                                  product._id
-                                }
-                                type="button"
-                                onClick={() =>
-                                  handleProductToggle(
-                                    product._id
-                                  )
-                                }
-                                className={`
-                                  relative overflow-hidden rounded-xl border text-left transition
-                                  ${
-                                    isSelected
-                                      ? "border-black ring-1 ring-black"
-                                      : "border-gray-200 hover:border-gray-400"
-                                  }
-                                `}
-                              >
-                                <div className="aspect-square bg-gray-100">
-                                  <img
-                                    src={
-                                      product
-                                        .images?.[0]
-                                    }
-                                    alt={
-                                      product.title
-                                    }
-                                    className="h-full w-full object-cover"
-                                  />
-                                </div>
+  const outOfStock = isProductOutOfStock(product);
 
-                                {isSelected && (
-                                  <div className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white">
-                                    <Check className="h-4 w-4" />
-                                  </div>
-                                )}
+  return (
+    <button
+      key={product._id}
+      type="button"
+      disabled={outOfStock && !isSelected}
+      onClick={() => {
+        if (outOfStock && !isSelected) {
+          toast.error(`${product.title} is out of stock`);
+          return;
+        }
 
-                                <div className="p-3">
-                                  <p className="truncate text-sm font-semibold">
-                                    {
-                                      product.title
-                                    }
-                                  </p>
+        handleProductToggle(product._id);
+      }}
+      className={`
+        relative overflow-hidden rounded-xl border text-left transition
+        ${
+          isSelected
+            ? "border-black ring-1 ring-black"
+            : outOfStock
+              ? "border-red-200 opacity-60 cursor-not-allowed"
+              : "border-gray-200 hover:border-gray-400"
+        }
+      `}
+    >
+      <div className="aspect-square bg-gray-100">
+        <img
+          src={product.images?.[0]}
+          alt={product.title}
+          className="h-full w-full object-cover"
+        />
+      </div>
 
-                                  <p className="mt-1 text-xs text-gray-500">
-                                    ₹
-                                    {Number(
-                                      product.price ||
-                                        0
-                                    ).toLocaleString(
-                                      "en-IN"
-                                    )}
-                                  </p>
-                                </div>
-                              </button>
-                            );
-                          }
-                        )}
+      {isSelected && (
+        <div className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white">
+          <Check className="h-4 w-4" />
+        </div>
+      )}
+
+      <div className="p-3">
+        <p className="truncate text-sm font-semibold">
+          {product.title}
+        </p>
+
+        <p className="mt-1 text-xs text-gray-500">
+          ₹
+          {Number(product.price || 0).toLocaleString("en-IN")}
+        </p>
+
+        {outOfStock ? (
+          <p className="mt-1 text-[10px] font-semibold text-red-500">
+            Out of stock
+          </p>
+        ) : (
+          <p className="mt-1 text-[10px] font-semibold text-green-600">
+            In stock
+          </p>
+        )}
+      </div>
+    </button>
+  );
+})}
                       </div>
                     </section>
                   </div>

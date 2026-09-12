@@ -1,4 +1,3 @@
-// src/pages/admin/AdminReturnDetailPage.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import {
@@ -20,7 +19,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ArrowLeft, RefreshCw } from "lucide-react";
-import api from "@/utils/config";
+import {
+  useGetReturnByRmaQuery,
+  useUpdateReturnStatusMutation,
+} from "@/store/api";
 
 const RETURN_STATUS_STEPS = [
   "submitted",
@@ -71,47 +73,118 @@ const formatCurrency = (amount) => {
   }
 };
 
-async function fetchReturnByRma(rmaNumber) {
-  const res = await api.get(`/returns/${encodeURIComponent(rmaNumber)}`);
-  if (!res.data || res.data.success === false) {
-    throw new Error(res.data?.message || "Return not found");
-  }
-  return res.data.returnRequest;
+function MetricCard({ icon, label, value, subvalue }) {
+  return (
+    <Card className="border-neutral-200 bg-white shadow-sm">
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-neutral-100 text-neutral-700">
+            {icon}
+          </div>
+          <ArrowUpRight className="h-4 w-4 text-neutral-300" />
+        </div>
+        <div className="mt-4">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            {label}
+          </p>
+          <p className="mt-1 truncate text-lg font-bold text-neutral-950">
+            {value}
+          </p>
+          <p className="mt-1 line-clamp-1 text-[11px] text-muted-foreground">
+            {subvalue}
+          </p>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function DetailRow({ icon, label, value, mono = false }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3.5">
+      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-neutral-100 text-neutral-500">
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-muted-foreground">
+          {label}
+        </p>
+        <p
+          className={`mt-0.5 truncate text-xs font-semibold text-neutral-900 ${
+            mono ? "font-mono" : ""
+          }`}
+        >
+          {value}
+        </p>
+      </div>
+    </div>
+  );
 }
 
 export default function AdminReturnDetailPage() {
   const { rmaNumber } = useParams();
 
-  const [data, setData] = useState(null);
+  const {
+    data: returnData,
+    isLoading: loading,
+    isFetching: refreshing,
+    error: queryError,
+    refetch,
+  } = useGetReturnByRmaQuery(rmaNumber, {
+    skip: !rmaNumber,
+  });
+
+  const [updateReturnStatus, { isLoading: saving }] =
+    useUpdateReturnStatusMutation();
+
+  const data =
+    returnData?.returnRequest ||
+    returnData?.return ||
+    returnData?.data ||
+    returnData ||
+    null;
+
   const [newStatus, setNewStatus] = useState("");
   const [note, setNote] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [copied, setCopied] = useState(false);
 
-  async function load() {
-    try {
-      setLoading(true);
-      setError(null);
-      const result = await fetchReturnByRma(rmaNumber);
-      setData(result);
-      setNewStatus(result.status || "submitted");
-    } catch (e) {
-      console.error(e);
-      setError(e.message || "Failed to load return");
-    } finally {
-      setLoading(false);
+  useEffect(() => {
+    if (data?.status) {
+      setNewStatus(data.status);
     }
-  }
+  }, [data?.status]);
 
   useEffect(() => {
     if (!rmaNumber) {
       setError("Missing RMA in URL");
-      setLoading(false);
       return;
     }
-    load();
-  }, [rmaNumber]);
+
+    if (queryError) {
+      setError(
+        queryError?.data?.message ||
+          queryError?.data?.error ||
+          queryError?.error ||
+          "Failed to load return"
+      );
+    } else {
+      setError(null);
+    }
+  }, [rmaNumber, queryError]);
+
+  const copyText = async (value) => {
+    if (!value) return;
+
+    try {
+      await navigator.clipboard.writeText(String(value));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    } catch {
+      setCopied(false);
+    }
+  };
+
 
   const currentIndex =
     data && data.status ? RETURN_STATUS_STEPS.indexOf(data.status) : -1;
@@ -143,38 +216,35 @@ export default function AdminReturnDetailPage() {
 
 
 async function handleUpdateStatus() {
-  if (!data || !data._id) return;
-  if (!newStatus) return;
+  if (!data?._id || !newStatus || saving) return;
 
   try {
-    setSaving(true);
     setError(null);
 
-    const res = await api.patch(`/returns/${data._id}/status`, {
+    const response = await updateReturnStatus({
+      id: data._id,
       status: newStatus,
-      note: note || "",
-    });
+      note: note.trim(),
+    }).unwrap();
 
-    const updated = res.data?.rma || res.data;
+    setNote("");
 
-    if (updated) {
-      setData(updated);   // update UI with latest status + history
-      setNote("");        // clear note box
+    if (response?.rma || response?.returnRequest || response?.return) {
+      // RTK Query invalidation/refetch is the source of truth.
     }
+
+    await refetch();
   } catch (e) {
     console.error(e);
-    const msg =
-      e.response?.data?.message ||
-      e.message ||
-      "Failed to update status";
-    setError(msg);
-  } finally {
-    setSaving(false);
+
+    setError(
+      e?.data?.message ||
+        e?.data?.error ||
+        e?.message ||
+        "Failed to update status"
+    );
   }
 }
-
-
-  
 
   if (loading) {
     return (
@@ -189,7 +259,11 @@ async function handleUpdateStatus() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <p className="text-sm text-gray-500">Please wait.</p>
+            <div className="space-y-3">
+              <div className="h-4 w-2/3 animate-pulse rounded bg-neutral-100" />
+              <div className="h-4 w-1/2 animate-pulse rounded bg-neutral-100" />
+              <div className="h-4 w-1/3 animate-pulse rounded bg-neutral-100" />
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -269,7 +343,34 @@ async function handleUpdateStatus() {
                 )}
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex flex-wrap justify-end gap-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => refetch()}
+                  disabled={refreshing}
+                  className="border-neutral-300"
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${refreshing ? "animate-spin" : ""}`} />
+                  Refresh
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => copyText(data.rmaNumber)}
+                  className="border-neutral-300"
+                >
+                  {copied ? (
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  ) : (
+                    <Copy className="mr-2 h-4 w-4" />
+                  )}
+                  {copied ? "Copied" : "Copy RMA"}
+                </Button>
+
                 <Button
                   asChild
                   variant="outline"
@@ -277,7 +378,7 @@ async function handleUpdateStatus() {
                   className="border-black text-black hover:bg-black hover:text-white"
                 >
                   <Link to="/admin/returnslist">
-                    <ArrowLeft className="h-4 w-4 mr-2" />
+                    <ArrowLeft className="mr-2 h-4 w-4" />
                     Back
                   </Link>
                 </Button>
@@ -287,7 +388,34 @@ async function handleUpdateStatus() {
         </CardHeader>
 
         <CardContent className="space-y-6 pt-6">
-          <div className="grid gap-6 lg:grid-cols-[2fr,1.2fr]">
+          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <MetricCard
+              icon={<PackageCheck className="h-4 w-4" />}
+              label="Items"
+              value={stats?.totalItems ?? 0}
+              subvalue={`${stats?.totalQty ?? 0} total units`}
+            />
+            <MetricCard
+              icon={<IndianRupee className="h-4 w-4" />}
+              label="Return value"
+              value={formatCurrency(stats?.subtotal ?? 0)}
+              subvalue="Item subtotal"
+            />
+            <MetricCard
+              icon={<Clock3 className="h-4 w-4" />}
+              label="Current stage"
+              value={STATUS_LABELS[data.status] || data.status}
+              subvalue={currentStatusHint || "Return workflow"}
+            />
+            <MetricCard
+              icon={<CalendarDays className="h-4 w-4" />}
+              label="Created"
+              value={createdDate || "—"}
+              subvalue="Request timestamp"
+            />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(320px,1fr)]">
 
 
 
@@ -505,6 +633,39 @@ async function handleUpdateStatus() {
 
             {/* Right: status control + history */}
             <div className="space-y-4">
+              <Card className="overflow-hidden border-neutral-200 bg-white shadow-sm">
+                <CardHeader className="border-b bg-neutral-50/60">
+                  <CardTitle className="text-sm font-semibold">
+                    Return overview
+                  </CardTitle>
+                  <CardDescription className="text-xs">
+                    Core request and customer information.
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="divide-y p-0 text-xs">
+                  <DetailRow
+                    icon={<User className="h-4 w-4" />}
+                    label="Customer"
+                    value={data.guestEmail || "Guest user"}
+                  />
+                  <DetailRow
+                    icon={<PackageCheck className="h-4 w-4" />}
+                    label="Order"
+                    value={data.orderNumber || "—"}
+                  />
+                  <DetailRow
+                    icon={<RotateCcw className="h-4 w-4" />}
+                    label="RMA"
+                    value={data.rmaNumber || "—"}
+                    mono
+                  />
+                  <DetailRow
+                    icon={<CalendarDays className="h-4 w-4" />}
+                    label="Created"
+                    value={createdDate || "—"}
+                  />
+                </CardContent>
+              </Card>
               <Card className="border border-neutral-200 bg-white shadow-sm">
                 <CardHeader>
                   <CardTitle className="text-sm font-semibold">
@@ -581,7 +742,8 @@ async function handleUpdateStatus() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3 text-xs">
-                  {data.statusHistory.map((entry, idx) => {
+                  {Array.isArray(data.statusHistory) && data.statusHistory.length ? (
+                    data.statusHistory.map((entry, idx) => {
                     const statusKey = entry.to || entry.status;
                     const label = STATUS_LABELS[statusKey] || statusKey || "-";
                     const dateValue = entry.at || entry.createdAt;
@@ -615,7 +777,13 @@ async function handleUpdateStatus() {
                         )}
                       </div>
                     );
-                  })}
+                    })
+                  ) : (
+                    <div className="rounded-xl border border-dashed p-6 text-center text-xs text-muted-foreground">
+                      <History className="mx-auto h-5 w-5 mb-2" />
+                      No status history recorded yet.
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>

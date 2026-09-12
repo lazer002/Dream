@@ -693,7 +693,7 @@ z-0
         <div className="relative overflow-hidden rounded-[36px]">
 
           <img
-            src="https://bzmvvcdngqoxwpbulakr.supabase.co/storage/v1/object/public/product-images/products/1760803192692-zasrnaykki8.webp"
+            src="/images/mens.webp"
             className="
               h-[500px]
               w-full

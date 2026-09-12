@@ -18,26 +18,58 @@ import {
 
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import api from "@/utils/config";
+import {
+  useGetAdminProductByIdQuery,
+  useGetCategoriesQuery,
+  useUpdateAdminProductMutation,
+  useDeleteAdminProductMutation,
+  useUploadAdminImagesMutation,
+  useDeleteAdminProductImageMutation,
+} from "@/store/api";
 
 export default function AdminProductDetail() {
   const { publicId } = useParams();
   const navigate = useNavigate();
 
-  const [product, setProduct] = useState(null);
-  const [categories, setCategories] = useState([]);
+  const {
+    data: productData,
+    isLoading: loading,
+    isFetching: fetchingProduct,
+    refetch: refetchProduct,
+  } = useGetAdminProductByIdQuery(publicId, {
+    skip: !publicId,
+  });
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [deleting, setDeleting] = useState(false);
+  const { data: categoriesData } = useGetCategoriesQuery();
+
+  const [updateAdminProduct, { isLoading: saving }] =
+    useUpdateAdminProductMutation();
+
+  const [deleteAdminProduct, { isLoading: deleting }] =
+    useDeleteAdminProductMutation();
+
+  const [uploadAdminImages, { isLoading: uploadingImages }] =
+    useUploadAdminImagesMutation();
+
+  const [deleteAdminProductImage] =
+    useDeleteAdminProductImageMutation();
+
+  const product =
+    productData?.product ||
+    productData?.data ||
+    productData ||
+    null;
+
+  const categories = Array.isArray(categoriesData)
+    ? categoriesData
+    : categoriesData?.categories ||
+      categoriesData?.items ||
+      categoriesData?.data ||
+      [];
 
   const [editing, setEditing] = useState(false);
-
   const [selectedImage, setSelectedImage] = useState(0);
-
-  const [uploadingImages, setUploadingImages] = useState(false);
   const [deletingImage, setDeletingImage] = useState(null);
-
   const [showDeleteModal, setShowDeleteModal] = useState(false);
 
   const [form, setForm] = useState({
@@ -58,122 +90,60 @@ export default function AdminProductDetail() {
   const [inventory, setInventory] = useState({});
 
   useEffect(() => {
-    fetchProduct();
-    fetchCategories();
-  }, [publicId]);
+    if (!product) return;
 
-  async function fetchProduct() {
-    try {
-      setLoading(true);
+    setForm({
+      title: product?.title || "",
+      description: product?.description || "",
+      details: product?.details || "",
+      price: product?.price ?? "",
+      oldPrice: product?.oldPrice ?? "",
+      category:
+        typeof product?.category === "object"
+          ? product.category?._id || ""
+          : product?.category || "",
+      tags: Array.isArray(product?.tags)
+        ? product.tags.join(", ")
+        : "",
+      active: Boolean(product?.active),
+      published: Boolean(product?.published),
+      isNewProduct: Boolean(product?.isNewProduct),
+      onSale: Boolean(product?.onSale),
+      featured: Boolean(product?.featured),
+    });
 
-      const { data } = await api.get(
-        `/admin/products/${publicId}`
-      );
+    setInventory(
+      product?.inventory?.stock &&
+        typeof product.inventory.stock === "object"
+        ? { ...product.inventory.stock }
+        : {}
+    );
 
-      const p = data?.product || data;
-      console.log('✌️p --->', p);
-
-
-      setProduct(p);
-
-      setForm({
-        title: p?.title || "",
-        description: p?.description || "",
-        details: p?.details || "",
-        price: p?.price ?? "",
-        oldPrice: p?.oldPrice ?? "",
-        category:
-          typeof p?.category === "object"
-            ? p.category?._id || ""
-            : p?.category || "",
-        tags: Array.isArray(p?.tags)
-          ? p.tags.join(", ")
-          : "",
-        active: Boolean(p?.active),
-        published: Boolean(p?.published),
-        isNewProduct: Boolean(p?.isNewProduct),
-        onSale: Boolean(p?.onSale),
-        featured: Boolean(p?.featured),
-      });
-
-      setInventory(
-        p?.inventory?.stock &&
-          typeof p.inventory.stock === "object"
-          ? { ...p.inventory.stock }
-          : {}
-      );
-
-      setSelectedImage(0);
-    } catch (error) {
-      console.error(
-        "FETCH PRODUCT ERROR:",
-        error
-      );
-
-      setProduct(null);
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function fetchCategories() {
-    try {
-      const { data } = await api.get(
-        "/categories"
-      );
-
-      setCategories(
-        Array.isArray(data)
-          ? data
-          : data?.categories || []
-      );
-    } catch (error) {
-      console.error(
-        "FETCH CATEGORIES ERROR:",
-        error
-      );
-    }
-  }
+    setSelectedImage(0);
+  }, [product]);
 
   async function uploadProductImages(files) {
-    if (!files?.length || !product?._id) {
-      return;
-    }
+    if (!files?.length || !product?._id) return;
 
     try {
-      setUploadingImages(true);
-
       const fd = new FormData();
 
       files.forEach((file) => {
         fd.append("files", file);
       });
 
-      const { data } = await api.post(
-        "/admin/upload/images",
-        fd,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          timeout: 60000,
-        }
-      );
+      const response = await uploadAdminImages(fd).unwrap();
 
       const newImages =
-        data?.images
+        response?.images
           ?.map((image) => image?.url)
           .filter(Boolean) || [];
 
       if (!newImages.length) {
-        throw new Error(
-          "No images were uploaded"
-        );
+        throw new Error("No images were uploaded");
       }
 
-      const existingImages = Array.isArray(
-        product.images
-      )
+      const existingImages = Array.isArray(product.images)
         ? product.images
         : [];
 
@@ -182,47 +152,30 @@ export default function AdminProductDetail() {
         ...newImages,
       ];
 
-      const { data: updateData } =
-        await api.put(
-          `/admin/products/${product._id}`,
-          {
-            images: updatedImages,
-          }
-        );
+      await updateAdminProduct({
+        id: product._id,
+        data: {
+          images: updatedImages,
+        },
+      }).unwrap();
 
-      const updatedProduct =
-        updateData?.product || updateData;
+      await refetchProduct();
 
-      setProduct((prev) => ({
-        ...prev,
-        ...updatedProduct,
-        images: updatedImages,
-      }));
-
-      setSelectedImage(
-        updatedImages.length - 1
-      );
+      setSelectedImage(updatedImages.length - 1);
     } catch (error) {
-      console.error(
-        "UPLOAD PRODUCT IMAGES ERROR:",
-        error
-      );
+      console.error("UPLOAD PRODUCT IMAGES ERROR:", error);
 
       window.alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error ||
+        error?.data?.message ||
+          error?.data?.error ||
           error?.message ||
           "Failed to upload images"
       );
-    } finally {
-      setUploadingImages(false);
     }
   }
 
   async function deleteProductImage(image) {
-    if (!image || !product?._id) {
-      return;
-    }
+    if (!image || !product?._id) return;
 
     const images = Array.isArray(product.images)
       ? product.images
@@ -239,42 +192,28 @@ export default function AdminProductDetail() {
       "Delete this image permanently?"
     );
 
-    if (!confirmed) {
-      return;
-    }
+    if (!confirmed) return;
 
     try {
       setDeletingImage(image);
 
-      const { data } = await api.delete(
-        `/admin/products/${product._id}/images`,
-        {
-          data: {
-            image,
-          },
-        }
-      );
+      const response = await deleteAdminProductImage({
+        id: product._id,
+        image,
+      }).unwrap();
 
       const updated =
-        data?.product || data;
+        response?.product || response?.data || response;
 
       const updatedImages =
         Array.isArray(updated?.images)
           ? updated.images
-          : images.filter(
-              (item) => item !== image
-            );
+          : images.filter((item) => item !== image);
 
-      setProduct((prev) => ({
-        ...prev,
-        ...updated,
-        images: updatedImages,
-      }));
+      await refetchProduct();
 
       setSelectedImage((current) => {
-        if (!updatedImages.length) {
-          return 0;
-        }
+        if (!updatedImages.length) return 0;
 
         if (current >= updatedImages.length) {
           return updatedImages.length - 1;
@@ -289,8 +228,8 @@ export default function AdminProductDetail() {
       );
 
       window.alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error ||
+        error?.data?.message ||
+          error?.data?.error ||
           error?.message ||
           "Failed to delete image"
       );
@@ -300,13 +239,9 @@ export default function AdminProductDetail() {
   }
 
   async function saveProduct() {
-    if (!product?._id) {
-      return;
-    }
+    if (!product?._id) return;
 
     try {
-      setSaving(true);
-
       const sizes = Object.keys(inventory).map(
         (size) => ({
           name: size,
@@ -318,31 +253,22 @@ export default function AdminProductDetail() {
         title: form.title.trim(),
         description: form.description,
         details: form.details,
-
         price: Number(form.price),
-
         oldPrice:
           form.oldPrice === ""
             ? undefined
             : Number(form.oldPrice),
-
         category: form.category,
-
         tags: form.tags
           .split(",")
           .map((tag) => tag.trim())
           .filter(Boolean),
-
         active: Boolean(form.active),
         published: Boolean(form.published),
-        isNewProduct: Boolean(
-          form.isNewProduct
-        ),
+        isNewProduct: Boolean(form.isNewProduct),
         onSale: Boolean(form.onSale),
         featured: Boolean(form.featured),
-
         sizes,
-
         inventory: {
           stock: {
             ...inventory,
@@ -350,22 +276,14 @@ export default function AdminProductDetail() {
         },
       };
 
-      const { data } = await api.put(
-        `/admin/products/${product._id}`,
-        payload
-      );
-
-      const updated =
-        data?.product || data;
-
-      setProduct((prev) => ({
-        ...prev,
-        ...updated,
-      }));
+      await updateAdminProduct({
+        id: product._id,
+        data: payload,
+      }).unwrap();
 
       setEditing(false);
 
-      await fetchProduct();
+      await refetchProduct();
     } catch (error) {
       console.error(
         "UPDATE PRODUCT ERROR:",
@@ -373,27 +291,19 @@ export default function AdminProductDetail() {
       );
 
       window.alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error ||
+        error?.data?.message ||
+          error?.data?.error ||
           error?.message ||
           "Failed to update product"
       );
-    } finally {
-      setSaving(false);
     }
   }
 
   async function deleteProduct() {
-    if (!product?._id) {
-      return;
-    }
+    if (!product?._id) return;
 
     try {
-      setDeleting(true);
-
-      await api.delete(
-        `/admin/products/${product._id}`
-      );
+      await deleteAdminProduct(product._id).unwrap();
 
       navigate("/admin/products");
     } catch (error) {
@@ -403,13 +313,12 @@ export default function AdminProductDetail() {
       );
 
       window.alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error ||
+        error?.data?.message ||
+          error?.data?.error ||
           error?.message ||
           "Failed to delete product"
       );
     } finally {
-      setDeleting(false);
       setShowDeleteModal(false);
     }
   }
@@ -467,7 +376,7 @@ export default function AdminProductDetail() {
 
   function cancelEditing() {
     setEditing(false);
-    fetchProduct();
+    refetchProduct();
   }
 
   const inventoryTotal = useMemo(() => {

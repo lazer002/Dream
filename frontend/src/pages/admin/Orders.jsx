@@ -1,7 +1,5 @@
-// src/pages/admin/AdvancedOrders.jsx
-
-import React, { useEffect, useMemo, useState } from "react";
-import api from "@/utils/config";
+ import React, {useMemo, useState } from "react";
+import { useGetAdminOrdersQuery } from "@/store/api";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Loader2,
@@ -58,8 +56,6 @@ const STATUS_OPTIONS = [
 export default function Orders() {
   const navigate = useNavigate();
 
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState("");
@@ -67,74 +63,45 @@ export default function Orders() {
   const [sort, setSort] = useState("newest");
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const [total, setTotal] = useState(0);
-  const [error, setError] = useState("");
 
-  useEffect(() => {
+  const {
+    data: ordersResponse,
+    isLoading: loading,
+    isFetching: refreshing,
+    error: queryError,
+    refetch,
+  } = useGetAdminOrdersQuery(
+    {
+      search: debouncedSearch,
+      status,
+      source,
+      page,
+      limit,
+      sort,
+    },
+    {
+      refetchOnMountOrArgChange: true,
+    }
+  );
+
+  const orders = Array.isArray(ordersResponse?.orders)
+    ? ordersResponse.orders
+    : [];
+
+  const total = Number(ordersResponse?.total || 0);
+
+  const error =
+    queryError?.data?.error ||
+    queryError?.data?.message ||
+    (queryError ? "Failed to load orders" : "");
+
+  React.useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearch(search.trim());
     }, 350);
 
     return () => clearTimeout(timer);
   }, [search]);
-
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      setError("");
-
-      const params = new URLSearchParams();
-
-      if (debouncedSearch) {
-        params.append("search", debouncedSearch);
-      }
-
-      if (status) {
-        params.append("status", status);
-      }
-
-      if (source) {
-        params.append("source", source);
-      }
-
-      params.append("page", page);
-      params.append("limit", limit);
-      params.append("sort", sort);
-
-      const res = await api.get(
-        `/admin/orders?${params.toString()}`
-      );
-
-      setOrders(
-        Array.isArray(res.data?.orders)
-          ? res.data.orders
-          : []
-      );
-
-      setTotal(Number(res.data?.total || 0));
-    } catch (err) {
-      console.error("fetchOrders:", err);
-      setError(
-        err?.response?.data?.error ||
-          "Failed to load orders"
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOrders();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [
-    debouncedSearch,
-    status,
-    source,
-    page,
-    limit,
-    sort,
-  ]);
 
   const deliveryBadge = (
     paymentMethod,
@@ -270,6 +237,14 @@ export default function Orders() {
     navigate(
       `/admin/orders/${publicOrderId}`
     );
+  };
+
+  const retryOrders = async () => {
+    try {
+      await refetch();
+    } catch (err) {
+      console.error("retryOrders:", err);
+    }
   };
 
   const exportCsv = () => {
@@ -466,6 +441,9 @@ export default function Orders() {
           </div>
 
           <div className="flex items-center gap-2">
+            {refreshing && !loading && (
+              <span className="text-xs text-gray-400">Updating…</span>
+            )}
             <button
               type="button"
               onClick={exportCsv}
@@ -660,7 +638,7 @@ export default function Orders() {
 
               <button
                 type="button"
-                onClick={fetchOrders}
+                onClick={retryOrders}
                 className="rounded-lg border border-gray-200 px-4 py-2 text-sm font-medium hover:bg-gray-50"
               >
                 Try again

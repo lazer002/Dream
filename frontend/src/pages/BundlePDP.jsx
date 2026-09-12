@@ -106,13 +106,28 @@ const {
     });
   };
 
-  const isProductOutOfStock = (product) => {
-    return product?.isOutOfStock === true;
-  };
+const isSizeAvailable = (product, size) => {
+  const sizeActive = product?.sizes?.some(
+    (item) =>
+      getSizeName(item) === size &&
+      item.active !== false
+  );
 
-  const isBundleOutOfStock =
-    bundle?.isOutOfStock === true ||
-    bundle?.products?.some(isProductOutOfStock);
+  const stock = Number(product?.inventory?.[size] ?? 0);
+
+  return sizeActive === true && stock > 0;
+};
+
+const isProductOutOfStock = (product) => {
+  return !(product?.sizes || []).some((size) =>
+    isSizeAvailable(product, getSizeName(size))
+  );
+};
+
+const isBundleOutOfStock =
+  !bundle?.products?.some(
+    (product) => !isProductOutOfStock(product)
+  );
 
   const allSizesSelected =
     bundle?.products?.every(

@@ -1,10 +1,14 @@
 // src/pages/admin/AdminBundles.jsx
 
-import { useEffect, useMemo, useState } from "react";
-import api from "@/utils/config";
+import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import {
+  useGetProductsQuery,
+  useCreateBundleMutation,
+  useUploadAdminImagesMutation,
+} from "@/store/api";
 import {
   Package,
   Search,
@@ -25,40 +29,35 @@ export default function Bundle() {
   const [tags, setTags] = useState("");
 
   const [selectedProducts, setSelectedProducts] = useState([]);
-  const [allProducts, setAllProducts] = useState([]);
   const [images, setImages] = useState([]);
 
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [loadingProducts, setLoadingProducts] = useState(true);
+
+  const {
+    data: productsData,
+    isLoading: loadingProducts,
+  } = useGetProductsQuery({
+    limit: 100,
+  });
+
+  const allProducts = Array.isArray(productsData)
+    ? productsData
+    : productsData?.items ||
+      productsData?.products ||
+      [];
+
+  const [createBundle, { isLoading: creatingBundle }] =
+    useCreateBundleMutation();
+
+  const [uploadAdminImages, { isLoading: uploadingImages }] =
+    useUploadAdminImagesMutation();
+
+  const loading = creatingBundle || uploadingImages;
 
   const [published, setPublished] = useState(true);
   const [active, setActive] = useState(true);
   const [featured, setFeatured] = useState(false);
   const [isNewBundle, setIsNewBundle] = useState(false);
-
-  useEffect(() => {
-    const fetchProducts = async () => {
-      try {
-        setLoadingProducts(true);
-
-        const res = await api.get("/products", {
-          params: {
-            limit: 100,
-          },
-        });
-
-        setAllProducts(res.data.items || []);
-      } catch (err) {
-        console.error(err);
-        toast.error("Failed to load products");
-      } finally {
-        setLoadingProducts(false);
-      }
-    };
-
-    fetchProducts();
-  }, []);
 
   const selectedProductObjects = useMemo(() => {
     return selectedProducts
@@ -181,8 +180,6 @@ export default function Bundle() {
     }
 
 try {
-  setLoading(true);
-
   const finalPrice =
     price !== ""
       ? Number(price)
@@ -211,20 +208,18 @@ if (files.length > 0) {
     formData.append("files", file);
   });
 
-  const uploadResponse = await api.post(
-    "/admin/upload/images",
-    formData
-  );
+  const uploadResponse =
+    await uploadAdminImages(formData).unwrap();
 
   imageUrls =
-    uploadResponse.data?.images?.map(
+    uploadResponse?.images?.map(
       (image) => image.url
     ) || [];
 
   console.log("UPLOADED BUNDLE IMAGES:", imageUrls);
 }
 
-await api.post("/bundles", {
+await createBundle({
   title: title.trim(),
   description: description.trim(),
   products: selectedProducts,
@@ -260,7 +255,8 @@ await api.post("/bundles", {
 
   onSale:
     finalOldPrice > finalPrice,
-});
+}).unwrap();
+
   toast.success(
     "Bundle created successfully"
   );
@@ -273,12 +269,11 @@ await api.post("/bundles", {
   );
 
   toast.error(
-    err?.response?.data?.error ||
-      err?.response?.data?.message ||
+    err?.data?.error ||
+      err?.data?.message ||
+      err?.message ||
       "Error creating bundle"
   );
-} finally {
-  setLoading(false);
 }
   }
   return (

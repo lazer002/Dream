@@ -23,7 +23,11 @@ function idsToStrings(arr) {
 
 async function getWishlistOwner(req) {
   const userId = req.user?.id;
+  console.log('✌️userId --->', userId);
+
   const guestId = req.headers["x-guest-id"];
+  console.log('✌️guestId --->', guestId);
+
 
   if (!userId && !guestId) {
     throw new Error("No user or guest");
@@ -307,36 +311,13 @@ router.post(
     try {
       const guestId = req.headers["x-guest-id"];
       const userId = req.user?.id;
-
-      console.log("========== WISHLIST SYNC ==========");
-      console.log("guestId:", guestId);
-      console.log("userId:", userId);
-
       const user = await User.findById(userId);
 
-      console.log(
-        "USER WISHLIST:",
-        user?.wishlist
-      );
 
       const guest = guestId
         ? await Guest.findOne({ guestId })
         : null;
 
-      console.log(
-        "GUEST FOUND:",
-        !!guest
-      );
-
-      console.log(
-        "GUEST ID:",
-        guest?.guestId
-      );
-
-      console.log(
-        "GUEST WISHLIST:",
-        guest?.wishlist
-      );
 
       if (!user) {
         return res.status(404).json({
@@ -354,15 +335,7 @@ router.post(
           ? guest.wishlist.map(String)
           : [];
 
-      console.log(
-        "EXISTING:",
-        existingWishlist
-      );
 
-      console.log(
-        "GUEST:",
-        guestWishlist
-      );
 
       if (guestWishlist.length) {
         const products =
@@ -374,11 +347,6 @@ router.post(
           })
             .select("publicId")
             .lean();
-
-        console.log(
-          "MATCHED PRODUCTS:",
-          products
-        );
 
         const validPublicIds =
           new Set(
@@ -393,22 +361,12 @@ router.post(
           );
       }
 
-      console.log(
-        "VALID GUEST:",
-        guestWishlist
-      );
-
       const merged = [
         ...new Set([
           ...existingWishlist,
           ...guestWishlist,
         ]),
       ];
-
-      console.log(
-        "FINAL MERGED:",
-        merged
-      );
 
       user.wishlist = merged;
 

@@ -7,7 +7,7 @@ import React, {
   useState,
   useCallback,
 } from "react";
-
+import { useLocation } from "react-router-dom";
 import {
   useAddWishlistMutation,
   useGetWishlistQuery,
@@ -52,7 +52,8 @@ const writeLocal = (items) => {
 
 export const WishlistProvider = ({ children }) => {
   const { user, guestId } = useAuth();
-
+const location = useLocation();
+const isAdmin = location.pathname.startsWith("/admin");
   const isGuest = !user;
 
   /* =====================================================
@@ -67,14 +68,14 @@ export const WishlistProvider = ({ children }) => {
      SERVER WISHLIST
   ===================================================== */
 
-  const {
-    data,
-    isLoading,
-    isFetching,
-    refetch,
-  } = useGetWishlistQuery(undefined, {
-    skip: !user && !guestId,
-  });
+const {
+  data,
+  isLoading,
+  isFetching,
+  refetch,
+} = useGetWishlistQuery(undefined, {
+  skip: isAdmin || (!user && !guestId),
+});
 
   /* =====================================================
      MUTATIONS
@@ -138,7 +139,7 @@ export const WishlistProvider = ({ children }) => {
   ===================================================== */
 
   useEffect(() => {
-    if (!user || !guestId) return;
+    if (isAdmin || !user || !guestId) return;
 
     let cancelled = false;
 
@@ -189,6 +190,7 @@ export const WishlistProvider = ({ children }) => {
       cancelled = true;
     };
   }, [
+     isAdmin,
     user,
     guestId,
     syncWishlist,
@@ -483,3 +485,4 @@ export const WishlistProvider = ({ children }) => {
 
 export const useWishlist = () =>
   useContext(WishlistContext);
+

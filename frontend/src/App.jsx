@@ -94,7 +94,7 @@ export default function App() {
             <Route path="/newarrivals" element={<NewArrivals />} />
             <Route path="/wishlist" element={<WishlistPage />} />
             <Route path="/return" element={<ReturnExchange />} />
-            <Route path="/thankyou/:id" element={<ThankYouPage />} />
+            <Route path="/thankyou/:publicOrderId" element={<ThankYouPage />} />
             <Route  path="/search"  element={<SearchResultsPage />}/>
             <Route path="/build-your-look"  element={<BuildYourLookPage />}/>
             <Route

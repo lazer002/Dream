@@ -65,22 +65,36 @@ const formatPrice = (value) =>
   `₹${Number(value || 0).toLocaleString("en-IN")}`;
 
 const getStock = (product) => {
+  if (!product) return 0;
+
   const inventory = product?.inventory;
 
-  if (!inventory) return 0;
+  if (!inventory || typeof inventory !== "object") {
+    return 0;
+  }
 
   if (inventory.trackInventory === false) {
     return Infinity;
   }
 
-  return Math.max(
-    0,
-    Number(inventory.available) || 0
-  );
+  const stock = inventory.stock &&
+    typeof inventory.stock === "object"
+      ? inventory.stock
+      : inventory;
+
+  return Object.values(stock).reduce((total, value) => {
+    const number = Number(value);
+
+    return Number.isFinite(number) && number > 0
+      ? total + number
+      : total;
+  }, 0);
 };
 
 const isSoldOut = (product) => {
-  if (product?.inventory?.trackInventory === false) {
+  if (!product) return true;
+
+  if (product.inventory?.trackInventory === false) {
     return false;
   }
 
@@ -88,15 +102,19 @@ const isSoldOut = (product) => {
 };
 
 const getStockLabel = (product) => {
-  if (
-    product?.inventory?.trackInventory === false
-  ) {
+  if (!product) {
+    return "Unavailable";
+  }
+
+  if (product.inventory?.trackInventory === false) {
     return "In stock";
   }
 
   const stock = getStock(product);
 
-  if (stock <= 0) return "Sold out";
+  if (stock <= 0) {
+    return "Sold out";
+  }
 
   if (stock <= 3) {
     return `Only ${stock} left`;
@@ -484,13 +502,10 @@ function QuickView({
 
                   {product.sizes.map(
                     (size) => {
-                      const stock =
-                        Number(
-                          product.inventory
-                            ?.stock?.[
-                            size.name
-                          ]
-                        ) || 0;
+                  const stock = Number(
+  product.inventory?.stock?.[size.name] ??
+  product.inventory?.[size.name]
+) || 0;
 
                       const disabled =
                         product.inventory

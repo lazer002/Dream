@@ -1,7 +1,7 @@
 // src/pages/ProductDetail.jsx
 
 import { useState, useEffect, useRef } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate,useLocation } from "react-router-dom";
 import { useCart } from "../state/CartContext.jsx";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +37,7 @@ export default function ProductDetail() {
     useWishlist();
 
   const { publicId } = useParams();
+  const location = useLocation();
   const navigate = useNavigate();
   const { add } = useCart();
 
@@ -97,6 +98,9 @@ export default function ProductDetail() {
 
   const touchStartX = useRef(null);
   const touchEndX = useRef(null);
+const fromBuildYourLook =
+  location.state?.fromBuildYourLook === true;
+console.log('✌️fromBuildYourLook --->', fromBuildYourLook);
 
   const [zoomPosition, setZoomPosition] =
     useState({
@@ -481,6 +485,18 @@ export default function ProductDetail() {
 
   return (
     <>
+        {fromBuildYourLook && (
+      <div className="px-4 pt-4 md:px-6 md:pt-5">
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          className="inline-flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.12em] text-neutral-500 transition hover:text-black"
+        >
+          <ChevronLeft className="h-4 w-4" />
+          Back to Your Look
+        </button>
+      </div>
+    )}
       <div
         className="
     flex flex-col

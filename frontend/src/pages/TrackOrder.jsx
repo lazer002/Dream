@@ -6,7 +6,10 @@ import React, {
   useState,
 } from "react";
 
-import { Link } from "react-router-dom";
+import {
+  Link,
+  useSearchParams,
+} from "react-router-dom";
 
 import {
   ArrowLeft,
@@ -1154,6 +1157,8 @@ function ActionsCard({
 ========================================================= */
 
 export default function TrackOrder() {
+  const [searchParams] = useSearchParams();
+
   const [email, setEmail] =
     useState("");
 
@@ -1211,6 +1216,72 @@ export default function TrackOrder() {
       );
     }
   }, []);
+
+
+useEffect(() => {
+  const urlOrderNumber = searchParams
+    .get("orderNumber")
+    ?.trim()
+    .toUpperCase();
+
+  if (!urlOrderNumber) return;
+
+  setOrderNumber(urlOrderNumber);
+
+  const fetchOrderFromUrl = async () => {
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await api.get(
+        `/orders/track?orderNumber=${encodeURIComponent(
+          urlOrderNumber
+        )}`
+      );
+
+      const found =
+        response.data?.order ||
+        response.data?.data ||
+        (
+          response.data &&
+          !Array.isArray(response.data)
+            ? response.data
+            : null
+        );
+
+      if (!found) {
+        setError(
+          response.data?.message ||
+            "We couldn't find this order."
+        );
+        return;
+      }
+
+      setOrder(found);
+
+      if (remember) {
+        localStorage.setItem(
+          "track_order_last",
+          JSON.stringify({
+            email: found.email || "",
+            orderNumber: urlOrderNumber,
+          })
+        );
+      }
+    } catch (err) {
+      setError(
+        err?.response?.data?.message ||
+          err?.response?.data?.error ||
+          "We couldn't find this order."
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  fetchOrderFromUrl();
+}, [searchParams]);
+
 
   /* =======================================================
      SEARCH

@@ -1,18 +1,10 @@
-import { useEffect, useState } from "react";
-import { useAuth } from "../../state/AuthContext.jsx";
+import { useMemo, useState } from "react";
 import {
   Card,
   CardContent,
 } from "@/components/ui/card";
-import {
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-} from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -28,8 +20,18 @@ import {
   Plus,
   Image as ImageIcon,
   Loader2,
+  RefreshCw,
+  FolderTree,
+  X,
 } from "lucide-react";
-import api from "@/utils/config";
+
+import {
+  useGetAdminCategoriesQuery,
+  useCreateCategoryMutation,
+  useUpdateCategoryMutation,
+  useDeleteCategoryMutation,
+  useUploadAdminImagesMutation,
+} from "@/store/api";
 
 const EMPTY_FORM = {
   name: "",
@@ -37,76 +39,59 @@ const EMPTY_FORM = {
   photo: null,
 };
 
+const createSlug = (value = "") =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s-]/g, "")
+    .replace(/\s+/g, "-")
+    .replace(/-+/g, "-");
+
 export default function CategoriesAdmin() {
-  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
 
-  const [categories, setCategories] =
-    useState([]);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [editId, setEditId] = useState(null);
+  const [deleteId, setDeleteId] = useState(null);
+  const [preview, setPreview] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  const {
+    data: categoriesResponse,
+    isLoading,
+    isFetching,
+    refetch,
+  } = useGetAdminCategoriesQuery();
 
-  const [saving, setSaving] =
-    useState(false);
+  const [createCategory, { isLoading: creating }] =
+    useCreateCategoryMutation();
 
-  const [deleting, setDeleting] =
-    useState(false);
+  const [updateCategory, { isLoading: updating }] =
+    useUpdateCategoryMutation();
 
-  const [open, setOpen] =
-    useState(false);
+  const [deleteCategory, { isLoading: deleting }] =
+    useDeleteCategoryMutation();
 
-  const [deleteOpen, setDeleteOpen] =
-    useState(false);
+  const [uploadAdminImages, { isLoading: uploading }] =
+    useUploadAdminImagesMutation();
 
-  const [form, setForm] =
-    useState(EMPTY_FORM);
-
-  const [editId, setEditId] =
-    useState(null);
-
-  const [deleteId, setDeleteId] =
-    useState(null);
-
-  const [preview, setPreview] =
-    useState(null);
-
-  const fetchCategories = async () => {
-    setLoading(true);
-
-    try {
-      const { data } =
-        await api.get(
-          "/admin/getCategory"
-        );
-
-      if (data?.success) {
-        setCategories(
-          Array.isArray(data.categories)
-            ? data.categories
-            : []
-        );
-      } else {
-        setCategories([]);
-      }
-    } catch (error) {
-      console.error(
-        "FETCH CATEGORIES ERROR:",
-        error
-      );
-    } finally {
-      setLoading(false);
+  const categories = useMemo(() => {
+    if (Array.isArray(categoriesResponse)) {
+      return categoriesResponse;
     }
-  };
 
-  useEffect(() => {
-    fetchCategories();
-  }, []);
+    return (
+      categoriesResponse?.categories ||
+      categoriesResponse?.items ||
+      categoriesResponse?.data ||
+      []
+    );
+  }, [categoriesResponse]);
+
+  const saving = creating || updating || uploading;
 
   const resetForm = () => {
-    setForm({
-      ...EMPTY_FORM,
-    });
-
+    setForm({ ...EMPTY_FORM });
     setEditId(null);
     setPreview(null);
   };
@@ -132,10 +117,7 @@ export default function CategoriesAdmin() {
       photo: null,
     });
 
-    setPreview(
-      category.photo || null
-    );
-
+    setPreview(category.photo || null);
     setOpen(true);
   };
 
@@ -146,12 +128,7 @@ export default function CategoriesAdmin() {
       slug:
         editId || prev.slug
           ? prev.slug
-          : value
-              .toLowerCase()
-              .trim()
-              .replace(/[^a-z0-9\s-]/g, "")
-              .replace(/\s+/g, "-")
-              .replace(/-+/g, "-"),
+          : createSlug(value),
     }));
   };
 
@@ -164,10 +141,12 @@ export default function CategoriesAdmin() {
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      alert(
-        "Image must be smaller than 5MB"
-      );
+      alert("Image must be smaller than 5MB");
       return;
+    }
+
+    if (preview?.startsWith("blob:")) {
+      URL.revokeObjectURL(preview);
     }
 
     setForm((prev) => ({
@@ -175,10 +154,28 @@ export default function CategoriesAdmin() {
       photo: file,
     }));
 
-    const objectUrl =
-      URL.createObjectURL(file);
+    setPreview(URL.createObjectURL(file));
+  };
 
-    setPreview(objectUrl);
+  const removeSelectedPhoto = () => {
+    if (preview?.startsWith("blob:")) {
+      URL.revokeObjectURL(preview);
+    }
+
+    setForm((prev) => ({
+      ...prev,
+      photo: null,
+    }));
+
+    if (editId) {
+      const existing = categories.find(
+        (category) => category._id === editId
+      );
+
+      setPreview(existing?.photo || null);
+    } else {
+      setPreview(null);
+    }
   };
 
   const uploadPhoto = async () => {
@@ -188,68 +185,38 @@ export default function CategoriesAdmin() {
 
     const imageData = new FormData();
 
-    imageData.append(
-      "files",
-      form.photo
-    );
+    imageData.append("files", form.photo);
 
-    const { data } =
-      await api.post(
-        "/admin/upload/images",
-        imageData,
-        {
-          headers: {
-            "Content-Type":
-              "multipart/form-data",
-          },
-        }
-      );
-
-    console.log(
-      "IMAGE UPLOAD RESPONSE:",
-      data
-    );
+    const response = await uploadAdminImages(
+      imageData
+    ).unwrap();
 
     return (
-      data?.url ||
-      data?.image?.url ||
-      data?.images?.[0]?.url ||
-      data?.files?.[0]?.url ||
-      data?.data?.url ||
+      response?.url ||
+      response?.image?.url ||
+      response?.images?.[0]?.url ||
+      response?.files?.[0]?.url ||
+      response?.data?.url ||
       null
     );
   };
 
   const saveCategory = async () => {
-    const name =
-      form.name.trim();
+    const name = form.name.trim();
 
     if (!name) {
-      alert(
-        "Category name is required"
-      );
+      alert("Category name is required");
       return;
     }
 
     const slug =
-      form.slug.trim() ||
-      name
-        .toLowerCase()
-        .replace(
-          /[^a-z0-9\s-]/g,
-          ""
-        )
-        .replace(/\s+/g, "-")
-        .replace(/-+/g, "-");
-
-    setSaving(true);
+      form.slug.trim() || createSlug(name);
 
     try {
       let photoUrl = null;
 
       if (form.photo) {
-        photoUrl =
-          await uploadPhoto();
+        photoUrl = await uploadPhoto();
 
         if (!photoUrl) {
           throw new Error(
@@ -268,53 +235,26 @@ export default function CategoriesAdmin() {
           : {}),
       };
 
-      console.log(
-        "CATEGORY PAYLOAD:",
-        payload
-      );
-
-      let response;
-
       if (editId) {
-        response =
-          await api.put(
-            `/admin/category/${editId}`,
-            payload
-          );
+        await updateCategory({
+          id: editId,
+          data: payload,
+        }).unwrap();
       } else {
-        response =
-          await api.post(
-            "/admin/createCategory",
-            payload
-          );
-      }
-
-      if (!response?.data?.success) {
-        throw new Error(
-          response?.data?.message ||
-            response?.data?.error ||
-            "Category save failed"
-        );
+        await createCategory(payload).unwrap();
       }
 
       setOpen(false);
       resetForm();
-
-      await fetchCategories();
     } catch (error) {
-      console.error(
-        "SAVE CATEGORY ERROR:",
-        error
-      );
+      console.error("SAVE CATEGORY ERROR:", error);
 
       alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error ||
+        error?.data?.message ||
+          error?.data?.error ||
           error?.message ||
           "Something went wrong"
       );
-    } finally {
-      setSaving(false);
     }
   };
 
@@ -326,208 +266,217 @@ export default function CategoriesAdmin() {
   const confirmDelete = async () => {
     if (!deleteId) return;
 
-    setDeleting(true);
-
     try {
-      const { data } =
-        await api.delete(
-          `/admin/category/${deleteId}`
-        );
-
-      if (!data?.success) {
-        throw new Error(
-          data?.message ||
-            data?.error ||
-            "Delete failed"
-        );
-      }
+      await deleteCategory(deleteId).unwrap();
 
       setDeleteOpen(false);
       setDeleteId(null);
-
-      await fetchCategories();
     } catch (error) {
-      console.error(
-        "DELETE CATEGORY ERROR:",
-        error
-      );
+      console.error("DELETE CATEGORY ERROR:", error);
 
       alert(
-        error?.response?.data?.message ||
-          error?.response?.data?.error ||
+        error?.data?.message ||
+          error?.data?.error ||
           error?.message ||
           "Something went wrong"
       );
-    } finally {
-      setDeleting(false);
     }
   };
 
   return (
-    <div className="mx-auto py-4">
-      <Card className="overflow-hidden border-gray-200 shadow-sm">
-        {/* HEADER */}
-        <div className="flex items-center justify-between border-b px-6 py-5">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight">
-              Categories
-            </h1>
+    <div className="mx-auto w-full p-6 sm:p-8">
+      {/* HEADER */}
+      <div className="mb-8 flex flex-col gap-5 md:flex-row md:items-end md:justify-between">
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-black text-white">
+              <FolderTree className="h-4 w-4" />
+            </div>
 
-            <p className="mt-1 text-sm text-gray-500">
-              Manage your product categories
-            </p>
+            <span className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400">
+              Catalog
+            </span>
           </div>
+
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">
+            Categories
+          </h1>
+
+          <p className="mt-1 text-sm text-gray-500">
+            Organize and manage your product categories.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="h-10 rounded-full border-gray-200"
+          >
+            <RefreshCw
+              className={`mr-2 h-4 w-4 ${
+                isFetching ? "animate-spin" : ""
+              }`}
+            />
+            Refresh
+          </Button>
 
           <Button
             onClick={openCreateModal}
-            className="
-              gap-2
-              bg-blue-800
-              text-white
-              hover:bg-blue-900
-            "
+            className="h-10 rounded-full bg-black px-5 text-white hover:bg-gray-800"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="mr-2 h-4 w-4" />
             Add Category
           </Button>
         </div>
+      </div>
 
+      {/* STAT */}
+      <div className="mb-6 grid grid-cols-1 sm:grid-cols-3">
+        <Card className="rounded-2xl border-gray-100 shadow-sm">
+          <CardContent className="flex items-center justify-between p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
+                Total Categories
+              </p>
+
+              <p className="mt-2 text-3xl font-bold text-gray-900">
+                {categories.length}
+              </p>
+            </div>
+
+            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gray-100">
+              <FolderTree className="h-5 w-5 text-gray-700" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* TABLE */}
+      <Card className="overflow-hidden rounded-2xl border-gray-100 bg-white shadow-sm">
         <CardContent className="p-0">
-          {loading ? (
-            <div className="flex min-h-[250px] items-center justify-center">
-              <Loader2 className="h-6 w-6 animate-spin text-blue-800" />
+          <div className="hidden grid-cols-[minmax(240px,1fr)_220px_120px_150px] border-b bg-gray-50/80 px-5 py-3 text-xs font-semibold uppercase tracking-wide text-gray-400 md:grid">
+            <span>Category</span>
+            <span>Slug</span>
+            <span>Photo</span>
+            <span className="text-right">Actions</span>
+          </div>
+
+          {isLoading ? (
+            <div className="flex min-h-[300px] items-center justify-center">
+              <Loader2 className="h-6 w-6 animate-spin text-gray-400" />
             </div>
           ) : categories.length === 0 ? (
-            <div className="flex min-h-[250px] flex-col items-center justify-center">
-              <ImageIcon className="mb-3 h-10 w-10 text-gray-300" />
+            <div className="flex min-h-[300px] flex-col items-center justify-center px-6 text-center">
+              <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-gray-100">
+                <FolderTree className="h-6 w-6 text-gray-400" />
+              </div>
 
-              <p className="text-sm font-medium text-gray-600">
+              <p className="font-semibold text-gray-900">
                 No categories found
               </p>
 
-              <p className="mt-1 text-xs text-gray-400">
-                Create your first category
+              <p className="mt-1 text-sm text-gray-500">
+                Create your first product category.
               </p>
+
+              <Button
+                onClick={openCreateModal}
+                className="mt-5 rounded-full bg-black text-white hover:bg-gray-800"
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Add Category
+              </Button>
             </div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>
-                    Name
-                  </TableHead>
+            <div className="divide-y divide-gray-100">
+              {categories.map((category) => (
+                <div
+                  key={category._id}
+                  className="group flex flex-col gap-4 px-5 py-5 transition-colors hover:bg-gray-50/70 md:grid md:grid-cols-[minmax(240px,1fr)_220px_120px_150px] md:items-center"
+                >
+                  {/* CATEGORY */}
+                  <div className="flex items-center gap-3">
+                    {category.photo ? (
+                      <img
+                        src={category.photo}
+                        alt={category.name || "Category"}
+                        className="h-12 w-12 shrink-0 rounded-xl object-cover ring-1 ring-gray-200"
+                        onError={(event) => {
+                          event.currentTarget.style.display =
+                            "none";
+                        }}
+                      />
+                    ) : (
+                      <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-gray-100">
+                        <ImageIcon className="h-5 w-5 text-gray-400" />
+                      </div>
+                    )}
 
-                  <TableHead>
-                    Slug
-                  </TableHead>
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-gray-900">
+                        {category.name || "Unnamed Category"}
+                      </p>
 
-                  <TableHead>
-                    Photo
-                  </TableHead>
+                      <p className="mt-1 text-xs text-gray-400">
+                        Category
+                      </p>
+                    </div>
+                  </div>
 
-                  <TableHead className="text-right">
-                    Actions
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {categories.map(
-                  (category) => (
-                    <TableRow
-                      key={category._id}
+                  {/* SLUG */}
+                  <div>
+                    <Badge
+                      variant="secondary"
+                      className="rounded-full bg-gray-100 px-3 py-1 font-mono text-xs font-medium text-gray-600"
                     >
-                      <TableCell className="font-medium">
-                        {category.name}
-                      </TableCell>
+                      {category.slug || "-"}
+                    </Badge>
+                  </div>
 
-                      <TableCell>
-                        <span className="rounded-md bg-gray-100 px-2 py-1 text-xs text-gray-600">
-                          {category.slug ||
-                            "-"}
-                        </span>
-                      </TableCell>
+                  {/* PHOTO */}
+                  <div>
+                    {category.photo ? (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-green-600">
+                        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+                        Uploaded
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-gray-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-gray-300" />
+                        No photo
+                      </span>
+                    )}
+                  </div>
 
-                      <TableCell>
-                        {category.photo ? (
-                          <img
-                            src={
-                              category.photo
-                            }
-                            alt={
-                              category.name
-                            }
-                            className="
-                              h-12
-                              w-12
-                              rounded-lg
-                              object-cover
-                              ring-1
-                              ring-gray-200
-                            "
-                            onError={(
-                              event
-                            ) => {
-                              event.currentTarget.style.display =
-                                "none";
-                            }}
-                          />
-                        ) : (
-                          <div className="
-                            flex
-                            h-12
-                            w-12
-                            items-center
-                            justify-center
-                            rounded-lg
-                            bg-gray-100
-                          ">
-                            <ImageIcon className="h-5 w-5 text-gray-400" />
-                          </div>
-                        )}
-                      </TableCell>
+                  {/* ACTIONS */}
+                  <div className="flex justify-end gap-2">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      onClick={() =>
+                        openEditModal(category)
+                      }
+                      className="h-9 w-9 rounded-full border-gray-200 text-gray-600 hover:border-black hover:bg-black hover:text-white"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
 
-                      <TableCell>
-                        <div className="flex justify-end gap-2">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            onClick={() =>
-                              openEditModal(
-                                category
-                              )
-                            }
-                            className="
-                              border-blue-800
-                              text-blue-800
-                              hover:bg-blue-50
-                            "
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-
-                          <Button
-                            size="icon"
-                            onClick={() =>
-                              openDeleteModal(
-                                category._id
-                              )
-                            }
-                            className="
-                              bg-blue-800
-                              text-white
-                              hover:bg-blue-900
-                            "
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  )
-                )}
-              </TableBody>
-            </Table>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() =>
+                        openDeleteModal(category._id)
+                      }
+                      className="h-9 w-9 rounded-full text-gray-400 hover:bg-red-50 hover:text-red-600"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
           )}
         </CardContent>
       </Card>
@@ -543,21 +492,17 @@ export default function CategoriesAdmin() {
           }
         }}
       >
-        <DialogContent className="w-full max-w-md overflow-hidden rounded-2xl bg-white p-0">
+        <DialogContent className="max-w-md overflow-hidden rounded-2xl bg-white p-0">
           <DialogHeader className="border-b px-6 py-5">
             <DialogTitle className="text-xl font-semibold text-gray-900">
-              {editId
-                ? "Edit Category"
-                : "Add Category"}
+              {editId ? "Edit Category" : "Add Category"}
             </DialogTitle>
           </DialogHeader>
 
           <div className="space-y-5 px-6 py-6">
             {/* NAME */}
             <div className="space-y-2">
-              <Label>
-                Category Name
-              </Label>
+              <Label>Category Name</Label>
 
               <Input
                 value={form.name}
@@ -573,9 +518,7 @@ export default function CategoriesAdmin() {
 
             {/* SLUG */}
             <div className="space-y-2">
-              <Label>
-                Slug
-              </Label>
+              <Label>Slug</Label>
 
               <Input
                 value={form.slug}
@@ -584,26 +527,21 @@ export default function CategoriesAdmin() {
                 onChange={(event) =>
                   setForm((prev) => ({
                     ...prev,
-                    slug: event.target.value
-                      .toLowerCase()
-                      .replace(
-                        /[^a-z0-9-]/g,
-                        "-"
-                      )
-                      .replace(
-                        /-+/g,
-                        "-"
-                      ),
+                    slug: createSlug(
+                      event.target.value
+                    ),
                   }))
                 }
               />
+
+              <p className="text-xs text-gray-400">
+                Used in category URLs.
+              </p>
             </div>
 
             {/* PHOTO */}
             <div className="space-y-2">
-              <Label>
-                Category Photo
-              </Label>
+              <Label>Category Photo</Label>
 
               <Input
                 type="file"
@@ -617,68 +555,33 @@ export default function CategoriesAdmin() {
               />
 
               {preview && (
-                <div className="relative mt-3 w-fit">
+                <div className="relative mt-4 w-fit">
                   <img
                     src={preview}
-                    alt="Preview"
-                    className="
-                      h-28
-                      w-28
-                      rounded-xl
-                      object-cover
-                      ring-1
-                      ring-gray-200
-                    "
+                    alt="Category preview"
+                    className="h-32 w-32 rounded-xl object-cover ring-1 ring-gray-200"
                   />
 
                   <button
                     type="button"
                     disabled={saving}
-                    onClick={() => {
-                      setForm(
-                        (prev) => ({
-                          ...prev,
-                          photo: null,
-                        })
-                      );
-
-                      setPreview(
-                        editId
-                          ? categories.find(
-                              (c) =>
-                                c._id ===
-                                editId
-                            )?.photo ||
-                              null
-                          : null
-                      );
-                    }}
-                    className="
-                      absolute
-                      -right-2
-                      -top-2
-                      flex
-                      h-6
-                      w-6
-                      items-center
-                      justify-center
-                      rounded-full
-                      bg-black
-                      text-xs
-                      text-white
-                    "
+                    onClick={removeSelectedPhoto}
+                    className="absolute -right-2 -top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black text-white shadow-sm transition hover:bg-red-600"
                   >
-                    ×
+                    <X className="h-3.5 w-3.5" />
                   </button>
                 </div>
               )}
 
               {editId && !form.photo && (
                 <p className="text-xs text-gray-400">
-                  Leave empty to keep the
-                  existing photo.
+                  Leave empty to keep the existing photo.
                 </p>
               )}
+
+              <p className="text-xs text-gray-400">
+                JPG, PNG, WEBP · Maximum 5MB
+              </p>
             </div>
           </div>
 
@@ -687,11 +590,7 @@ export default function CategoriesAdmin() {
               variant="outline"
               disabled={saving}
               onClick={closeForm}
-              className="
-                border-blue-800
-                text-blue-800
-                hover:bg-blue-50
-              "
+              className="rounded-full border-gray-200"
             >
               Cancel
             </Button>
@@ -699,22 +598,19 @@ export default function CategoriesAdmin() {
             <Button
               disabled={saving}
               onClick={saveCategory}
-              className="
-                min-w-24
-                bg-blue-800
-                text-white
-                hover:bg-blue-900
-              "
+              className="min-w-28 rounded-full bg-black text-white hover:bg-gray-800"
             >
               {saving ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Saving
+                  {uploading
+                    ? "Uploading"
+                    : "Saving"}
                 </>
               ) : editId ? (
-                "Update"
+                "Update Category"
               ) : (
-                "Save"
+                "Create Category"
               )}
             </Button>
           </DialogFooter>
@@ -741,24 +637,19 @@ export default function CategoriesAdmin() {
             </DialogTitle>
           </DialogHeader>
 
-          <p className="text-sm leading-6 text-gray-600">
-            Are you sure you want to delete
-            this category? This action cannot
-            be undone.
-          </p>
+          <div className="py-2">
+            <p className="text-sm leading-6 text-gray-600">
+              Are you sure you want to delete this
+              category? This action cannot be undone.
+            </p>
+          </div>
 
           <DialogFooter className="gap-2">
             <Button
               variant="outline"
               disabled={deleting}
-              onClick={() =>
-                setDeleteOpen(false)
-              }
-              className="
-                border-blue-800
-                text-blue-800
-                hover:bg-blue-50
-              "
+              onClick={() => setDeleteOpen(false)}
+              className="rounded-full"
             >
               Cancel
             </Button>
@@ -766,11 +657,7 @@ export default function CategoriesAdmin() {
             <Button
               disabled={deleting}
               onClick={confirmDelete}
-              className="
-                bg-red-600
-                text-white
-                hover:bg-red-700
-              "
+              className="rounded-full bg-red-600 text-white hover:bg-red-700"
             >
               {deleting ? (
                 <>
@@ -778,7 +665,10 @@ export default function CategoriesAdmin() {
                   Deleting
                 </>
               ) : (
-                "Delete"
+                <>
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </>
               )}
             </Button>
           </DialogFooter>

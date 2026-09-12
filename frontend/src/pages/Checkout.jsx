@@ -229,7 +229,7 @@ export default function CheckoutPage() {
           .map((i) => {
             if (i.product) {
               return {
-                productId: i.product._id,
+                productId: i.product.publicId,
                 quantity: i.quantity,
                 variant: i.size || "",
               };
@@ -237,11 +237,11 @@ export default function CheckoutPage() {
 
             if (i.bundle) {
               return {
-                bundleId: i.bundle._id,
+               bundleId: i.bundle.publicId,
                 quantity: i.quantity,
                 mainImage: i.mainImage || "default.jpg",
                 bundleProducts: (i.bundleProducts || []).map((bp) => ({
-                  productId: bp.product._id,
+                  productId: bp.publicId,
                   quantity: bp.quantity || 1,
                   variant: bp.size || "",
                 })),
@@ -338,7 +338,7 @@ export default function CheckoutPage() {
                 await clearCart();
               }
 
-              navigate("/thankyou/" + data.orderId);
+              navigate("/thankyou/" + data.publicOrderId);
             } else {
               toast.error("Verification failed");
             }
@@ -405,53 +405,55 @@ export default function CheckoutPage() {
         return;
       }
 
-      const orderItems = items
-        .map((i) => {
-          if (i.bundle) {
-            return {
-              bundleId: i.bundle._id,
-              quantity: i.quantity,
-              mainImage: i.mainImage,
+ const orderItems = items
+  .map((i) => {
 
-              bundleProducts: (i.bundleProducts || []).map(
-                (bp) => ({
-                  productId: bp.product._id,
-                  variant: bp.size || "",
-                  quantity: bp.quantity || 1,
-                })
-              ),
-            };
-          }
+    // CUSTOM BUNDLE FIRST
+    if (i.customBundle || i.isCustomBundle === true) {
+      const bundle = i.customBundle || i.bundle;
 
-          if (i.customBundle) {
-            return {
-              customBundle: true,
-              title: i.customBundle.title,
-              price: i.customBundle.price,
-              quantity: i.quantity,
-              mainImage: i.mainImage,
+      return {
+        customBundle: true,
+        title: bundle?.title || "My Custom Look",
+        price: bundle?.price || 0,
+        quantity: i.quantity,
+        mainImage: i.mainImage || bundle?.mainImage,
 
-              bundleProducts: (i.bundleProducts || []).map(
-                (bp) => ({
-                  productId: bp.product._id,
-                  variant: bp.size || "",
-                  quantity: bp.quantity || 1,
-                })
-              ),
-            };
-          }
+        bundleProducts: (i.bundleProducts || []).map((bp) => ({
+          productId: bp.publicId,
+          variant: bp.size || "",
+          quantity: bp.quantity || 1,
+        })),
+      };
+    }
 
-          if (i.product) {
-            return {
-              productId: i.product._id,
-              quantity: Number(i.quantity) || 1,
-              variant: i.size || "",
-            };
-          }
+    // NORMAL BUNDLE
+    if (i.bundle) {
+      return {
+        bundleId: i.bundle.publicId,
+        quantity: i.quantity,
+        mainImage: i.mainImage || i.bundle.mainImage,
 
-          return null;
-        })
-        .filter(Boolean);
+        bundleProducts: (i.bundleProducts || []).map((bp) => ({
+          productId: bp.publicId,
+          variant: bp.size || "",
+          quantity: bp.quantity || 1,
+        })),
+      };
+    }
+
+    // NORMAL PRODUCT
+    if (i.product) {
+      return {
+        productId: i.product.publicId,
+        quantity: Number(i.quantity) || 1,
+        variant: i.size || "",
+      };
+    }
+
+    return null;
+  })
+  .filter(Boolean);
 
       const orderData = {
         items: orderItems,
@@ -520,7 +522,7 @@ export default function CheckoutPage() {
         );
       }
 
-      navigate("/thankyou/" + data.orderId);
+      navigate("/thankyou/" + data.publicOrderId);
     } catch (err) {
       console.error("COD Order Error:", err);
       toast.error(
@@ -1177,10 +1179,13 @@ export default function CheckoutPage() {
                         item.size || "default"
                       }`;
 
-                  const imageSrc = isBundle
-                    ? item.mainImage ||
-                      item.bundle?.images?.[0]
-                    : item.product?.images?.[0];
+                 const imageSrc = isBundle
+  ? item.mainImage ||
+    item.bundle?.mainImage ||
+    item.bundle?.images?.[0] ||
+    "/placeholder.jpg"
+  : item.product?.images?.[0] ||
+    "/placeholder.jpg";
 
                   const title = item.bundle
                     ? item.bundle.title
@@ -1267,47 +1272,34 @@ export default function CheckoutPage() {
                               />
                             </button>
 
-                            {openBundles[key] && (
-                              <div className="mt-3 ml-2 space-y-3 border-l border-gray-200 pl-4">
-                                {item.bundleProducts.map(
-                                  (bp, i) => (
-                                    <div
-                                      key={i}
-                                      className="flex items-center gap-3"
-                                    >
-                                      <img
-                                        src={
-                                          bp.product
-                                            .images?.[0]
-                                        }
-                                        alt={
-                                          bp.product
-                                            .title
-                                        }
-                                        className="h-10 w-10 rounded-lg object-cover"
-                                      />
+                     {openBundles[key] && (
+  <div className="mt-3 ml-2 space-y-3 border-l border-gray-200 pl-4">
+    {item.bundleProducts.map((bp, i) => (
+      <div
+        key={bp.publicId || i}
+        className="flex items-center gap-3"
+      >
+        <img
+          src={bp.image || "/placeholder.jpg"}
+          alt={bp.title}
+          className="h-10 w-10 rounded-lg object-cover"
+        />
 
-                                      <div className="min-w-0">
-                                        <p className="line-clamp-1 text-xs font-semibold">
-                                          {
-                                            bp
-                                              .product
-                                              .title
-                                          }
-                                        </p>
+        <div className="min-w-0">
+          <p className="line-clamp-1 text-xs font-semibold">
+            {bp.title}
+          </p>
 
-                                        {bp.size && (
-                                          <p className="mt-0.5 text-[10px] text-gray-500">
-                                            Size{" "}
-                                            {bp.size}
-                                          </p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  )
-                                )}
-                              </div>
-                            )}
+          {bp.size && (
+            <p className="mt-0.5 text-[10px] text-gray-500">
+              Size {bp.size}
+            </p>
+          )}
+        </div>
+      </div>
+    ))}
+  </div>
+)}
                           </div>
                         )}
                     </div>

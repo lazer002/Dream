@@ -8,6 +8,7 @@ import {
   ShoppingBag,
   Check,
   Plus,
+  Search,
 } from "lucide-react";
 
 import { useCart } from "@/state/CartContext";
@@ -22,6 +23,9 @@ const BuildYourLookPage = () => {
     isLoading: productsLoading,
     isError: productsError,
   } = useGetProductsQuery();
+const MIN_ITEMS = 2;
+const MAX_ITEMS = 3;
+
 
   const {
     data: categoriesData,
@@ -32,12 +36,12 @@ const BuildYourLookPage = () => {
     ? productsData.items
     : [];
 
-  const categories = Array.isArray(categoriesData?.categories)
-    ? categoriesData.categories
-    : [];
+ const categories = Array.isArray(categoriesData)
+  ? categoriesData
+  : [];
 
   const loading = productsLoading || categoriesLoading;
-
+const [searchQuery, setSearchQuery] = useState("");
   const [showLookDrawer, setShowLookDrawer] = useState(false);
   const [activeCategory, setActiveCategory] = useState("all");
 
@@ -85,62 +89,90 @@ const BuildYourLookPage = () => {
     }
   }, [productsError]);
 
-  const filteredProducts = useMemo(() => {
-    const list =
-      activeCategory === "all"
-        ? products
-        : products.filter(
-            (product) =>
-              String(product.category?._id) ===
-              String(activeCategory)
-          );
+const filteredProducts = useMemo(() => {
+  const query = searchQuery.trim().toLowerCase();
 
-    const selectedIds = new Set(
-      selectedProducts.map((p) => String(p._id))
+  const list =
+    activeCategory === "all"
+      ? products
+      : products.filter(
+          (product) =>
+            String(product.category?._id) === String(activeCategory)
+        );
+
+  const searched = query
+    ? list.filter((product) => {
+        const title = String(product.title || "").toLowerCase();
+        const category = String(
+          product.category?.name || ""
+        ).toLowerCase();
+
+        return title.includes(query) || category.includes(query);
+      })
+    : list;
+
+  const selectedIds = new Set(
+    selectedProducts.map((p) => String(p._id))
+  );
+
+  const selected = searched.filter((p) =>
+    selectedIds.has(String(p._id))
+  );
+
+  const remaining = searched.filter(
+    (p) => !selectedIds.has(String(p._id))
+  );
+
+  return [...selected, ...remaining];
+}, [
+  products,
+  activeCategory,
+  selectedProducts,
+  searchQuery,
+]);
+
+const toggleProduct = (product) => {
+  const isSelected = selectedProducts.some(
+    (p) => String(p._id) === String(product._id)
+  );
+
+  if (isSelected) {
+    setSelectedProducts((prev) =>
+      prev.filter((p) => String(p._id) !== String(product._id))
     );
 
-    const selected = list.filter((p) =>
-      selectedIds.has(String(p._id))
-    );
+    setSelectedSizes((prev) => {
+      const next = { ...prev };
+      delete next[product._id];
+      return next;
+    });
 
-    const remaining = list.filter(
-      (p) => !selectedIds.has(String(p._id))
-    );
+    return;
+  }
 
-    return [...selected, ...remaining];
-  }, [
-    products,
-    activeCategory,
-    selectedProducts,
-  ]);
+  if (selectedProducts.length >= MAX_ITEMS) {
+    return;
+  }
 
-  const toggleProduct = (product) => {
-    const exists = selectedProducts.some(
-      (p) => String(p._id) === String(product._id)
-    );
+  const availableSizes = Object.entries(product.inventory || {}).filter(
+    ([, qty]) => Number(qty) > 0
+  );
 
-    if (exists) {
-      removeProduct(product._id);
-      return;
-    }
+  if (availableSizes.length === 0) return;
 
-    if (selectedProducts.length >= 3) {
-      toast.error(
-        "Your look can have up to 3 pieces"
-      );
-      return;
-    }
+  const firstAvailableSize = availableSizes[0][0];
 
-    if (!selectedSizes[product._id]) {
-      toast.error("Please select a size first");
-      return;
-    }
+  setSelectedProducts((prev) => [...prev, product]);
 
-    setSelectedProducts((prev) => [
-      ...prev,
-      product,
-    ]);
-  };
+  setSelectedSizes((prev) => ({
+    ...prev,
+    [product._id]: firstAvailableSize,
+  }));
+};
+const canContinue =
+  selectedProducts.length >= MIN_ITEMS &&
+  selectedProducts.length <= MAX_ITEMS;
+
 
   const removeProduct = (productId) => {
     setSelectedProducts((prev) =>
@@ -172,7 +204,13 @@ const BuildYourLookPage = () => {
   const total = subtotal - discount;
 
   const handleAddLook = () => {
-    if (!selectedProducts.length) return;
+    if (
+    selectedProducts.length < MIN_ITEMS ||
+    selectedProducts.length > MAX_ITEMS
+  ) {
+    toast.error(`Please select ${MIN_ITEMS} to ${MAX_ITEMS} items`);
+    return;
+  }
 
     const customBundle = {
       title: "My Custom Look",
@@ -229,7 +267,7 @@ const BuildYourLookPage = () => {
             <div className="flex items-center gap-3">
               <div className="rounded-2xl border border-neutral-200 bg-neutral-50 px-5 py-4">
                 <p className="text-2xl font-black">
-                  {selectedProducts.length}/3
+                  {selectedProducts.length}/{MAX_ITEMS}
                 </p>
 
                 <p className="mt-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
@@ -252,6 +290,33 @@ const BuildYourLookPage = () => {
       </section>
 
       <div className="mx-auto max-w-[1800px] px-4 py-6 sm:px-6 md:px-8 md:py-10">
+<div className="mb-5">
+  <div className="flex h-12 w-full items-center rounded-2xl  bg-white px-4 focus-within:border-black">
+    <Search
+      size={19}
+      strokeWidth={2}
+      className="mr-3 shrink-0 text-neutral-400"
+    />
+
+    <input
+      type="text"
+      value={searchQuery}
+      onChange={(e) => setSearchQuery(e.target.value)}
+      placeholder="Search pieces..."
+      className="h-full min-w-0 flex-1 border-0 bg-transparent p-0 text-sm font-medium text-black outline-none placeholder:text-neutral-400"
+    />
+
+    {searchQuery && (
+      <button
+        type="button"
+        onClick={() => setSearchQuery("")}
+        className="ml-2 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 hover:bg-black hover:text-white"
+      >
+        <X className="h-4 w-4" />
+      </button>
+    )}
+  </div>
+</div>
         {/* CATEGORY NAV */}
         <div className="sticky top-0 z-30 -mx-4 border-b border-neutral-200 bg-[#fafafa]/95 px-4 py-3 backdrop-blur-xl sm:-mx-6 sm:px-6 md:-mx-8 md:px-8">
           <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-hide">
@@ -354,226 +419,253 @@ const BuildYourLookPage = () => {
               </div>
             ) : (
               <div className="grid grid-cols-2 gap-4 xl:grid-cols-3">
-                {filteredProducts.map((product) => {
-                  const selected =
-                    selectedProducts.some(
-                      (p) =>
-                        String(p._id) ===
-                        String(product._id)
-                    );
+              {filteredProducts.map((product) => {
+  const selected = selectedProducts.some(
+    (p) =>
+      String(p._id) ===
+      String(product._id)
+  );
 
-                  const selectedSize =
-                    selectedSizes[product._id];
+  const isSelected = selectedProducts.some(
+    (p) => String(p._id) === String(product._id)
+  );
 
-                  const availableSizes =
-                    Object.entries(
-                      product.inventory || {}
-                    ).filter(
-                      ([, qty]) =>
-                        Number(qty) > 0
-                    );
+  const selectedSize =
+    selectedSizes[product._id];
+
+  const availableSizes = Object.entries(
+    product.inventory || {}
+  ).filter(
+    ([, qty]) => Number(qty) > 0
+  );
+
+  const isSoldOut =
+    availableSizes.length === 0;
+
+  return (
+    <article
+      key={product._id}
+      className={`
+        group overflow-hidden rounded-2xl
+        border bg-white
+        transition-all duration-300
+        ${
+          selected
+            ? "border-black ring-1 ring-black"
+            : "border-neutral-200 hover:-translate-y-1 hover:border-neutral-300 hover:shadow-xl"
+        }
+      `}
+    >
+      <div
+        className="relative aspect-[3/4] cursor-pointer overflow-hidden bg-neutral-100"
+    onClick={() =>
+  navigate(
+    `/product/${
+      product.publicId 
+    }`,
+    {
+      state: {
+        fromBuildYourLook: true,
+      },
+    }
+  )
+}
+      >
+        <img
+          src={
+            product.images?.[0] ||
+            "/images/placeholder.png"
+          }
+          alt={product.title}
+          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
+        />
+
+        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent opacity-60" />
+
+        {selected && (
+          <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white">
+            <Check className="h-3 w-3" />
+            Added
+          </div>
+        )}
+
+        {product.isNewProduct &&
+          !selected &&
+          !isSoldOut && (
+            <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] backdrop-blur">
+              New
+            </span>
+          )}
+
+        {isSoldOut && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+            <span className="rounded-full bg-black px-4 py-2 text-xs font-bold uppercase tracking-widest text-white">
+              Sold Out
+            </span>
+          </div>
+        )}
+      </div>
+
+      <div className="p-4 sm:p-5">
+        <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
+          {product.category?.name ||
+            "Collection"}
+        </p>
+
+        <h3 className="mt-1.5 line-clamp-2 min-h-[40px] text-sm font-bold leading-5 sm:text-base">
+          {product.title}
+        </h3>
+
+        <div className="mt-3 flex items-center justify-between">
+          <span className="text-base font-black sm:text-lg">
+            ₹
+            {Number(
+              product.price || 0
+            ).toLocaleString("en-IN")}
+          </span>
+
+          {product.oldPrice &&
+            Number(product.oldPrice) >
+              Number(product.price) && (
+              <span className="text-xs text-neutral-400 line-through">
+                ₹
+                {Number(
+                  product.oldPrice
+                ).toLocaleString("en-IN")}
+              </span>
+            )}
+        </div>
+
+        <div className="mt-4">
+          <div className="mb-2 flex items-center justify-between">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
+              Select Size
+            </span>
+
+            {selectedSize && (
+              <span className="text-[10px] font-semibold text-black">
+                {selectedSize} selected
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-wrap gap-1.5">
+            {availableSizes.length > 0 ? (
+              availableSizes.map(
+                ([size, qty]) => {
+                  const active =
+                    selectedSize === size;
 
                   return (
-                    <article
-                      key={product._id}
+                    <button
+                      key={size}
+                      type="button"
+                      disabled={
+                        selected ||
+                        isSoldOut
+                      }
+                      onClick={() =>
+                        setSelectedSizes(
+                          (prev) => ({
+                            ...prev,
+                            [product._id]:
+                              size,
+                          })
+                        )
+                      }
                       className={`
-                        group overflow-hidden rounded-2xl
-                        border bg-white
-                        transition-all duration-300
+                        min-w-[40px]
+                        rounded-lg
+                        border
+                        px-2.5
+                        py-2
+                        text-[11px]
+                        font-semibold
+                        transition-all
+
                         ${
-                          selected
-                            ? "border-black ring-1 ring-black"
-                            : "border-neutral-200 hover:-translate-y-1 hover:border-neutral-300 hover:shadow-xl"
+                          active
+                            ? "border-black bg-black text-white"
+                            : "border-neutral-200 bg-white text-neutral-700 hover:border-black"
+                        }
+
+                        ${
+                          selected ||
+                          isSoldOut
+                            ? "cursor-not-allowed opacity-50"
+                            : ""
                         }
                       `}
                     >
-                      <div
-                        className="relative aspect-[3/4] cursor-pointer overflow-hidden bg-neutral-100"
-                        onClick={() =>
-                          navigate(
-                            `/product/${product.publicId || product._id}`
-                          )
-                        }
-                      >
-                        <img
-                          src={
-                            product.images?.[0] ||
-                            "/images/placeholder.png"
-                          }
-                          alt={product.title}
-                          className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-[1.04]"
-                        />
-
-                        <div className="absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/50 to-transparent opacity-60" />
-
-                        {selected && (
-                          <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] text-white">
-                            <Check className="h-3 w-3" />
-                            Added
-                          </div>
-                        )}
-
-                        {product.isNewProduct &&
-                          !selected && (
-                            <span className="absolute left-3 top-3 rounded-full bg-white/95 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.15em] backdrop-blur">
-                              New
-                            </span>
-                          )}
-
-                        {product.isOutOfStock && (
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/40">
-                            <span className="rounded-full bg-black px-4 py-2 text-xs font-bold uppercase tracking-widest text-white">
-                              Sold Out
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="p-4 sm:p-5">
-                        <p className="text-[9px] font-semibold uppercase tracking-[0.2em] text-neutral-400">
-                          {product.category?.name ||
-                            "Collection"}
-                        </p>
-
-                        <h3 className="mt-1.5 line-clamp-2 min-h-[40px] text-sm font-bold leading-5 sm:text-base">
-                          {product.title}
-                        </h3>
-
-                        <div className="mt-3 flex items-center justify-between">
-                          <span className="text-base font-black sm:text-lg">
-                            ₹
-                            {Number(
-                              product.price || 0
-                            ).toLocaleString()}
-                          </span>
-
-                          {product.oldPrice &&
-                            Number(
-                              product.oldPrice
-                            ) >
-                              Number(
-                                product.price
-                              ) && (
-                              <span className="text-xs text-neutral-400 line-through">
-                                ₹
-                                {Number(
-                                  product.oldPrice
-                                ).toLocaleString()}
-                              </span>
-                            )}
-                        </div>
-
-                        <div className="mt-4">
-                          <div className="mb-2 flex items-center justify-between">
-                            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-neutral-500">
-                              Select Size
-                            </span>
-
-                            {selectedSize && (
-                              <span className="text-[10px] font-semibold text-black">
-                                {selectedSize} selected
-                              </span>
-                            )}
-                          </div>
-
-                          <div className="flex flex-wrap gap-1.5">
-                            {availableSizes.length ? (
-                              availableSizes.map(
-                                ([size]) => {
-                                  const active =
-                                    selectedSize ===
-                                    size;
-
-                                  return (
-                                    <button
-                                      key={size}
-                                      type="button"
-                                      disabled={
-                                        selected ||
-                                        product.isOutOfStock
-                                      }
-                                      onClick={() =>
-                                        setSelectedSizes(
-                                          (prev) => ({
-                                            ...prev,
-                                            [product._id]:
-                                              size,
-                                          })
-                                        )
-                                      }
-                                      className={`
-                                        min-w-[40px]
-                                        rounded-lg
-                                        border px-2.5 py-2
-                                        text-[11px]
-                                        font-semibold
-                                        transition-all
-                                        ${
-                                          active
-                                            ? "border-black bg-black text-white"
-                                            : "border-neutral-200 bg-white text-neutral-700 hover:border-black"
-                                        }
-                                        ${
-                                          selected ||
-                                          product.isOutOfStock
-                                            ? "cursor-not-allowed opacity-50"
-                                            : ""
-                                        }
-                                      `}
-                                    >
-                                      {size}
-                                    </button>
-                                  );
-                                }
-                              )
-                            ) : (
-                              <span className="text-xs text-red-500">
-                                Out of stock
-                              </span>
-                            )}
-                          </div>
-                        </div>
-
-                        <button
-                          type="button"
-                          disabled={
-                            (!selectedSize &&
-                              !selected) ||
-                            product.isOutOfStock
-                          }
-                          onClick={() =>
-                            toggleProduct(product)
-                          }
-                          className={`
-                            mt-4 flex w-full items-center justify-center gap-2
-                            rounded-xl px-4 py-3
-                            text-xs font-bold uppercase tracking-[0.15em]
-                            transition-all
-                            ${
-                              selected
-                                ? "bg-black text-white hover:bg-neutral-800"
-                                : selectedSize
-                                  ? "bg-black text-white hover:bg-neutral-800"
-                                  : "cursor-not-allowed bg-neutral-100 text-neutral-400"
-                            }
-                          `}
-                        >
-                          {selected ? (
-                            <>
-                              <Check className="h-4 w-4" />
-                              Added to Look
-                            </>
-                          ) : (
-                            <>
-                              <Plus className="h-4 w-4" />
-                              Add to Look
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </article>
+                      {size}
+                    </button>
                   );
-                })}
+                }
+              )
+            ) : (
+              <span className="text-xs text-red-500">
+                Out of stock
+              </span>
+            )}
+          </div>
+        </div>
+
+   <button
+  type="button"
+  disabled={
+    isSoldOut ||
+    (!selected && !selectedSize) ||
+    (!selected && selectedProducts.length >= MAX_ITEMS)
+  }
+  onClick={() => toggleProduct(product)}
+  className={`
+    mt-4
+    flex
+    w-full
+    items-center
+    justify-center
+    gap-2
+    rounded-xl
+    px-4
+    py-3
+    text-xs
+    font-bold
+    uppercase
+    tracking-[0.15em]
+    transition-all
+
+    ${
+      selected
+        ? "bg-black text-white hover:bg-neutral-800"
+        : selectedProducts.length >= MAX_ITEMS
+          ? "cursor-not-allowed bg-neutral-100 text-neutral-400"
+          : selectedSize && !isSoldOut
+            ? "bg-black text-white hover:bg-neutral-800"
+            : "cursor-not-allowed bg-neutral-100 text-neutral-400"
+    }
+  `}
+>
+  {selected ? (
+    <>
+      <Check className="h-4 w-4" />
+      Added to Look
+    </>
+  ) : selectedProducts.length >= MAX_ITEMS ? (
+    <>
+      <X className="h-4 w-4" />
+      You Can't Add More
+    </>
+  ) : (
+    <>
+      <Plus className="h-4 w-4" />
+      Add to Look
+    </>
+  )}
+</button>
+      </div>
+    </article>
+  );
+})}
               </div>
             )}
           </main>
@@ -588,25 +680,17 @@ const BuildYourLookPage = () => {
                       Styling Board
                     </p>
 
-                    <h2 className="mt-2 text-3xl font-black tracking-tight">
+                    <h2 className=" text-3xl font-black tracking-tight">
                       Your Look
                     </h2>
                   </div>
 
                   <div className="flex h-11 w-11 items-center justify-center rounded-full bg-neutral-100">
-                    <ShoppingBag className="h-5 w-5" />
+                   {selectedProducts.length}/{MAX_ITEMS}
                   </div>
                 </div>
 
-                <div className="mt-4 flex items-center justify-between rounded-2xl bg-neutral-50 px-4 py-3">
-                  <span className="text-sm text-neutral-500">
-                    Selected pieces
-                  </span>
-
-                  <span className="font-bold">
-                    {selectedProducts.length}/3
-                  </span>
-                </div>
+          
               </div>
 
               <div className="max-h-[48vh] overflow-y-auto p-6">
@@ -621,7 +705,7 @@ const BuildYourLookPage = () => {
                     </h3>
 
                     <p className="mt-2 max-w-[230px] text-sm leading-5 text-neutral-400">
-                      Choose up to 3 pieces and select
+                      Choose up to {MAX_ITEMS} pieces and select
                       a size for each one.
                     </p>
                   </div>
@@ -695,7 +779,7 @@ const BuildYourLookPage = () => {
                       )
                     )}
 
-                    {selectedProducts.length < 3 && (
+                    {selectedProducts.length < MAX_ITEMS && (
                       <button
                         type="button"
                         onClick={() =>
@@ -747,9 +831,9 @@ const BuildYourLookPage = () => {
                 </div>
 
                 <button
-                  type="button"
-                  disabled={!selectedProducts.length}
-                  onClick={handleAddLook}
+             type="button"
+  disabled={!canContinue}
+  onClick={handleAddLook}
                   className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-black py-4 text-xs font-bold uppercase tracking-[0.18em] text-white transition hover:bg-neutral-800 disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   Add Look to Cart
@@ -796,7 +880,7 @@ const BuildYourLookPage = () => {
 
                   <div className="text-left">
                     <p className="text-sm font-semibold">
-                      {selectedProducts.length}/3
+                      {selectedProducts.length}/{MAX_ITEMS}
                       pieces
                     </p>
 
@@ -876,7 +960,7 @@ const BuildYourLookPage = () => {
                   </span>
 
                   <span className="text-sm font-bold">
-                    {selectedProducts.length}/3
+                    {selectedProducts.length}/{MAX_ITEMS}
                   </span>
                 </div>
               </div>
@@ -953,7 +1037,7 @@ const BuildYourLookPage = () => {
                     )
                   )}
 
-                  {selectedProducts.length < 3 && (
+                  {selectedProducts.length < MAX_ITEMS && (
                     <button
                       type="button"
                       onClick={() =>
@@ -1001,14 +1085,24 @@ const BuildYourLookPage = () => {
                   </div>
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleAddLook}
-                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-black py-4 text-xs font-bold uppercase tracking-[0.18em] text-white"
-                >
-                  Add Look to Cart
-                  <ChevronRight className="h-4 w-4" />
-                </button>
+            <button
+  type="button"
+  disabled={!canContinue}
+  onClick={handleAddLook}
+  className={`mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-xs font-bold uppercase tracking-[0.18em] transition ${
+    selectedProducts.length >= 2
+      ? "bg-black text-white hover:bg-neutral-800"
+      : "cursor-not-allowed bg-neutral-100 text-neutral-400"
+  }`}
+>
+  {selectedProducts.length < 2
+    ? `Select ${2 - selectedProducts.length} more item${
+        2 - selectedProducts.length > 1 ? "s" : ""
+      }`
+    : "Add Look to Cart"}
+
+  <ChevronRight className="h-4 w-4" />
+</button>
               </div>
             </div>
           </div>

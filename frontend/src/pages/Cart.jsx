@@ -936,7 +936,7 @@ const getAvailableForSize = useCallback(
                   onClick={
                     handleRemove
                   }
-                  className="flex h-13 w-full items-center justify-center rounded-2xl border border-neutral-200 text-xs font-bold uppercase tracking-[0.14em] transition hover:border-red-300 hover:text-red-500"
+                  className="flex h-12 w-full items-center justify-center rounded-2xl border border-neutral-200 text-xs font-bold uppercase tracking-[0.14em] transition hover:border-red-300 hover:text-red-500"
                 >
                   Remove from bag
                 </button>
@@ -946,7 +946,7 @@ const getAvailableForSize = useCallback(
                   onClick={
                     closeRemoveModal
                   }
-                  className="h-11 text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-400 transition hover:text-black"
+                  className="h-12 text-[10px] font-bold uppercase tracking-[0.16em] text-neutral-400 transition hover:text-black"
                 >
                   Keep item
                 </button>

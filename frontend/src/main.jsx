@@ -17,14 +17,14 @@ createRoot(document.getElementById("root")).render(
   <React.StrictMode>
     <Provider store={store}>
       <AuthProvider>
-        <WishlistProvider>
-          <BrowserRouter>
+        <BrowserRouter>
+          <WishlistProvider>
             <SmoothScroll>
               <ScrollManager />
               <App />
             </SmoothScroll>
-          </BrowserRouter>
-        </WishlistProvider>
+          </WishlistProvider>
+        </BrowserRouter>
       </AuthProvider>
     </Provider>
   </React.StrictMode>

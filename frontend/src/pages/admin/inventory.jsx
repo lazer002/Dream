@@ -1,6 +1,6 @@
 // src/pages/admin/Inventory.jsx
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Package,
   Search,
@@ -15,8 +15,6 @@ import {
   TrendingDown,
 } from "lucide-react";
 
-import api from "@/utils/config";
-// add import
 import {
   Dialog,
   DialogContent,
@@ -43,6 +41,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
+import {
+  useGetInventoryQuery,
+  useGetProductsQuery,
+  useCreateInventoryMutation,
+  useUpdateInventoryMutation,
+} from "@/store/api";
+
 const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
 
 const EMPTY_STOCK = {
@@ -66,64 +71,40 @@ const emptyInventory = {
 };
 
 export default function AdminInventory() {
-  const [inventories, setInventories] = useState([]);
-  const [products, setProducts] = useState([]);
+  const {
+    data: inventoryData = [],
+    isLoading: inventoryLoading,
+    refetch: refetchInventory,
+  } = useGetInventoryQuery();
 
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
+  const {
+    data: productsData,
+    isLoading: productsLoading,
+    refetch: refetchProducts,
+  } = useGetProductsQuery();
+
+  const inventories = Array.isArray(inventoryData)
+    ? inventoryData
+    : inventoryData?.items || inventoryData?.inventories || [];
+
+  const products = Array.isArray(productsData)
+    ? productsData
+    : productsData?.items || productsData?.products || [];
+
+  const [createInventory, { isLoading: creatingInventory }] =
+    useCreateInventoryMutation();
+
+  const [updateInventory, { isLoading: updatingInventory }] =
+    useUpdateInventoryMutation();
+
+  const loading = inventoryLoading || productsLoading;
+  const saving = creatingInventory || updatingInventory;
 
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState("all");
-
   const [selected, setSelected] = useState(null);
-
   const [form, setForm] = useState(emptyInventory);
-
   const [message, setMessage] = useState("");
-
-  async function loadInventory() {
-    try {
-      setLoading(true);
-
-      const { data } = await api.get("/inventory");
-
-      setInventories(
-        data?.items ||
-          data?.inventories ||
-          data ||
-          []
-      );
-    } catch (error) {
-      console.error("LOAD INVENTORY ERROR:", error);
-
-      setMessage(
-        error?.response?.data?.error ||
-          "Failed to load inventory"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function loadProducts() {
-    try {
-      const { data } = await api.get("/products");
-
-      setProducts(
-        data?.items ||
-          data?.products ||
-          data ||
-          []
-      );
-    } catch (error) {
-      console.error("LOAD PRODUCTS ERROR:", error);
-    }
-  }
-
-  useEffect(() => {
-    loadInventory();
-    loadProducts();
-  }, []);
 
   const inventoryMap = useMemo(() => {
     const map = new Map();
@@ -171,7 +152,7 @@ export default function AdminInventory() {
 
       const total = getTotalStock(inventory, product);
 
-      const available = getAvailableStock(inventory);
+    const available = getAvailableStock(inventory, product);
 
       let matchesFilter = true;
 
@@ -222,9 +203,16 @@ export default function AdminInventory() {
        if (!product) return;
       if (!inventory.trackInventory) return;
 
-      const stock = getTotalStock(inventory);
-      const availableStock =
-        getAvailableStock(inventory);
+  const stock = getTotalStock(
+  inventory,
+  product
+);
+
+const availableStock =
+  getAvailableStock(
+    inventory,
+    product
+);
 
       totalUnits += stock;
       reserved += Number(inventory.reserved || 0);
@@ -255,40 +243,62 @@ export default function AdminInventory() {
   }, [inventories, products]);
 
 function getTotalStock(inventory, product) {
-  if (!inventory) return 0;
-
-  if (!inventory.trackInventory) {
+  if (!inventory?.trackInventory) {
     return 0;
   }
 
+  const stock = inventory?.stock || {};
   const sizes = product?.sizes || [];
 
-  return sizes.reduce((total, size) => {
-    const name =
-      typeof size === "string"
-        ? size
-        : size?.name;
+  // If product sizes are available, only count configured ACTIVE sizes.
+  if (sizes.length > 0) {
+    return sizes.reduce((total, size) => {
+      const name =
+        typeof size === "string"
+          ? size
+          : size?.name;
 
-    return (
-      total +
-      Number(inventory.stock?.[name] || 0)
-    );
-  }, 0);
+      const active =
+        typeof size === "string"
+          ? true
+          : size?.active !== false;
+
+      if (!name || !active) {
+        return total;
+      }
+
+      return total + Number(stock[name] || 0);
+    }, 0);
+  }
+
+  // Fallback for inventory without product size information.
+  return Object.values(stock).reduce(
+    (total, value) =>
+      total + Math.max(0, Number(value) || 0),
+    0
+  );
 }
 
-  function getAvailableStock(inventory) {
-    if (!inventory) return 0;
-
-    if (!inventory.trackInventory) {
-      return Infinity;
-    }
-
-    return Math.max(
-      0,
-      getTotalStock(inventory) -
-        Number(inventory.reserved || 0)
-    );
+function getAvailableStock(inventory, product) {
+  if (!inventory?.trackInventory) {
+    return Infinity;
   }
+
+  const totalStock = getTotalStock(
+    inventory,
+    product
+  );
+
+  const reserved = Math.max(
+    0,
+    Number(inventory?.reserved || 0)
+  );
+
+  return Math.max(
+    0,
+    totalStock - reserved
+  );
+}
 
   function openInventory(product, inventory) {
     setSelected(product);
@@ -356,22 +366,15 @@ function getTotalStock(inventory, product) {
     if (!selected) return;
 
     try {
-      setSaving(true);
       setMessage("");
 
       const payload = {
         sku: form.sku,
         stock: form.stock,
         reserved: Number(form.reserved),
-        lowStockThreshold: Number(
-          form.lowStockThreshold
-        ),
-        trackInventory: Boolean(
-          form.trackInventory
-        ),
-        allowBackorder: Boolean(
-          form.allowBackorder
-        ),
+        lowStockThreshold: Number(form.lowStockThreshold),
+        trackInventory: Boolean(form.trackInventory),
+        allowBackorder: Boolean(form.allowBackorder),
         active: Boolean(form.active),
       };
 
@@ -379,61 +382,29 @@ function getTotalStock(inventory, product) {
         String(selected._id)
       );
 
-      let response;
-
       if (existing?._id) {
-        response = await api.put(
-          `/inventory/${existing._id}`,
-          payload
-        );
+        await updateInventory({
+          id: existing._id,
+          ...payload,
+        }).unwrap();
       } else {
-        response = await api.post(
-          "/inventory",
-          {
-            product: selected._id,
-            ...payload,
-          }
-        );
+        await createInventory({
+          product: selected._id,
+          ...payload,
+        }).unwrap();
       }
 
-      const updated =
-        response.data?.inventory ||
-        response.data;
-
-      setInventories((current) => {
-        const exists = current.some(
-          (item) =>
-            String(item._id) ===
-            String(updated._id)
-        );
-
-        if (exists) {
-          return current.map((item) =>
-            String(item._id) ===
-            String(updated._id)
-              ? updated
-              : item
-          );
-        }
-
-        return [...current, updated];
-      });
-
       setMessage("Inventory saved successfully");
+      await refetchInventory();
     } catch (error) {
-      console.error(
-        "SAVE INVENTORY ERROR:",
-        error
-      );
+      console.error("SAVE INVENTORY ERROR:", error);
 
       setMessage(
-        error?.response?.data?.error ||
-          error?.response?.data?.message ||
+        error?.data?.error ||
+          error?.data?.message ||
           error?.message ||
           "Failed to save inventory"
       );
-    } finally {
-      setSaving(false);
     }
   }
 
@@ -441,28 +412,26 @@ function getTotalStock(inventory, product) {
     if (!inventory?._id) return;
 
     try {
-      const { data } = await api.put(
-        `/inventory/${inventory._id}`,
-        {
-          active: !inventory.active,
-        }
+      setMessage("");
+
+      await updateInventory({
+        id: inventory._id,
+        active: !inventory.active,
+      }).unwrap();
+
+      setMessage(
+        `Inventory ${inventory.active ? "deactivated" : "activated"} successfully`
       );
 
-      const updated =
-        data?.inventory || data;
-
-      setInventories((current) =>
-        current.map((item) =>
-          String(item._id) ===
-          String(updated._id)
-            ? updated
-            : item
-        )
-      );
+      await refetchInventory();
     } catch (error) {
-      console.error(
-        "TOGGLE INVENTORY ERROR:",
-        error
+      console.error("TOGGLE INVENTORY ERROR:", error);
+
+      setMessage(
+        error?.data?.error ||
+          error?.data?.message ||
+          error?.message ||
+          "Failed to update inventory"
       );
     }
   }
@@ -492,9 +461,17 @@ function getTotalStock(inventory, product) {
 
         <Button
           variant="outline"
-          onClick={() => {
-            loadInventory();
-            loadProducts();
+          onClick={async () => {
+            try {
+              setMessage("");
+              await Promise.all([
+                refetchInventory(),
+                refetchProducts(),
+              ]);
+            } catch (error) {
+              console.error("REFRESH INVENTORY ERROR:", error);
+              setMessage("Failed to refresh inventory");
+            }
           }}
           className="gap-2"
         >
@@ -669,7 +646,8 @@ function getTotalStock(inventory, product) {
 
                       const available =
                         getAvailableStock(
-                          inventory
+                          inventory,
+                          product
                         );
 
                       const threshold =
@@ -971,17 +949,17 @@ function getTotalStock(inventory, product) {
                 </p>
 
                 <p className="text-xl font-bold">
-                  {form.trackInventory
-                    ? Math.max(
-                        0,
-                        getTotalStock({
-                          stock: form.stock,
-                          trackInventory:
-                            form.trackInventory,
-                        }) -
-                          Number(form.reserved || 0)
-                      )
-                    : "∞"}
+             {form.trackInventory
+  ? getAvailableStock(
+      {
+        stock: form.stock,
+        trackInventory:
+          form.trackInventory,
+        reserved: form.reserved,
+      },
+      selected
+    )
+  : "∞"}
                 </p>
               </div>
             </div>
@@ -1125,10 +1103,13 @@ function getTotalStock(inventory, product) {
               </p>
 
               <p className="mt-1 text-xl font-bold">
-                {getTotalStock({
-                  stock: form.stock,
-                  trackInventory: form.trackInventory,
-                })}
+                {getTotalStock(
+                  {
+                    stock: form.stock,
+                    trackInventory: form.trackInventory,
+                  },
+                  selected
+                )}
               </p>
             </div>
 
@@ -1149,14 +1130,13 @@ function getTotalStock(inventory, product) {
 
               <p className="mt-1 text-xl font-bold text-green-600">
                 {form.trackInventory
-                  ? Math.max(
-                      0,
-                      getTotalStock({
+                  ? getAvailableStock(
+                      {
                         stock: form.stock,
-                        trackInventory:
-                          form.trackInventory,
-                      }) -
-                        Number(form.reserved || 0)
+                        trackInventory: form.trackInventory,
+                        reserved: form.reserved,
+                      },
+                      selected
                     )
                   : "∞"}
               </p>

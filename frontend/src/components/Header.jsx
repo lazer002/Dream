@@ -677,7 +677,11 @@ const [quickViewProduct, setQuickViewProduct] =
             flex items-center gap-5
           "
         >
-
+             {user && user.role == "admin" && (
+              <Link to="/admin" className="text-sm font-medium">
+              {user.role}
+              </Link>
+            )}
 
           {/* SEARCH */}
           <button
@@ -1296,7 +1300,7 @@ ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
     border-b border-gray-200
 
     z-[999]
-
+h-[100vh]
    overflow-hidden
 max-h-[100vh]
 
@@ -1431,7 +1435,7 @@ bg-transparent  focus:border-transparent focus:outline-none
 
       overflow-y-auto
 
-      max-h-[calc(100vh-160px)]
+      max-h-[calc(100vh-70px)]
 
       search-scroll
     "
@@ -1482,7 +1486,7 @@ bg-transparent  focus:border-transparent focus:outline-none
       <div
         className="
           grid
-
+pb-32
           grid-cols-2
           md:grid-cols-3
           lg:grid-cols-5
@@ -1626,7 +1630,7 @@ bg-transparent  focus:border-transparent focus:outline-none
         )}
 
         {/* LOW STOCK */}
-        {!isOutOfStock &&
+        {/* {!isOutOfStock &&
           isLowStock && (
             <span
               className="
@@ -1648,7 +1652,7 @@ bg-transparent  focus:border-transparent focus:outline-none
             >
               Only {availableStock} left
             </span>
-          )}
+          )} */}
 
         {/* QUICK VIEW */}
         {!isOutOfStock && (

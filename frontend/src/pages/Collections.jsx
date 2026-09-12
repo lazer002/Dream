@@ -451,168 +451,132 @@ const BundlesPage = () => {
       </div>
 
       {/* BUNDLE SIZE MODAL */}
-      <Dialog
-        open={isOpen}
-        onOpenChange={setIsOpen}
-      >
-        <DialogContent className="max-w-2xl rounded-3xl">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="
-                text-[10px]
-                uppercase
-                tracking-[0.3em]
-                text-neutral-400
-              ">
-                Bundle
-              </p>
+<Dialog open={isOpen} onOpenChange={setIsOpen}>
+  <DialogContent className="max-w-2xl rounded-3xl p-6 sm:p-7">
 
-              <h2 className="mt-1 text-2xl font-black">
-                {selectedBundle?.title}
-              </h2>
-            </div>
+    {/* HEADER */}
+    <div className="pr-8">
+      <p className="text-[10px] uppercase tracking-[0.3em] text-neutral-400">
+        Bundle
+      </p>
 
-            <button
-              onClick={() => setIsOpen(false)}
-              className="
-                flex h-9 w-9
-                items-center justify-center
-                rounded-full
-                hover:bg-neutral-100
-              "
-            >
-              <X size={18} />
-            </button>
-          </div>
+      <h2 className="mt-2 text-2xl font-black leading-tight">
+        {selectedBundle?.title}
+      </h2>
+    </div>
 
-          <div className="mt-6 space-y-4">
-            {(selectedBundle?.products || []).map(
-              (product) => {
-                const sizes = Array.isArray(
-                  product.sizes
-                )
-                  ? product.sizes
-                  : [];
+    {/* PRODUCTS */}
+    <div className="mt-6 space-y-4">
+      {(selectedBundle?.products || []).map((product) => {
+        const sizes = Array.isArray(product.sizes)
+          ? product.sizes
+          : [];
 
-                return (
-                  <div
-                    key={product._id}
-                    className="
-                      flex
-                      items-center
-                      justify-between
-                      gap-4
-                      rounded-2xl
-                      border
-                      border-neutral-200
-                      p-4
-                    "
-                  >
-                    <div className="
-                      flex
-                      min-w-0
-                      items-center
-                      gap-3
-                    ">
-                      <img
-                        src={
-                          product.images?.[0] ||
-                          "/images/placeholder.png"
-                        }
-                        alt={product.title}
-                        className="
-                          h-16 w-16
-                          shrink-0
-                          rounded-xl
-                          object-cover
-                        "
-                      />
-
-                      <div className="min-w-0">
-                        <p className="truncate font-semibold">
-                          {product.title}
-                        </p>
-
-                        <p className="
-                          mt-1
-                          text-xs
-                          text-neutral-400
-                        ">
-                          ₹{fmt(product.price)}
-                        </p>
-                      </div>
-                    </div>
-
-                    <Select
-                      value={
-                        selectedSizes[product._id] || ""
-                      }
-                      onValueChange={(value) =>
-                        handleSizeChange(
-                          product._id,
-                          value
-                        )
-                      }
-                    >
-                      <SelectTrigger className="w-[130px] rounded-xl">
-                        <SelectValue placeholder="Size" />
-                      </SelectTrigger>
-
-                      <SelectContent>
-                        {sizes.map((size) => {
-                          const name =
-                            typeof size === "string"
-                              ? size
-                              : size?.name;
-
-                          if (!name) return null;
-
-                          return (
-                            <SelectItem
-                              key={name}
-                              value={name}
-                            >
-                              {name}
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                );
-              }
-            )}
-          </div>
-
-          <button
-            onClick={handleAddBundle}
-            disabled={
-              !selectedBundle ||
-              (selectedBundle.products || []).some(
-                (p) => !selectedSizes[p._id]
-              )
-            }
+        return (
+          <div
+            key={product._id}
             className="
-              mt-6
-              w-full
-              rounded-full
-              bg-black
-              px-6 py-4
-              text-sm
-              font-bold
-              uppercase
-              tracking-[0.2em]
-              text-white
-              transition
-              hover:bg-neutral-800
-              disabled:cursor-not-allowed
-              disabled:bg-neutral-300
+              flex items-center justify-between
+              gap-4
+              rounded-2xl
+              border border-neutral-200
+              p-4
             "
           >
-            Add Bundle to Cart
-          </button>
-        </DialogContent>
-      </Dialog>
+            <div className="flex min-w-0 items-center gap-3">
+              <img
+                src={
+                  product.images?.[0] ||
+                  "/images/placeholder.png"
+                }
+                alt={product.title}
+                className="
+                  h-16 w-16
+                  shrink-0
+                  rounded-xl
+                  object-cover
+                "
+              />
+
+              <div className="min-w-0">
+                <p className="truncate font-semibold">
+                  {product.title}
+                </p>
+
+                <p className="mt-1 text-xs text-neutral-400">
+                  ₹{fmt(product.price)}
+                </p>
+              </div>
+            </div>
+
+            <Select
+              value={selectedSizes[product._id] || ""}
+              onValueChange={(value) =>
+                handleSizeChange(product._id, value)
+              }
+            >
+              <SelectTrigger className="h-12 w-[130px] shrink-0 rounded-xl">
+                <SelectValue placeholder="Size" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {sizes.map((size) => {
+                  const name =
+                    typeof size === "string"
+                      ? size
+                      : size?.name;
+
+                  if (!name) return null;
+
+                  return (
+                    <SelectItem
+                      key={name}
+                      value={name}
+                    >
+                      {name}
+                    </SelectItem>
+                  );
+                })}
+              </SelectContent>
+            </Select>
+          </div>
+        );
+      })}
+    </div>
+
+    {/* ACTION */}
+    <button
+      type="button"
+      onClick={handleAddBundle}
+      disabled={
+        !selectedBundle ||
+        (selectedBundle.products || []).some(
+          (p) => !selectedSizes[p._id]
+        )
+      }
+      className="
+        mt-6
+        flex h-12 w-full
+        items-center justify-center
+        rounded-full
+        bg-black
+        px-6
+        text-xs
+        font-bold
+        uppercase
+        tracking-[0.2em]
+        text-white
+        transition
+        hover:bg-neutral-800
+        disabled:cursor-not-allowed
+        disabled:bg-neutral-300
+      "
+    >
+      Add Bundle to Cart
+    </button>
+
+  </DialogContent>
+</Dialog>
     </div>
   );
 };

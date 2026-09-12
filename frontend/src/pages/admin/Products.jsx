@@ -18,7 +18,14 @@ import {
   Percent,
 } from "lucide-react";
 
-import api from "@/utils/config";
+import {
+  useGetProductsQuery,
+  useGetInventoryQuery,
+  useGetCategoriesQuery,
+  useUpdateAdminProductMutation,
+  useDeleteAdminProductMutation,
+  useUpdateProductInventoryMutation,
+} from "@/store/api";
 
 import {
   Card,
@@ -49,24 +56,79 @@ import {
 } from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 
-const SIZES = ["XS", "S", "M", "L", "XL", "XXL"];
+const getProductSizes = (product) =>
+  Array.isArray(product?.sizes)
+    ? product.sizes
+        .map((size) =>
+          typeof size === "string" ? size : size?.name
+        )
+        .filter(Boolean)
+    : [];
 
-const EMPTY_STOCK = {
-  XS: 0,
-  S: 0,
-  M: 0,
-  L: 0,
-  XL: 0,
-  XXL: 0,
-};
 
 export default function ProductList() {
   const navigate = useNavigate()
-  const [products, setProducts] = useState([]);
-  const [inventories, setInventories] = useState([]);
-  const [categories, setCategories] = useState([]);
+const {
+  data: productsResponse,
+  isLoading: productsLoading,
+  refetch: refetchProducts,
+} = useGetProductsQuery();
 
-  const [loading, setLoading] = useState(true);
+const {
+  data: inventoryResponse,
+  isLoading: inventoryLoading,
+  refetch: refetchInventory,
+} = useGetInventoryQuery();
+
+const {
+  data: categoriesResponse,
+  isLoading: categoriesLoading,
+  refetch: refetchCategories,
+} = useGetCategoriesQuery();
+
+const products = Array.isArray(productsResponse)
+  ? productsResponse
+  : productsResponse?.items ||
+    productsResponse?.products ||
+    [];
+
+const inventories = Array.isArray(inventoryResponse)
+  ? inventoryResponse
+  : inventoryResponse?.items ||
+    inventoryResponse?.inventories ||
+    [];
+
+const categories = Array.isArray(categoriesResponse)
+  ? categoriesResponse
+  : categoriesResponse?.categories ||
+    categoriesResponse?.items ||
+    [];
+
+const [
+  updateAdminProduct,
+  { isLoading: savingProduct },
+] = useUpdateAdminProductMutation();
+
+const [
+  deleteAdminProduct,
+  { isLoading: deletingProduct },
+] = useDeleteAdminProductMutation();
+
+const [
+  updateProductInventory,
+  { isLoading: savingInventory },
+] = useUpdateProductInventoryMutation();
+
+const saving =
+  savingProduct ||
+  savingInventory ||
+  deletingProduct;
+
+const loading =
+  productsLoading ||
+  inventoryLoading ||
+  categoriesLoading;
+
   const [search, setSearch] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -77,7 +139,6 @@ export default function ProductList() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
 
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
 
   const [form, setForm] = useState({
@@ -92,53 +153,7 @@ export default function ProductList() {
     featured: false,
   });
 
-  async function loadData() {
-    try {
-      setLoading(true);
-
-      const [productsRes, inventoryRes, categoriesRes] =
-        await Promise.all([
-          api.get("/products"),
-          api.get("/inventory"),
-          api.get("/categories"),
-        ]);
-
-        console.log(productsRes.data?.items[0],'productsRes.data?.items')
-      setProducts(
-        productsRes.data?.items ||
-          productsRes.data?.products ||
-          productsRes.data ||
-          []
-      );
-
-      setInventories(
-        inventoryRes.data?.items ||
-          inventoryRes.data?.inventories ||
-          inventoryRes.data ||
-          []
-      );
-
-      setCategories(
-        categoriesRes.data?.categories ||
-          categoriesRes.data?.items ||
-          categoriesRes.data ||
-          []
-      );
-    } catch (error) {
-      console.error("LOAD PRODUCT DATA:", error);
-      setMessage(
-        error?.response?.data?.error ||
-          error?.message ||
-          "Failed to load data"
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadData();
-  }, []);
+;
 
   const inventoryMap = useMemo(() => {
     const map = new Map();
@@ -156,40 +171,42 @@ export default function ProductList() {
     return map;
   }, [inventories]);
 
-  function getInventory(product) {
-    return (
-      inventoryMap.get(String(product._id)) || {
-        product: product._id,
-        sku: product.sku || "",
-        stock: EMPTY_STOCK,
-        reserved: 0,
-        lowStockThreshold: 5,
-        trackInventory: true,
-        allowBackorder: false,
-        active: false,
-      }
-    );
-  }
+ function getInventory(product) {
+  return (
+    inventoryMap.get(String(product._id)) || {
+      product: product._id,
+      sku: product.sku || "",
+      stock: {},
+      reserved: 0,
+      lowStockThreshold: 5,
+      trackInventory: true,
+      allowBackorder: false,
+      active: false,
+    }
+  );
+}
 
-  function getTotalStock(inventory) {
-    if (!inventory?.trackInventory) return Infinity;
+function getTotalStock(inventory, product) {
+  if (!inventory?.trackInventory) return Infinity;
 
-    return SIZES.reduce(
-      (total, size) =>
-        total + Number(inventory?.stock?.[size] || 0),
-      0
-    );
-  }
+  const sizes = getProductSizes(product);
 
-  function getAvailableStock(inventory) {
-    if (!inventory?.trackInventory) return Infinity;
+  return sizes.reduce(
+    (total, size) =>
+      total + Number(inventory?.stock?.[size] || 0),
+    0
+  );
+}
 
-    return Math.max(
-      0,
-      getTotalStock(inventory) -
-        Number(inventory?.reserved || 0)
-    );
-  }
+function getAvailableStock(inventory, product) {
+  if (!inventory?.trackInventory) return Infinity;
+
+  return Math.max(
+    0,
+    getTotalStock(inventory, product) -
+      Number(inventory?.reserved || 0)
+  );
+}
 
   function getDiscount(product) {
     const price = Number(product.price || 0);
@@ -220,9 +237,9 @@ export default function ProductList() {
         return;
       }
 
-      const total = getTotalStock(inventory);
+      const total = getTotalStock(inventory, product)
       const availableStock =
-        getAvailableStock(inventory);
+        getAvailableStock(inventory , product);
 
       if (Number.isFinite(total)) {
         totalStock += total;
@@ -292,10 +309,10 @@ const matchesCategory =
     === String(categoryFilter).toLowerCase();
 
       const available =
-        getAvailableStock(inventory);
+        getAvailableStock(inventory , product);
 
       const total =
-        getTotalStock(inventory);
+        getTotalStock(inventory, product);
 
       let matchesStatus = true;
 
@@ -379,110 +396,103 @@ setForm({
     setOpen(true);
   }
 
-  async function saveProduct() {
-    if (!editing) return;
+async function saveProduct() {
+  if (!editing) return;
 
-    try {
-      setSaving(true);
+  try {
+    const price = Number(form.price);
 
-      const price = Number(form.price);
-      const oldPrice =
-        form.oldPrice === ""
-          ? undefined
-          : Number(form.oldPrice);
+    const oldPrice =
+      form.oldPrice === ""
+        ? undefined
+        : Number(form.oldPrice);
 
-      const discount =
-        oldPrice &&
-        oldPrice > price
-          ? Number(
-              (
-                ((oldPrice - price) /
-                  oldPrice) *
-                100
-              ).toFixed(2)
-            )
-          : 0;
+    const discount =
+      oldPrice && oldPrice > price
+        ? Number(
+            (((oldPrice - price) / oldPrice) * 100).toFixed(2)
+          )
+        : 0;
 
-      await api.put(
-        `/admin/products/${editing._id}`,
-        {
-          title: form.title.trim(),
-          description: form.description,
-          details:form.details,
-          price,
-          oldPrice,
-          discount,
-          category: form.category,
-          published: Boolean(form.published),
-          onSale: Boolean(form.onSale),
-          isNewProduct: Boolean(
-            form.isNewProduct
-          ),
-          featured: Boolean(form.featured),
-        }
-      );
+    await updateAdminProduct({
+      id: editing._id,
+      data: {
+        title: form.title.trim(),
+        description: form.description,
+        details: form.details,
+        price,
+        oldPrice,
+        discount,
+        category: form.category,
+        published: Boolean(form.published),
+        onSale: Boolean(form.onSale),
+        isNewProduct: Boolean(form.isNewProduct),
+        featured: Boolean(form.featured),
+      },
+    }).unwrap();
 
-      setMessage("Product updated");
+    setMessage("Product updated");
+    setOpen(false);
+    setEditing(null);
+  } catch (error) {
+    console.error("UPDATE PRODUCT:", error);
 
-      setOpen(false);
-      setEditing(null);
-
-      await loadData();
-    } catch (error) {
-      console.error("UPDATE PRODUCT:", error);
-
-      setMessage(
-        error?.response?.data?.error ||
-          error?.response?.data?.message ||
-          error?.message ||
-          "Failed to update product"
-      );
-    } finally {
-      setSaving(false);
-    }
+    setMessage(
+      error?.data?.error ||
+        error?.data?.message ||
+        error?.message ||
+        "Failed to update product"
+    );
   }
+}
 
-  async function updateInventory(
-    productId,
-    updates
-  ) {
-    try {
-      await api.put(
-        `/inventory/product/${productId}`,
-        updates
-      );
 
-      await loadData();
-    } catch (error) {
-      console.error(
-        "UPDATE INVENTORY:",
-        error
-      );
+async function updateInventory(productId, updates) {
+  try {
+    await updateProductInventory({
+      productId,
+      data: updates,
+    }).unwrap();
+  } catch (error) {
+    console.error("UPDATE INVENTORY:", error);
 
-      setMessage(
-        error?.response?.data?.error ||
-          "Failed to update inventory"
-      );
-    }
+    setMessage(
+      error?.data?.error ||
+        error?.data?.message ||
+        error?.message ||
+        "Failed to update inventory"
+    );
   }
+}
 
-  async function confirmDelete() {
-    try {
-      await api.delete(
-        `/admin/products/${deleteId}`
-      );
+ async function confirmDelete() {
+  if (!deleteId) return;
 
-      setDeleteOpen(false);
-      setDeleteId(null);
+  try {
+    await deleteAdminProduct(deleteId).unwrap();
 
-      await loadData();
-    } catch (error) {
-      console.error(
-        "DELETE PRODUCT:",
-        error
-      );
-    }
+    setDeleteOpen(false);
+    setDeleteId(null);
+    setMessage("Product deleted");
+  } catch (error) {
+    console.error("DELETE PRODUCT:", error);
+
+    setMessage(
+      error?.data?.error ||
+        error?.data?.message ||
+        error?.message ||
+        "Failed to delete product"
+    );
   }
+}
+async function refreshData() {
+  await Promise.all([
+    refetchProducts(),
+    refetchInventory(),
+    refetchCategories(),
+  ]);
+}
+
 const sizes =
   editing?.sizes?.map((size) =>
     typeof size === "string"
@@ -515,14 +525,14 @@ const openProduct = (product) => {
           </p>
         </div>
 
-        <Button
-          variant="outline"
-          onClick={loadData}
-          className="gap-2"
-        >
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+     <Button
+  variant="outline"
+  onClick={refreshData}
+  className="gap-2"
+>
+  <RefreshCw className="h-4 w-4" />
+  Refresh
+</Button>
       </div>
 
       {message && (
@@ -750,12 +760,12 @@ const openProduct = (product) => {
 
                       const total =
                         getTotalStock(
-                          inventory
+                          inventory , product
                         );
 
                       const available =
                         getAvailableStock(
-                          inventory
+                          inventory , product
                         );
 
                       const discount =
@@ -1294,10 +1304,11 @@ const openProduct = (product) => {
 
             {editing && (
               <span className="text-sm text-gray-500">
-                Available:{" "}
-                {getAvailableStock(
-                  getInventory(editing)
-                )}
+              Available:{" "}
+{getAvailableStock(
+  getInventory(editing),
+  editing
+)}
               </span>
             )}
           </div>
@@ -1329,58 +1340,33 @@ const openProduct = (product) => {
                     </span>
                   </div>
 
-                  <Input
-                    type="number"
-                    min="0"
-                    value={value}
-                    onChange={(e) => {
-                      if (!editing) return;
+               <Input
+  type="number"
+  min="0"
+  value={value}
+  onChange={() => {}}
+  onBlur={async (e) => {
+    if (!editing) return;
 
-                      const next = Math.max(
-                        0,
-                        Number(e.target.value) || 0
-                      );
+    const inventory = getInventory(editing);
 
-                      setInventories((current) =>
-                        current.map((item) =>
-                          String(
-                            item.product?._id ||
-                              item.product
-                          ) === String(editing._id)
-                            ? {
-                                ...item,
-                                stock: {
-                                  ...(item.stock || {}),
-                                  [size]: next,
-                                },
-                              }
-                            : item
-                        )
-                      );
-                    }}
-                    onBlur={async (e) => {
-                      if (!editing) return;
+    const next = Math.max(
+      0,
+      Number(e.target.value) || 0
+    );
 
-                      const inventory =
-                        getInventory(editing);
-
-                      const next = Math.max(
-                        0,
-                        Number(e.target.value) || 0
-                      );
-
-                      await updateInventory(
-                        editing._id,
-                        {
-                          stock: {
-                            ...(inventory?.stock || {}),
-                            [size]: next,
-                          },
-                        }
-                      );
-                    }}
-                    className="border border-gray-300"
-                  />
+    await updateInventory(
+      editing._id,
+      {
+        stock: {
+          ...(inventory?.stock || {}),
+          [size]: next,
+        },
+      }
+    );
+  }}
+  className="border border-gray-300"
+/>
                 </div>
               );
             })}
@@ -1390,9 +1376,10 @@ const openProduct = (product) => {
             <div className="grid grid-cols-3 gap-3">
               <InfoBox
                 label="Total"
-                value={getTotalStock(
-                  getInventory(editing)
-                )}
+             value={getTotalStock(
+  getInventory(editing),
+  editing
+)}
               />
 
               <InfoBox
@@ -1405,9 +1392,10 @@ const openProduct = (product) => {
 
               <InfoBox
                 label="Available"
-                value={getAvailableStock(
-                  getInventory(editing)
-                )}
+           value={getAvailableStock(
+  getInventory(editing),
+  editing
+)}
               />
             </div>
           )}

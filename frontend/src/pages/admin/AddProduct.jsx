@@ -1,5 +1,3 @@
-// src/pages/admin/AddProduct.jsx
-
 import { useState, useRef, useEffect } from "react";
 import {
   Package,
@@ -30,31 +28,27 @@ import {
   SelectItem,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch.jsx";
-import api from "@/utils/config";
+import {
+  useGetCategoriesQuery,
+  useCreateAdminProductMutation,
+  useUploadAdminImagesMutation,
+} from "@/store/api";
 import toast from "react-hot-toast";
-
-const SIZE_OPTIONS = {
-  apparel: ["XS", "S", "M", "L", "XL", "XXL"],
-  pants: ["28", "30", "32", "34", "36", "38", "40", "42"],
-};
 
 const getSizeOptions = (categoryId, categories) => {
   const category = categories.find(
     (item) => String(item._id) === String(categoryId)
   );
 
-  const value = String(category?.name || "").toLowerCase();
+  if (!Array.isArray(category?.sizes)) return [];
 
-  if (
-    value.includes("pant") ||
-    value.includes("trouser") ||
-    value.includes("jean") ||
-    value.includes("bottom")
-  ) {
-    return SIZE_OPTIONS.pants;
-  }
-
-  return SIZE_OPTIONS.apparel;
+  return category.sizes
+    .map((size) =>
+      typeof size === "string"
+        ? size
+        : size?.name
+    )
+    .filter(Boolean);
 };
 
 const INITIAL_FORM = {
@@ -78,11 +72,26 @@ export default function AddProduct() {
   const descriptionRef = useRef(null);
 const detailsRef = useRef(null);
 
-  const [categories, setCategories] = useState([]);
+  const {
+    data: categoriesData,
+    isLoading: categoriesLoading,
+  } = useGetCategoriesQuery();
+
+  const categories = Array.isArray(categoriesData)
+    ? categoriesData
+    : categoriesData?.items ||
+      categoriesData?.categories ||
+      [];
+
+  const [createAdminProduct, { isLoading: creatingProduct }] =
+    useCreateAdminProductMutation();
+
+  const [uploadAdminImages, { isLoading: uploadingImages }] =
+    useUploadAdminImagesMutation();
   const [form, setForm] = useState(INITIAL_FORM);
   const [files, setFiles] = useState([]);
   const [previews, setPreviews] = useState([]);
-  const [saving, setSaving] = useState(false);
+  const saving = creatingProduct || uploadingImages || categoriesLoading;
   const [descriptionMode, setDescriptionMode] =
     useState("html");
 const [detailsMode, setDetailsMode] =
@@ -240,8 +249,6 @@ async function submit(e) {
     return;
   }
 
-  setSaving(true);
-
   try {
     let uploadedUrls = [];
 
@@ -252,19 +259,13 @@ async function submit(e) {
         fd.append("files", file);
       });
 
-      const { data } = await api.post(
-        "/admin/upload/images",
-        fd,
-        {
-          headers: {
-            "Content-Type": "multipart/form-data",
-          },
-          timeout: 60000,
-        }
-      );
+      const uploadResponse =
+        await uploadAdminImages(fd).unwrap();
 
       uploadedUrls =
-        data.images?.map((image) => image.url) || [];
+        uploadResponse?.images?.map(
+          (image) => image.url
+        ) || [];
     }
 
     const payload = {
@@ -301,10 +302,8 @@ async function submit(e) {
       featured: Boolean(form.featured),
     };
 
-    const { data } = await api.post(
-      "/admin/products",
-      payload
-    );
+    const data =
+      await createAdminProduct(payload).unwrap();
 
     if (
       !data?.success &&
@@ -329,38 +328,13 @@ async function submit(e) {
     console.error("create product:", error);
 
     toast.error(
-      error?.response?.data?.message ||
-        error?.response?.data?.error ||
+      error?.data?.message ||
+        error?.data?.error ||
         error?.message ||
         "Failed to create product"
     );
-  } finally {
-    setSaving(false);
   }
 }
-
-  useEffect(() => {
-    async function fetchCategories() {
-      try {
-        const { data } = await api.get(
-          "/admin/getCategory"
-        );
-
-        if (data.success) {
-          setCategories(
-            data.categories || []
-          );
-        }
-      } catch (error) {
-        console.error(
-          "fetch categories:",
-          error
-        );
-      }
-    }
-
-    fetchCategories();
-  }, []);
 
   useEffect(() => {
     const newPreviews = files.map((file) => ({

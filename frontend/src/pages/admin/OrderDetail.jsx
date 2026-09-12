@@ -1,6 +1,12 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import api from "@/utils/config";
+import {
+  useGetAdminOrderByIdQuery,
+  useUpdateAdminOrderStatusMutation,
+  useUpdateAdminOrderShipmentMutation,
+  useAddAdminOrderNoteMutation,
+  useSendAdminOrderEmailMutation,
+} from "@/store/api";
 import {
   Loader2,
   Mail,
@@ -181,60 +187,54 @@ const getItemQuantity = (item) =>
   Number(item?.quantity || 1);
 
 export default function OrderDetail() {
-  const { publicOrderId } = useParams();
   const navigate = useNavigate()
-  const [order, setOrder] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const { publicOrderId } = useParams();
+  const {
+  data: orderData,
+  isLoading: loading,
+  isFetching: fetchingOrder,
+  refetch: refetchOrder,
+} = useGetAdminOrderByIdQuery(publicOrderId, {
+  skip: !publicOrderId,
+});
 
-  const [savingStatus, setSavingStatus] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState("");
+const [updateOrderStatus, { isLoading: savingStatus }] =
+  useUpdateAdminOrderStatusMutation();
 
-  const [trackingNumber, setTrackingNumber] = useState("");
-  const [savingShipment, setSavingShipment] = useState(false);
+const [updateOrderShipment, { isLoading: savingShipment }] =
+  useUpdateAdminOrderShipmentMutation();
 
-  const [internalNote, setInternalNote] = useState("");
-  const [savingNote, setSavingNote] = useState(false);
+const [addOrderNote, { isLoading: savingNote }] =
+  useAddAdminOrderNoteMutation();
 
-  const [sendingEmail, setSendingEmail] = useState(false);
+const [sendOrderEmail, { isLoading: sendingEmail }] =
+  useSendAdminOrderEmailMutation();
 
-  const [notif, setNotif] = useState(null);
+const order = orderData;
 
-  const [openItem, setOpenItem] = useState(null);
-  const [activeImageIndex, setActiveImageIndex] = useState(0);
+const [selectedStatus, setSelectedStatus] = useState("");
+const [trackingNumber, setTrackingNumber] = useState("");
+const [internalNote, setInternalNote] = useState("");
+const [notif, setNotif] = useState(null);
+const [openItem, setOpenItem] = useState(null);
+const [activeImageIndex, setActiveImageIndex] = useState(0);
+const [copied, setCopied] = useState(false);
 
-  const [copied, setCopied] = useState(false);
+useEffect(() => {
+  if (!order) return;
 
-  const fetchOrder = async () => {
-    try {
-      setLoading(true);
+  setSelectedStatus(
+    order?.status ||
+      order?.orderStatus ||
+      ""
+  );
 
-      const res = await api.get(`/admin/orders/${publicOrderId}`);
-      const ord = res.data.order;
-
-      setOrder(ord);
-      setSelectedStatus(ord?.status || ord?.orderStatus || "");
-      setTrackingNumber(
-        ord?.shipment?.trackingNumber ||
-          ord?.trackingNumber ||
-          ""
-      );
-    } catch (error) {
-      console.error(error);
-
-      setNotif({
-        type: "error",
-        text: "Failed to load order.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchOrder();
-
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [publicOrderId]);
+  setTrackingNumber(
+    order?.shipment?.trackingNumber ||
+      order?.trackingNumber ||
+      ""
+  );
+}, [order]);
 
   const showNotif = (type, text, duration = 4000) => {
     setNotif({
@@ -247,116 +247,119 @@ export default function OrderDetail() {
     }, duration);
   };
 
-  const updateStatus = async (newStatus) => {
-    if (!order || !newStatus || savingStatus) return;
+const updateStatus = async (newStatus) => {
+  if (!order || !newStatus || savingStatus) return;
 
-    try {
-      setSavingStatus(true);
+  try {
+    await updateOrderStatus({
+      publicOrderId,
+      status: newStatus,
+    }).unwrap();
 
-      await api.patch(`/admin/orders/${publicOrderId}/status`, {
-        status: newStatus,
-      });
+    showNotif(
+      "success",
+      `Order status updated to ${newStatus}.`
+    );
 
-      showNotif(
-        "success",
-        `Order status updated to ${newStatus}.`
-      );
+    await refetchOrder();
+  } catch (error) {
+    console.error(error);
 
-      await fetchOrder();
-    } catch (error) {
-      console.error(error);
-
-      showNotif(
-        "error",
+    showNotif(
+      "error",
+      error?.data?.message ||
+        error?.data?.error ||
         "Failed to update order status."
-      );
-    } finally {
-      setSavingStatus(false);
-    }
-  };
+    );
+  }
+};
 
-  const saveShipment = async () => {
-    try {
-      setSavingShipment(true);
+const saveShipment = async () => {
+  if (!publicOrderId || savingShipment) return;
 
-      await api.patch(`/admin/orders/${publicOrderId}/shipment`, {
-        trackingNumber: trackingNumber.trim(),
-      });
+  try {
+    await updateOrderShipment({
+      publicOrderId,
+      trackingNumber: trackingNumber.trim(),
+    }).unwrap();
 
-      showNotif(
-        "success",
-        "Shipment information saved."
-      );
+    showNotif(
+      "success",
+      "Shipment information saved."
+    );
 
-      await fetchOrder();
-    } catch (error) {
-      console.error(error);
+    await refetchOrder();
+  } catch (error) {
+    console.error(error);
 
-      showNotif(
-        "error",
+    showNotif(
+      "error",
+      error?.data?.message ||
+        error?.data?.error ||
         "Failed to update shipment."
-      );
-    } finally {
-      setSavingShipment(false);
-    }
-  };
+    );
+  }
+};
 
-  const saveNote = async () => {
-    if (!internalNote.trim()) {
-      showNotif("error", "Note cannot be empty.");
-      return;
-    }
+const saveNote = async () => {
+  if (!internalNote.trim()) {
+    showNotif(
+      "error",
+      "Note cannot be empty."
+    );
+    return;
+  }
 
-    try {
-      setSavingNote(true);
+  try {
+    await addOrderNote({
+      publicOrderId,
+      text: internalNote.trim(),
+    }).unwrap();
 
-      await api.post(`/admin/orders/${publicOrderId}/notes`, {
-        text: internalNote.trim(),
-      });
+    setInternalNote("");
 
-      setInternalNote("");
+    showNotif(
+      "success",
+      "Internal note added."
+    );
 
-      showNotif(
-        "success",
-        "Internal note added."
-      );
+    await refetchOrder();
+  } catch (error) {
+    console.error(error);
 
-      await fetchOrder();
-    } catch (error) {
-      console.error(error);
-
-      showNotif(
-        "error",
+    showNotif(
+      "error",
+      error?.data?.message ||
+        error?.data?.error ||
         "Failed to save note."
-      );
-    } finally {
-      setSavingNote(false);
-    }
-  };
+    );
+  }
+};
 
-  const triggerEmail = async () => {
-    try {
-      setSendingEmail(true);
+const triggerEmail = async () => {
+  if (!publicOrderId || sendingEmail) return;
 
-      await api.post(`/admin/orders/${publicOrderId}/send-email`, {
-        template: "status_change",
-      });
+  try {
+    await sendOrderEmail({
+      publicOrderId,
+      template: "status_change",
+    }).unwrap();
 
-      showNotif(
-        "success",
-        "Order email sent successfully."
-      );
-    } catch (error) {
-      console.error(error);
+    showNotif(
+      "success",
+      "Order email sent successfully."
+    );
+  } catch (error) {
+    console.error(error);
 
-      showNotif(
-        "error",
+    showNotif(
+      "error",
+      error?.data?.message ||
+        error?.data?.error ||
         "Failed to send email."
-      );
-    } finally {
-      setSendingEmail(false);
-    }
-  };
+    );
+  }
+};
 
   const copyOrderNumber = async () => {
     if (!order?.orderNumber) return;
@@ -589,7 +592,7 @@ export default function OrderDetail() {
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant="outline"
-                onClick={fetchOrder}
+                onClick={refetchOrder}
                 className="rounded-xl"
               >
                 <RefreshCw className="mr-2 h-4 w-4" />

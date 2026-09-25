@@ -5,7 +5,6 @@ import { useEffect, useMemo, useState } from "react";
 import {
   Heart,
   ShoppingBag,
-  Filter,
   ArrowUpDown,
   Heart as HeartOutline,
 } from "lucide-react";
@@ -25,7 +24,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog.jsx";
 
-import FilterDrawer from "@/components/filterDrawer";
+import Filter  from "@/components/filterDrawer";
 
 import { useCart } from "../state/CartContext.jsx";
 import { useWishlist } from "../state/WishlistContext.jsx";
@@ -80,8 +79,7 @@ export default function Products() {
   const [hasMore, setHasMore] =
     useState(true);
 
-  const [isFilterOpen, setIsFilterOpen] =
-    useState(false);
+
 
   const [selectedProduct, setSelectedProduct] =
     useState(null);
@@ -465,18 +463,17 @@ useEffect(() => {
       ================================================= */}
 
       <div className="mx-auto px-4 py-10 flex flex-wrap gap-4 items-center justify-between">
-        <button
-          onClick={() =>
-            setIsFilterOpen(true)
-          }
-          className="flex items-center gap-2 px-4 py-2 bg-black text-white font-bold uppercase hover:bg-black transition"
-        >
-          <Filter className="w-5 h-5" />
-
-          <span className="max-[500px]:hidden">
-            Filter
-          </span>
-        </button>
+<Filter
+  categories={categories}
+  selectedFilters={selectedFilters}
+  onChange={handleFilterChange}
+  onApply={(filters) => {
+    setSelectedFilters(filters);
+    setPage(1);
+    setHasMore(true);
+    setAllProducts([]);
+  }}
+/>
 
         <div className="w-48">
           <Select
@@ -923,38 +920,7 @@ useEffect(() => {
         </DialogContent>
       </Dialog>
 
-      {/* ================================================
-          FILTER DRAWER
-      ================================================= */}
 
-      {isFilterOpen && (
-        <div
-          onClick={() =>
-            setIsFilterOpen(false)
-          }
-          className="fixed inset-0 bg-black bg-opacity-40 z-40 transition-opacity duration-300"
-        />
-      )}
-
-      <FilterDrawer
-        isOpen={isFilterOpen}
-        onClose={() =>
-          setIsFilterOpen(false)
-        }
-        selectedFilters={
-          selectedFilters
-        }
-        onChange={
-          handleFilterChange
-        }
-        onApply={() => {
-          setPage(1);
-          setHasMore(true);
-          setAllProducts([]);
-          setIsFilterOpen(false);
-        }}
-        categories={categories}
-      />
 
       {/* ================================================
           TOP BUTTON

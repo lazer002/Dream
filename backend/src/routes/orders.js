@@ -1,4 +1,5 @@
 // routes/checkout.js
+import mongoose from "mongoose";
 import express from "express";
 import { Order } from "../models/Order.js";
 import { GuestUser } from "../models/GuestUser.js";
@@ -11,6 +12,7 @@ import {Product} from "../models/Product.js";
 import { Bundle } from "../models/Bundle.js";
 import {
   updateOrderInventory,
+  updateOrderInventoryInSession
 } from "../utils/inventoryUpdate.js";
 import { Inventory } from "../models/Inventory.js";
 import crypto from "crypto";
@@ -50,6 +52,7 @@ router.post("/create", optionalAuth, async (req, res) => {
 
 
     let calculatedSubtotal = 0;
+    let originalSubtotal = 0;
     const validatedItems = [];
 for (const item of items) {
   // =========================
@@ -70,10 +73,15 @@ for (const item of items) {
     const bundleQuantity =
       Number(item.quantity) || 1;
 
-    const itemTotal =
-      bundle.price * bundleQuantity;
+const itemTotal =
+  Number(bundle.price || 0) * bundleQuantity;
 
-    calculatedSubtotal += itemTotal;
+const bundleOldPrice =
+  Number(bundle.oldPrice || bundle.price || 0) *
+  bundleQuantity;
+
+calculatedSubtotal += itemTotal;
+originalSubtotal += bundleOldPrice;
 
     const bundleProductsValidated = [];
 
@@ -130,9 +138,14 @@ for (const item of items) {
         !inventory.allowBackorder &&
         availableStock < requiredStock
       ) {
-        return res.status(400).json({
-          error: `${product.title} (${variant}) has only ${availableStock} left`,
-        });
+     return res.status(409).json({
+  success: false,
+  code: "OUT_OF_STOCK",
+  error: `${product.title} (${variant}) has only ${availableStock} left`,
+  productId: product.publicId,
+  variant,
+  availableStock,
+});
       }
 
       bundleProductsValidated.push({
@@ -244,10 +257,14 @@ for (const item of items) {
         !inventory.allowBackorder &&
         availableStock < requiredStock
       ) {
-        return res.status(400).json({
-          success: false,
-          error: `${product.title} (${variant}) has only ${availableStock} left`,
-        });
+     return res.status(409).json({
+  success: false,
+  code: "OUT_OF_STOCK",
+  error: `${product.title} (${variant}) has only ${availableStock} left`,
+  productId: product.publicId,
+  variant,
+  availableStock,
+});
       }
 
       originalBundlePrice +=
@@ -279,6 +296,9 @@ for (const item of items) {
     const itemTotal =
       customBundlePrice *
       bundleQuantity;
+
+      originalSubtotal +=
+  originalBundlePrice * bundleQuantity;
 
     calculatedSubtotal += itemTotal;
 
@@ -371,16 +391,26 @@ const product = await Product.findOne({
     !inventory.allowBackorder &&
     availableStock < quantity
   ) {
-    return res.status(400).json({
-      error: `${product.title} (${variant}) has only ${availableStock} left`,
-    });
+ return res.status(409).json({
+  success: false,
+  code: "OUT_OF_STOCK",
+  error: `${product.title} (${variant}) has only ${availableStock} left`,
+  productId: product.publicId,
+  variant,
+  availableStock,
+});
   }
 
-  const itemTotal =
-    Number(product.price || 0) *
-    quantity;
+const itemTotal =
+  Number(product.price || 0) *
+  quantity;
 
-  calculatedSubtotal += itemTotal;
+const productOldPrice =
+  Number(product.oldPrice || product.price || 0) *
+  quantity;
+
+calculatedSubtotal += itemTotal;
+originalSubtotal += productOldPrice;
 
   validatedItems.push({
     productId: product._id,
@@ -394,8 +424,19 @@ const product = await Product.findOne({
       "default.jpg",
   });
 }
-    const shippingFee = 0; // you can make dynamic later
-    const finalTotal = calculatedSubtotal + shippingFee;
+  const shippingFee = 0;
+
+const discountAmount = Math.max(
+  0,
+  Math.round(originalSubtotal - calculatedSubtotal)
+);
+
+const taxAmount = 0;
+
+const grandTotal =
+  calculatedSubtotal +
+  shippingFee +
+  taxAmount;
 
     // =========================
     // 👤 Guest Handling (unchanged)
@@ -449,9 +490,19 @@ if (!userId) {
       billingSame,
       shippingAddress,
       items: validatedItems, // ✅ secure items
-      subtotal: calculatedSubtotal,
+      subtotal: originalSubtotal,
+
+      discountAmount,
+
+      couponDiscount: 0,
+
       shippingFee,
-      total: finalTotal,
+
+      taxAmount,
+
+      grandTotal,
+
+      total: grandTotal,
       discountCode: discountCode || "",
       paymentMethod,
       source,
@@ -459,8 +510,29 @@ if (!userId) {
       orderStatus: initialOrderStatus,
     });
 
-    if (paymentMethod === "cod") {
- await updateOrderInventory(order, "decrease");
+if (paymentMethod === "cod") {
+  try {
+    await updateOrderInventory(order, "decrease");
+  } catch (inventoryError) {
+    console.error(
+      "❌ COD inventory deduction failed:",
+      inventoryError
+    );
+
+    // Remove the order because stock was not available
+    await Order.findByIdAndDelete(order._id);
+
+    return res.status(
+      inventoryError.status || 409
+    ).json({
+      success: false,
+      code:
+        inventoryError.code || "OUT_OF_STOCK",
+      error:
+        inventoryError.message ||
+        "Product is out of stock",
+    });
+  }
 }
 
 
@@ -485,7 +557,7 @@ if (!userId) {
 
     if (paymentMethod === "razorpay") {
       const razorpayOptions = {
-        amount: finalTotal * 100, // 🔥 IMPORTANT (paise)
+        amount: grandTotal  * 100, // 🔥 IMPORTANT (paise)
         currency: "INR",
         receipt: order._id.toString(),
       };
@@ -506,7 +578,7 @@ if (!userId) {
       await Payment.create({
         orderId: order._id,
         razorpayOrderId: razorpayOrder.data.id,
-        amount: finalTotal,
+        amount: grandTotal,
         currency: "INR",
         status: "pending",
          method: "razorpay",
@@ -520,7 +592,7 @@ if (!userId) {
   orderNumber,
   publicOrderId: order.publicOrderId,
   orderId: order._id,
-  amount: finalTotal,
+  amount: grandTotal,
   currency: "INR",
   razorpayOrderId: razorpayOrder.data.id,
 });
@@ -582,115 +654,191 @@ router.post("/webhook", async (req, res) => {
     if (event.event === "payment.captured") {
       const payment = event.payload.payment.entity;
 
-      // =========================
-      // 🔗 FIND PAYMENT
-      // =========================
+      const session = await mongoose.startSession();
 
-      const paymentDoc = await Payment.findOne({
-        razorpayOrderId: payment.order_id,
-      });
+      try {
+        let confirmedOrderId = null;
 
-      if (!paymentDoc) {
-        console.log("⚠️ Payment document not found");
-        return res.sendStatus(200);
-      }
+        await session.withTransaction(async () => {
+          // =========================
+          // 🔗 FIND PAYMENT
+          // =========================
 
-      // =========================
-      // 📦 FIND ORDER
-      // =========================
+          const paymentDoc = await Payment.findOne({
+            razorpayOrderId: payment.order_id,
+          }).session(session);
 
-      const order = await Order.findById(paymentDoc.orderId);
+          if (!paymentDoc) {
+            console.log("⚠️ Payment document not found");
+            return;
+          }
 
-      if (!order) {
-        console.log("⚠️ Order not found");
-        return res.sendStatus(200);
-      }
+          // =========================
+          // 📦 FIND ORDER
+          // =========================
 
-      // =========================
-      // 💰 VERIFY AMOUNT + CURRENCY
-      // =========================
+          const order = await Order.findById(
+            paymentDoc.orderId
+          ).session(session);
 
-      if (
-        payment.amount !== order.total * 100 ||
-        payment.currency !== "INR"
-      ) {
-        console.log("❌ Amount mismatch in webhook");
-        return res.sendStatus(200);
-      }
+          if (!order) {
+            console.log("⚠️ Order not found");
+            return;
+          }
 
-      // =========================
-      // 🔗 VERIFY RAZORPAY ORDER ID
-      // =========================
+          // =========================
+          // 🚫 ALREADY PROCESSED
+          // =========================
 
-      if (payment.order_id !== paymentDoc.razorpayOrderId) {
-        console.log("❌ Razorpay order mismatch");
-        return res.sendStatus(200);
-      }
+          if (paymentDoc.status === "paid") {
+            console.log("ℹ️ Payment already processed");
+            confirmedOrderId = order._id;
+            return;
+          }
 
-      // =========================
-      // 🔒 ATOMIC PAYMENT CLAIM
-      // =========================
-      //
-      // Only ONE webhook request can change
-      // payment status from pending → paid.
-      //
-      // If another webhook already changed it,
-      // findOneAndUpdate() returns null.
-      //
+          // =========================
+          // 💰 VERIFY AMOUNT
+          // =========================
 
-      const claimedPayment = await Payment.findOneAndUpdate(
-        {
-          _id: paymentDoc._id,
-          status: { $ne: "paid" },
-        },
-        {
-          $set: {
-            status: "paid",
-            razorpayPaymentId: payment.id,
-            razorpaySignature: signature,
-          },
-        },
-        {
-          new: true,
+          if (
+            Number(payment.amount) !==
+            Math.round(Number(order.total) * 100)
+          ) {
+            throw new Error(
+              "Amount mismatch in webhook"
+            );
+          }
+
+          // =========================
+          // 💱 VERIFY CURRENCY
+          // =========================
+
+          if (payment.currency !== "INR") {
+            throw new Error(
+              "Currency mismatch in webhook"
+            );
+          }
+
+          // =========================
+          // 🔗 VERIFY RAZORPAY ORDER
+          // =========================
+
+          if (
+            payment.order_id !==
+            paymentDoc.razorpayOrderId
+          ) {
+            throw new Error(
+              "Razorpay order mismatch"
+            );
+          }
+
+          // =========================
+          // 📦 DECREASE INVENTORY FIRST
+          // =========================
+          //
+          // IMPORTANT:
+          // Inventory + payment + order are
+          // handled in ONE MongoDB transaction.
+          //
+          // If inventory fails:
+          // transaction rolls back.
+          //
+          // Payment will NOT be marked paid
+          // in our database.
+          //
+
+          await updateOrderInventoryInSession(
+            order,
+            session,
+            "decrease"
+          );
+
+          // =========================
+          // 💳 MARK PAYMENT PAID
+          // =========================
+
+          const claimedPayment =
+            await Payment.findOneAndUpdate(
+              {
+                _id: paymentDoc._id,
+                status: { $ne: "paid" },
+              },
+              {
+                $set: {
+                  status: "paid",
+                  razorpayPaymentId: payment.id,
+                  razorpaySignature: signature,
+                },
+              },
+              {
+                new: true,
+                session,
+              }
+            );
+
+          if (!claimedPayment) {
+            console.log(
+              "ℹ️ Payment already processed by another webhook"
+            );
+            return;
+          }
+
+          // =========================
+          // ✅ CONFIRM ORDER
+          // =========================
+
+          order.paymentStatus = "paid";
+          order.orderStatus = "confirmed";
+
+          await order.save({ session });
+
+          confirmedOrderId = order._id;
+        });
+
+        // =========================
+        // 📧 SEND EMAIL AFTER COMMIT
+        // =========================
+
+        if (confirmedOrderId) {
+          const confirmedOrder =
+            await Order.findById(confirmedOrderId);
+
+          if (confirmedOrder) {
+            await sendOrderEmail({
+              status: "confirmed",
+              order: confirmedOrder,
+            });
+
+            console.log(
+              `✅ Webhook: Payment captured, inventory deducted and order confirmed: ${confirmedOrder.orderNumber}`
+            );
+          }
         }
-      );
 
-      // =========================
-      // 🚫 ALREADY PROCESSED
-      // =========================
+      } catch (err) {
+        console.error(
+          "❌ Payment/inventory transaction failed:",
+          err
+        );
 
-      if (!claimedPayment) {
-        console.log("ℹ️ Payment already processed");
-        return res.sendStatus(200);
+        /*
+         * IMPORTANT:
+         *
+         * Do NOT mark payment as paid here.
+         *
+         * Transaction has rolled back:
+         * - inventory rollback
+         * - payment remains pending
+         * - order remains pending
+         *
+         * Razorpay can retry the webhook.
+         */
+
+        return res.sendStatus(500);
+
+      } finally {
+        await session.endSession();
       }
-
-      // =========================
-      // ✅ UPDATE ORDER
-      // =========================
-
-      order.paymentStatus = "paid";
-      order.orderStatus = "confirmed";
-
-      await order.save();
-
-      // =========================
-      // 📦 DECREASE INVENTORY
-      // =========================
-
-      await updateOrderInventory(order, "decrease");
-
-      // =========================
-      // 📧 SEND CONFIRMATION EMAIL
-      // =========================
-
-      await sendOrderEmail({
-        status: "confirmed",
-        order,
-      });
-
-      console.log(
-        `✅ Webhook: Payment captured and order confirmed: ${order.orderNumber}`
-      );
     }
 
     // =========================
@@ -704,13 +852,17 @@ router.post("/webhook", async (req, res) => {
         razorpayOrderId: payment.order_id,
       });
 
-      if (paymentDoc && paymentDoc.status !== "paid") {
+      if (
+        paymentDoc &&
+        paymentDoc.status !== "paid"
+      ) {
         paymentDoc.status = "failed";
-
         await paymentDoc.save();
       }
 
-      console.log("❌ Webhook: Payment failed");
+      console.log(
+        "❌ Webhook: Payment failed"
+      );
     }
 
     // =========================
@@ -720,7 +872,11 @@ router.post("/webhook", async (req, res) => {
     return res.sendStatus(200);
 
   } catch (err) {
-    console.error("❌ Webhook error:", err);
+    console.error(
+      "❌ Webhook error:",
+      err
+    );
+
     return res.sendStatus(500);
   }
 });
@@ -1076,19 +1232,18 @@ router.get("/:publicOrderId", optionalAuth, async (req, res) => {
   }
 });
 router.put("/cancel", optionalAuth, async (req, res) => {
+  const session = await mongoose.startSession();
+
   try {
     const { orderId } = req.body;
     const guestId = req.headers["x-guest-id"];
     const userId = req.user?.id || null;
 
-    // =========================
-    // 🔍 FIND ORDER
-    // =========================
-
     const order = await Order.findById(orderId);
 
     if (!order) {
       return res.status(404).json({
+        success: false,
         error: "Order not found",
       });
     }
@@ -1098,16 +1253,22 @@ router.put("/cancel", optionalAuth, async (req, res) => {
     // =========================
 
     if (userId) {
-      // Logged-in user
-      if (order.userId?.toString() !== userId.toString()) {
+      if (
+        order.userId?.toString() !==
+        userId.toString()
+      ) {
         return res.status(403).json({
+          success: false,
           error: "Unauthorized",
         });
       }
     } else {
-      // Guest user
-      if (!guestId || order.guestId !== guestId) {
+      if (
+        !guestId ||
+        order.guestId !== guestId
+      ) {
         return res.status(403).json({
+          success: false,
           error: "Unauthorized",
         });
       }
@@ -1117,76 +1278,105 @@ router.put("/cancel", optionalAuth, async (req, res) => {
     // 🚫 VALIDATE STATUS
     // =========================
 
-    if (!["pending", "confirmed"].includes(order.orderStatus)) {
+    if (
+      !["pending", "confirmed"].includes(
+        order.orderStatus
+      )
+    ) {
       return res.status(400).json({
-        error: "Order cannot be cancelled now",
+        success: false,
+        error:
+          "Order cannot be cancelled now",
       });
     }
 
-    // =========================
-    // 🔒 ATOMIC CANCEL
-    // =========================
-    //
-    // This is important.
-    //
-    // If two requests arrive at the same time:
-    //
-    // Request A → pending/confirmed → cancelled ✅
-    // Request B → cannot match anymore ❌
-    //
-    // Therefore inventory is restored only once.
-    //
+    let cancelledOrderId = null;
 
-    const updatedOrder = await Order.findOneAndUpdate(
-      {
-        _id: orderId,
-        orderStatus: {
-          $in: ["pending", "confirmed"],
-        },
-      },
-      {
-        $set: {
-          orderStatus: "cancelled",
-        },
-      },
-      {
-        new: true,
+    // =========================
+    // 🔒 ATOMIC CANCEL + INVENTORY
+    // =========================
+
+    await session.withTransaction(async () => {
+      const updatedOrder =
+        await Order.findOneAndUpdate(
+          {
+            _id: orderId,
+            orderStatus: {
+              $in: [
+                "pending",
+                "confirmed",
+              ],
+            },
+          },
+          {
+            $set: {
+              orderStatus: "cancelled",
+            },
+          },
+          {
+            new: true,
+            session,
+          }
+        );
+
+      // Another request cancelled it first
+      if (!updatedOrder) {
+        const error = new Error(
+          "Order was already cancelled or cannot be cancelled now"
+        );
+
+        error.status = 400;
+
+        throw error;
       }
-    );
+
+      // =========================
+      // 📦 RESTORE INVENTORY
+      // =========================
+
+      await updateOrderInventoryInSession(
+        updatedOrder,
+        session,
+        "increase"
+      );
+
+      cancelledOrderId =
+        updatedOrder._id;
+    });
 
     // =========================
-    // 🚫 ALREADY CANCELLED /
-    // STATUS CHANGED
+    // 📦 GET UPDATED ORDER
     // =========================
 
-    if (!updatedOrder) {
-      return res.status(400).json({
-        error: "Order was already cancelled or cannot be cancelled now",
-      });
-    }
-
-    // =========================
-    // 📦 RESTORE INVENTORY
-    // =========================
-
-    await updateOrderInventory(updatedOrder, "increase");
-
-    // =========================
-    // ✅ RESPONSE
-    // =========================
+    const cancelledOrder =
+      await Order.findById(
+        cancelledOrderId
+      );
 
     return res.json({
       success: true,
-      message: "Order cancelled successfully",
-      order: updatedOrder,
+      message:
+        "Order cancelled successfully",
+      order: cancelledOrder,
     });
 
   } catch (err) {
-    console.error("Cancel error:", err);
+    console.error(
+      "❌ Cancel error:",
+      err
+    );
 
-    return res.status(500).json({
-      error: "Cancel failed",
+    return res.status(
+      err.status || 500
+    ).json({
+      success: false,
+      error:
+        err.message ||
+        "Cancel failed",
     });
+
+  } finally {
+    await session.endSession();
   }
 });
 

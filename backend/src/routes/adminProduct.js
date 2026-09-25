@@ -7,6 +7,11 @@ import {
   deleteSupabaseImages,
   
 } from "../utils/helper.js";
+import {
+  syncProductStockStatus,
+  syncBundlesForProduct,
+} from "../utils/inventoryUpdate.js";
+
 const router = express.Router()
 
 
@@ -109,6 +114,10 @@ router.post(
         active: true,
       });
 
+      await syncProductStockStatus(
+  product._id
+);
+
       return res.status(201).json({
         success: true,
         product,
@@ -180,14 +189,18 @@ router.put(
   requireAdmin,
   async (req, res) => {
     try {
-      const product = await Product.findByIdAndUpdate(
-        req.params.productId,
-        req.body,
-        {
-          new: true,
-          runValidators: true,
-        }
-      );
+const productUpdate = { ...req.body };
+
+delete productUpdate.isOutOfStock;
+
+const product = await Product.findByIdAndUpdate(
+  req.params.productId,
+  productUpdate,
+  {
+    new: true,
+    runValidators: true,
+  }
+);
 
       if (!product) {
         return res.status(404).json({
@@ -241,18 +254,7 @@ router.put(
           }
         );
 
-        const totalStock = Object.values(stock).reduce(
-          (sum, quantity) =>
-            sum + Number(quantity || 0),
-          0
-        );
-
-        await Product.findByIdAndUpdate(
-          product._id,
-          {
-            isOutOfStock: totalStock === 0,
-          }
-        );
+await syncProductStockStatus(product._id);
       }
 
       // =========================

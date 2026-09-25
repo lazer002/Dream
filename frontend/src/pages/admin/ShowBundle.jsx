@@ -81,6 +81,10 @@ const getInventoryStock = (product) => {
 const isProductOutOfStock = (product) => {
   if (!product) return true;
 
+  if (product.isOutOfStock === true) {
+    return true;
+  }
+
   if (product.trackInventory === false) {
     return false;
   }
@@ -147,12 +151,18 @@ export default function ShowBundle() {
     isLoading: bundlesLoading,
   } = useGetBundlesQuery();
 
-  const {
-    data: productsData,
-    isLoading: productsLoading,
-  } = useGetProductsQuery({
+const {
+  data: productsData,
+  isLoading: productsLoading,
+  isFetching: productsFetching,
+} = useGetProductsQuery(
+  {
     limit: 100,
-  });
+  },
+  {
+    skip: !editBundle,
+  }
+);
 
   const [updateBundle, { isLoading: updatingBundle }] =
     useUpdateBundleMutation();
@@ -460,7 +470,7 @@ export default function ShowBundle() {
         .filter(Boolean);
 
       await updateBundle({
-        id: editBundle._id,
+        id: editBundle.publicId,
         data: {
           title: editBundle.title.trim(),
           description: editBundle.description || "",
@@ -719,66 +729,136 @@ export default function ShowBundle() {
                 </TableCell>
 
                 {/* PRODUCTS */}
-                <TableCell>
-                  <div className="w-[280px]">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
-                        {productCount}{" "}
-                        {productCount === 1
-                          ? "Product"
-                          : "Products"}
-                      </span>
-                    </div>
-
-              <div className="space-y-2">
-  {bundle.products?.slice(0, 5).map((product) => (
-    <div
-      key={product._id}
-      onClick={() =>
-        navigate(`/admin/products/${product.publicId}`)
-      }
-      className="flex items-center gap-2 cursor-pointer hover:underline"
-    >
-      {product.images?.[0] ? (
-        <img
-          src={product.images[0]}
-          alt={product.title}
-          className="h-9 w-9 rounded-lg border object-cover"
-        />
-      ) : (
-        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gray-100">
-          <Package className="h-4 w-4 text-gray-300" />
-        </div>
-      )}
-
-      <div className="min-w-0">
-        <p className="truncate text-xs font-medium text-gray-800">
-          {product.title}
-        </p>
-
-        <div className="flex items-center gap-2">
-          <span className="text-[11px] text-gray-500">
-            ₹{Number(product.price || 0).toLocaleString("en-IN")}
-          </span>
-
-          {isProductOutOfStock(product) && (
-            <span className="text-[10px] font-medium text-red-500">
-              Out of stock
-            </span>
-          )}
-        </div>
-      </div>
+               <TableCell>
+  <div className="w-[320px]">
+    <div className="mb-2 flex items-center gap-2">
+      <span className="rounded-full bg-gray-100 px-2 py-1 text-xs font-semibold text-gray-700">
+        {productCount}{" "}
+        {productCount === 1
+          ? "Product"
+          : "Products"}
+      </span>
     </div>
-  ))}
 
-  {productCount > 5 && (
-    <span className="text-xs font-medium text-gray-400">
-      +{productCount - 5} more products
-    </span>
-  )}
-</div>
-                  </div>
-                </TableCell>
+    <div className="space-y-2">
+      {bundle.products?.slice(0, 5).map((bundleProduct) => {
+        /*
+          IMPORTANT:
+          Always get the latest product from allProducts.
+
+          bundle.products can contain an older/populated
+          product object which may not have the latest
+          isOutOfStock value.
+        */
+
+        const productId =
+          typeof bundleProduct === "object"
+            ? bundleProduct?._id ||
+              bundleProduct?.publicId
+            : bundleProduct;
+
+        const product =
+          allProducts.find(
+            (item) =>
+              String(item._id) ===
+                String(productId) ||
+              String(item.publicId) ===
+                String(productId)
+          ) || bundleProduct;
+
+        const outOfStock =
+          isProductOutOfStock(product);
+
+        return (
+          <div
+            key={
+              product?._id ||
+              product?.publicId
+            }
+            onClick={() =>
+              navigate(
+                `/admin/products/${product?.publicId}`
+              )
+            }
+            className="
+              flex
+              cursor-pointer
+              items-center
+              gap-2
+              rounded-lg
+              py-1
+              transition
+              hover:bg-gray-50
+            "
+          >
+            {/* IMAGE */}
+            {product?.images?.[0] ? (
+              <img
+                src={product.images[0]}
+                alt={product.title}
+                className="h-9 w-9 shrink-0 rounded-lg border object-cover"
+              />
+            ) : (
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gray-100">
+                <Package className="h-4 w-4 text-gray-300" />
+              </div>
+            )}
+
+            {/* PRODUCT INFO */}
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <p
+                  className={`truncate text-xs font-medium ${
+                    outOfStock
+                      ? "text-gray-800"
+                      : "text-gray-800"
+                  }`}
+                >
+                  {product?.title}
+                </p>
+
+                {/* OUT OF STOCK BADGE */}
+                {outOfStock && (
+                  <span
+                    className="
+                      shrink-0
+                      rounded-full
+                      bg-red-50
+                      px-2
+                      py-0.5
+                      text-[9px]
+                      font-bold
+                      text-red-600
+                      ring-1
+                      ring-red-100
+                    "
+                  >
+                    OUT OF STOCK
+                  </span>
+                )}
+              </div>
+
+              <div className="mt-0.5 flex items-center gap-2">
+                <span className="text-[11px] text-gray-500">
+                  ₹
+                  {Number(
+                    product?.price || 0
+                  ).toLocaleString("en-IN")}
+                </span>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+
+      {productCount > 5 && (
+        <span className="text-xs font-medium text-gray-400">
+          +{productCount - 5} more products
+        </span>
+      )}
+    </div>
+  </div>
+</TableCell>
 
                 {/* PRICING */}
                 <TableCell>

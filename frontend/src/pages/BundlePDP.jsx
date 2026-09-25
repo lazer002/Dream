@@ -44,6 +44,7 @@ const {
   isError,
 } = useGetBundleQuery(publicId, {
   skip: !publicId,
+   refetchOnMountOrArgChange: 60,
 });
   const [activeImage, setActiveImage] = useState(0);
   const [wishlisted, setWishlisted] = useState(false);
@@ -577,59 +578,85 @@ const isBundleOutOfStock =
                 )}
               </div>
 
-              {sizes.length > 0 ? (
-                <div className="flex flex-wrap gap-2">
-                  {sizes.map((size) => {
-                    const sizeName = getSizeName(size);
-                    const sizeId = getSizeId(size);
+     {sizes.length > 0 ? (
+  <div className="flex flex-wrap gap-2">
+    {sizes.map((size) => {
+      const sizeName = getSizeName(size);
+      const sizeId = getSizeId(size);
 
-                    const active =
-                      selectedSize === sizeName;
+      const stock = Number(
+        product?.inventory?.[sizeName] ?? 0
+      );
 
-                    return (
-                      <button
-                        key={sizeId || sizeName}
-                        type="button"
-                        onClick={() =>
-                          handleSizeChange(
-                            product._id,
-                            sizeName
-                          )
-                        }
-                        className={`
-                          relative
-                          min-w-[58px]
-                          h-11
-                          px-4
-                          rounded-xl
-                          border
-                          text-sm
-                          font-semibold
-                          transition-all
-                          duration-200
-                          ${
-                            active
-                              ? "border-black bg-black text-white shadow-md scale-[1.02]"
-                              : "border-gray-200 bg-white text-gray-800 hover:border-black hover:bg-gray-50"
-                          }
-                        `}
-                      >
-                        {sizeName}
+      const unavailable = stock <= 0;
+      const active = selectedSize === sizeName;
 
-                        {active && (
-                          <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black border-2 border-white">
-                            <span className="h-1.5 w-1.5 rounded-full bg-white" />
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-sm text-gray-500">
-                  No sizes available for this product.
-                </div>
-              )}
+      return (
+        <button
+          key={sizeId || sizeName}
+          type="button"
+          disabled={unavailable}
+          onClick={() =>
+            !unavailable &&
+            handleSizeChange(product._id, sizeName)
+          }
+          className={`
+            relative
+            min-w-[58px]
+            h-11
+            px-4
+            rounded-xl
+            border
+            text-sm
+            font-semibold
+            transition-all
+            duration-200
+            overflow-hidden
+
+            ${
+              unavailable
+                ? "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
+                : active
+                ? "border-black bg-black text-white shadow-md scale-[1.02]"
+                : "border-gray-200 bg-white text-gray-800 hover:border-black hover:bg-gray-50"
+            }
+          `}
+        >
+          {sizeName}
+
+          {/* CROSS OUT UNAVAILABLE SIZE */}
+          {unavailable && (
+            <span
+              className="
+                absolute
+                left-1/2
+                top-1/2
+                w-[130%]
+                h-[1.5px]
+                bg-gray-400
+                -translate-x-1/2
+                -translate-y-1/2
+                rotate-[-45deg]
+                pointer-events-none
+              "
+            />
+          )}
+
+          {/* SELECTED INDICATOR */}
+          {active && !unavailable && (
+            <span className="absolute -top-1.5 -right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-black border-2 border-white">
+              <span className="h-1.5 w-1.5 rounded-full bg-white" />
+            </span>
+          )}
+        </button>
+      );
+    })}
+  </div>
+) : (
+  <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-sm text-gray-500">
+    No sizes available for this product.
+  </div>
+)}
             </div>
           )}
 

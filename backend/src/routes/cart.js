@@ -71,7 +71,7 @@ async function findProductByPublicId(publicId) {
     publicId: id,
     active: true,
     published: true,
-  });
+  }).populate("category", "name");
 }
 
 /* =========================================================
@@ -226,12 +226,15 @@ async function validateInventory({
           0
         );
 
-  const reserved = Number(inventory.reserved || 0);
-
-  const available = Math.max(
-    0,
-    sizeStock - reserved
-  );
+const available = Math.max(0, sizeStock);
+console.log("🔥 INVENTORY VALIDATION", {
+  product: product.title,
+  size,
+  stock: sizeStock,
+  requestedQuantity: quantity,
+  available,
+  allowBackorder: inventory.allowBackorder,
+});
 
   if (
     available < quantity &&
@@ -282,6 +285,7 @@ async function makeProductCartData(publicId) {
     images: product.images || [],
     sizes: product.sizes || [],
     category: product.category || null,
+    categoryName: product.category?.name || null,
     tags: product.tags || [],
     active: product.active,
     published: product.published,
@@ -330,6 +334,8 @@ async function populateCartItem(item) {
               await makeProductCartData(
                 bundleProduct.publicId
               );
+            console.log('✌️product --->', product);
+
 
 return {
   publicId: bundleProduct.publicId,
@@ -533,62 +539,53 @@ router.post(
   optionalAuth,
   async (req, res) => {
     try {
-      const owner =
-        getCartOwner(req);
-      console.log('✌️owner --->', owner);
+      const owner = getCartOwner(req);
 
+      console.log("✌️owner --->", owner);
 
       if (!owner) {
         return res.status(400).json({
           success: false,
-          error:
-            "Missing user or guestId",
+          error: "Missing user or guestId",
         });
       }
 
-      const publicId =
-        normalizePublicId(
-          req.body.publicId
-        );
+      const publicId = normalizePublicId(
+        req.body.publicId
+      );
 
-      const size =
-        normalizeSize(
-          req.body.size
-        );
+      const size = normalizeSize(
+        req.body.size
+      );
 
-      const quantity =
-        normalizeQuantity(
-          req.body.quantity ?? 1
-        );
+      const quantity = normalizeQuantity(
+        req.body.quantity ?? 1
+      );
 
       if (!publicId) {
         return res.status(400).json({
           success: false,
-          error:
-            "publicId is required",
+          error: "publicId is required",
         });
       }
 
       if (!quantity) {
         return res.status(400).json({
           success: false,
-          error:
-            "Invalid quantity",
+          error: "Invalid quantity",
         });
       }
 
       const product =
-        await findProductByPublicId(
-          publicId
-        );
+        await findProductByPublicId(publicId);
 
       if (!product) {
         return res.status(404).json({
           success: false,
-          error:
-            "Product not found",
+          error: "Product not found",
         });
       }
+
 
       const inventoryCheck =
         await validateInventory({
@@ -598,20 +595,19 @@ router.post(
         });
 
       if (!inventoryCheck.ok) {
-        return res.status(
-          inventoryCheck.status
-        ).json({
+        return res.status(409).json({
           success: false,
-          error:
-            inventoryCheck.error,
+          code: "OUT_OF_STOCK",
+          error: inventoryCheck.error,
         });
       }
 
       /*
-       * IMPORTANT:
-       * Cart stores publicId.
-       * No product ObjectId.
+       * =====================================================
+       * CART
+       * =====================================================
        */
+
       const filter = {
         ...owner,
         type: "product",
@@ -620,76 +616,93 @@ router.post(
       };
 
       let item =
-        await CartItem.findOne(
-          filter
-        );
+        await CartItem.findOne(filter);
+
+      /*
+       * =====================================================
+       * EXISTING CART ITEM
+       * =====================================================
+       */
 
       if (item) {
         const nextQuantity =
           Number(item.quantity || 0) +
           quantity;
 
+        /*
+         * Check the TOTAL quantity again.
+         *
+         * Still only checking.
+         * No inventory deduction happens here.
+         */
+
         const nextCheck =
           await validateInventory({
             product,
             size,
-            quantity:
-              nextQuantity,
+            quantity: nextQuantity,
           });
 
         if (!nextCheck.ok) {
-          return res.status(
-            nextCheck.status
-          ).json({
+          return res.status(409).json({
             success: false,
-            error:
-              nextCheck.error,
+            code: "OUT_OF_STOCK",
+            error: nextCheck.error,
           });
         }
 
-        item.quantity =
-          nextQuantity;
-
-        await item.save();
-      } else {
-        item =
-          new CartItem({
-            ...owner,
-
-            type: "product",
-
-            publicId:
-              product.publicId,
-
-            sku:
-              product.sku || null,
-
-            title:
-              product.title || null,
-
-            mainImage:
-              product.images?.[0] ||
-              null,
-
-            size,
-
-            quantity,
-          });
+        item.quantity = nextQuantity;
 
         await item.save();
       }
 
+      /*
+       * =====================================================
+       * NEW CART ITEM
+       * =====================================================
+       */
+
+      else {
+        item = new CartItem({
+          ...owner,
+
+          type: "product",
+
+          publicId:
+            product.publicId,
+
+          sku:
+            product.sku || null,
+
+          title:
+            product.title || null,
+
+          mainImage:
+            product.images?.[0] || null,
+
+          size,
+
+          quantity,
+        });
+
+        await item.save();
+      }
+
+      /*
+       * =====================================================
+       * RESPONSE
+       * =====================================================
+       */
+
       const response =
-        await populateCartItem(
-          item
-        );
+        await populateCartItem(item);
 
       return res.json({
         success: true,
-        message:
-          "Added to cart",
+        message: "Added to cart",
         item: response,
       });
+
     } catch (error) {
       console.error(
         "ADD CART ERROR:",
@@ -1033,24 +1046,20 @@ router.post(
   optionalAuth,
   async (req, res) => {
     try {
-      const owner =
-        getCartOwner(req);
+      const owner = getCartOwner(req);
 
       if (!owner) {
         return res.status(400).json({
           success: false,
-          error:
-            "Missing user or guestId",
+          error: "Missing user or guestId",
         });
       }
 
-      const isCustomBundle =
-        Boolean(
-          req.body.isCustomBundle
-        );
+      const isCustomBundle = Boolean(
+        req.body.isCustomBundle
+      );
 
-      const bundle =
-        req.body.bundle || {};
+      const bundle = req.body.bundle || {};
 
       const bundlePublicId =
         normalizePublicId(
@@ -1058,9 +1067,7 @@ router.post(
         );
 
       const bundleProducts =
-        Array.isArray(
-          req.body.bundleProducts
-        )
+        Array.isArray(req.body.bundleProducts)
           ? req.body.bundleProducts
           : [];
 
@@ -1078,8 +1085,7 @@ router.post(
       ) {
         return res.status(400).json({
           success: false,
-          error:
-            "bundle.publicId is required",
+          error: "bundle.publicId is required",
         });
       }
 
@@ -1092,35 +1098,34 @@ router.post(
       ) {
         return res.status(400).json({
           success: false,
-          error:
-            "Custom bundle title is required",
+          error: "Custom bundle title is required",
         });
       }
 
       if (!bundleProducts.length) {
         return res.status(400).json({
           success: false,
-          error:
-            "bundleProducts are required",
+          error: "bundleProducts are required",
         });
       }
 
       if (!quantity) {
         return res.status(400).json({
           success: false,
-          error:
-            "Invalid quantity",
+          error: "Invalid quantity",
         });
       }
 
       /*
-       * Resolve every product using publicId.
+       * =====================================================
+       * RESOLVE PRODUCTS
+       * =====================================================
        */
+
       const resolvedProducts = [];
 
       for (
-        const bundleProduct of
-          bundleProducts
+        const bundleProduct of bundleProducts
       ) {
         const publicId =
           normalizePublicId(
@@ -1166,20 +1171,30 @@ router.post(
           });
         }
 
+        /*
+         * ===================================================
+         * INVENTORY CHECK ONLY
+         * ===================================================
+         *
+         * IMPORTANT:
+         * We DO NOT decrease inventory here.
+         *
+         * Inventory is consumed only when the order
+         * is successfully placed.
+         */
+
         const check =
           await validateInventory({
             product,
             size,
             quantity:
-              productQuantity *
-              quantity,
+              productQuantity * quantity,
           });
 
         if (!check.ok) {
-          return res.status(
-            check.status
-          ).json({
+          return res.status(409).json({
             success: false,
+            code: "OUT_OF_STOCK",
             error:
               `${product.title}: ${check.error}`,
           });
@@ -1196,8 +1211,7 @@ router.post(
             product.title || null,
 
           image:
-            product.images?.[0] ||
-            null,
+            product.images?.[0] || null,
 
           size,
 
@@ -1207,11 +1221,13 @@ router.post(
       }
 
       /*
-       * Resolve prebuilt bundle.
+       * =====================================================
+       * RESOLVE PREBUILT BUNDLE
+       * =====================================================
        */
+
       let finalBundle = {
-        publicId:
-          null,
+        publicId: null,
 
         title:
           bundle.title ||
@@ -1235,8 +1251,7 @@ router.post(
         if (!dbBundle) {
           return res.status(404).json({
             success: false,
-            error:
-              "Bundle not found",
+            error: "Bundle not found",
           });
         }
 
@@ -1259,9 +1274,11 @@ router.post(
       }
 
       /*
-       * Signature makes custom/prebuilt
-       * bundles behave consistently.
+       * =====================================================
+       * BUNDLE SIGNATURE
+       * =====================================================
        */
+
       const newSignature =
         resolvedProducts
           .map(
@@ -1270,6 +1287,12 @@ router.post(
           )
           .sort()
           .join("|");
+
+      /*
+       * =====================================================
+       * FIND EXISTING BUNDLE
+       * =====================================================
+       */
 
       const existingItems =
         await CartItem.find({
@@ -1282,8 +1305,7 @@ router.post(
         existingItems.find(
           (item) => {
             /*
-             * Prebuilt:
-             * same bundle publicId
+             * PREBUILT
              */
             if (!isCustomBundle) {
               return (
@@ -1293,8 +1315,7 @@ router.post(
             }
 
             /*
-             * Custom:
-             * same products + sizes
+             * CUSTOM
              */
             const signature =
               (item.bundleProducts || [])
@@ -1313,13 +1334,65 @@ router.post(
         );
 
       /*
-       * Existing bundle.
+       * =====================================================
+       * EXISTING BUNDLE
+       * =====================================================
        */
+
       if (existing) {
+        const nextQuantity =
+          Number(existing.quantity || 0) +
+          quantity;
+
+        /*
+         * IMPORTANT:
+         *
+         * Re-check every product using the NEW
+         * total bundle quantity.
+         *
+         * Still no stock deduction.
+         */
+
+        for (
+          const bundleProduct of
+            resolvedProducts
+        ) {
+          const product =
+            await findProductByPublicId(
+              bundleProduct.publicId
+            );
+
+          if (!product) {
+            return res.status(404).json({
+              success: false,
+              error:
+                `Product not found: ${bundleProduct.publicId}`,
+            });
+          }
+
+          const check =
+            await validateInventory({
+              product,
+              size:
+                bundleProduct.size,
+              quantity:
+                Number(
+                  bundleProduct.quantity || 1
+                ) * nextQuantity,
+            });
+
+          if (!check.ok) {
+            return res.status(409).json({
+              success: false,
+              code: "OUT_OF_STOCK",
+              error:
+                `${product.title}: ${check.error}`,
+            });
+          }
+        }
+
         existing.quantity =
-          Number(
-            existing.quantity || 0
-          ) + quantity;
+          nextQuantity;
 
         await existing.save();
 
@@ -1335,8 +1408,11 @@ router.post(
       }
 
       /*
-       * New bundle.
+       * =====================================================
+       * NEW BUNDLE
+       * =====================================================
        */
+
       const item =
         new CartItem({
           ...owner,
@@ -1360,11 +1436,13 @@ router.post(
         success: true,
         message:
           "Bundle added to cart",
+
         item:
           await populateCartItem(
             item
           ),
       });
+
     } catch (error) {
       console.error(
         "ADD BUNDLE ERROR:",

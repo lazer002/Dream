@@ -52,6 +52,7 @@ export default function ProductDetail() {
     isError: productError,
   } = useGetProductQuery(publicId, {
     skip: !publicId,
+     refetchOnMountOrArgChange: 60,
   });
 
   const {
@@ -381,7 +382,7 @@ console.log('✌️fromBuildYourLook --->', fromBuildYourLook);
     product?.price ?? 0
   );
 
-  const mrp = price * 1.2;
+
 
   // =====================================================
   // SIZES / STOCK
@@ -881,7 +882,7 @@ flex-shrink-0
             <span className="text-gray-500 text-sm md:text-lg font-medium flex items-baseline gap-1">
               MRP
               <span className="text-base md:text-xl line-through text-gray-500">
-                ₹ {mrp.toFixed(2)}
+                ₹ {product.oldPrice.toFixed(2)}
               </span>
             </span>
 
@@ -907,56 +908,61 @@ flex-shrink-0
                 Select Size
               </label>
 
-              <div className="flex flex-wrap gap-3 px-2">
-                {product.sizes
-                  .filter((size) => size.active !== false)
-                  .map(({ name }) => {
-                    const count = Number(product.inventory?.[name] || 0);
-                    const isAvailable = count > 0;
-                    const isSelected = selectedSize === name;
+             <div className="flex flex-wrap gap-3 px-2">
+  {product.sizes
+    .filter((size) => size.active !== false)
+    .map(({ name }) => {
+      const count = Number(product.inventory?.[name] || 0);
+      const isAvailable = count > 0;
+      const isSelected = selectedSize === name;
 
-                    return (
-                      <button
-                        key={name}
-                        type="button"
-                        disabled={!isAvailable}
-                        onClick={() => {
-                          if (isAvailable) {
-                            setSelectedSize(name);
-                          }
-                        }}
-                        className={`
-                relative
-                w-12 h-12 md:w-14 md:h-14
-                flex items-center justify-center
-                rounded-full
-                border
-                text-sm md:text-base
-                font-semibold
-                transition-all duration-300 ease-out
+      return (
+        <button
+          key={name}
+          type="button"
+          disabled={!isAvailable}
+          onClick={() => {
+            if (isAvailable) {
+              setSelectedSize(name);
+            }
+          }}
+          className={`
+            relative
+            w-12 h-12 md:w-14 md:h-14
+            flex items-center justify-center
+            rounded-full
+            border
+            text-sm md:text-base
+            font-semibold
+            transition-all duration-300 ease-out
 
-                ${isSelected
-                            ? "bg-black text-white border-black shadow-lg"
-                            : isAvailable
-                              ? "bg-white text-gray-700 border-gray-300 hover:border-black hover:-translate-y-[2px] hover:shadow-md"
-                              : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50"
-                          }
-              `}
-                        aria-pressed={isSelected}
-                        aria-label={`Size ${name} ${isAvailable ? "available" : "out of stock"
-                          }`}
-                      >
-                        {name}
+            ${
+              isSelected
+                ? "bg-black text-white border-black shadow-lg"
+                : isAvailable
+                  ? "bg-white text-gray-700 border-gray-300 hover:border-black hover:-translate-y-[2px] hover:shadow-md"
+                  : "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed opacity-50"
+            }
+          `}
+          aria-pressed={isSelected}
+          aria-label={`Size ${name} ${
+            isAvailable ? "available" : "out of stock"
+          }`}
+        >
+          {name}
 
-                        {!isAvailable && (
-                          <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] text-red-500">
-                            Out of stock
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
-              </div>
+          {/* CROSS CUT FOR UNAVAILABLE SIZE */}
+  {!isAvailable && <span className="absolute left-1/2 top-1/2 w-[100%] h-[1.5px] bg-gray-500 -translate-x-1/2 -translate-y-1/2 rotate-[-45deg] pointer-events-none" />}
+
+          {!isAvailable && (
+            <span className="absolute -bottom-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] text-red-500">
+              Out of stock
+            </span>
+          )}
+        </button>
+      );
+    })}
+</div>
 
               {selectedSize && (
                 <p className="text-xs md:text-sm text-gray-700 mt-2">

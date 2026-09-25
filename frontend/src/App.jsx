@@ -31,6 +31,7 @@ import ShowBundle from "./pages/admin/ShowBundle.jsx";
 import BundlePDP from "./pages/BundlePDP.jsx";
 import TrackOrder from "./pages/TrackOrder.jsx";
 import Orders from "./pages/admin/Orders.jsx";
+import UserOrders from "./pages/Orders.jsx";
 import OrderDetail from "./pages/admin/OrderDetail.jsx";
 import NewArrivals from "./pages/NewArrivals.jsx";
 import WishlistPage from "./pages/WishlistPage.jsx";
@@ -44,6 +45,7 @@ import BuildYourLookPage from "./pages/BuildYourLookPage.jsx";
 import AdminProductDetail from "@/pages/admin/ProductDetail";
 import AdminBundleDetail from "./pages/admin/BundleDetail.jsx";
 import ScrollManager from "./components/ScrollManager.jsx";
+import OrderDetails from "./pages/OrderDetails.jsx";
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
   const { user, loading } = useAuth();
@@ -97,6 +99,14 @@ export default function App() {
             <Route path="/thankyou/:publicOrderId" element={<ThankYouPage />} />
             <Route  path="/search"  element={<SearchResultsPage />}/>
             <Route path="/build-your-look"  element={<BuildYourLookPage />}/>
+            <Route
+  path="/orders"
+  element={<UserOrders />}
+/>
+            <Route
+  path="/order-details/:orderNumber"
+  element={<OrderDetails />}
+/>
             <Route
               path="/return/:orderNumber"
               element={<ReturnStatusPage />}

@@ -856,6 +856,25 @@ updateCartItem: builder.mutation({
         ],
       }),
 
+trackOrder: builder.query({
+  query: ({ orderNumber, email }) => ({
+    url: "/orders/track",
+    params: {
+      orderNumber,
+      ...(email ? { email } : {}),
+    },
+  }),
+
+  providesTags: (result, error, { orderNumber }) => [
+    {
+      type: "Orders",
+      id: `TRACK-${orderNumber}`,
+    },
+  ],
+}),
+
+
+
 orders: builder.query({
   query: () => "/orders/mine",
 
@@ -1651,6 +1670,7 @@ export const {
   /* Orders */
   useOrdersQuery,
   useCancelOrderMutation,
+useTrackOrderQuery,
 
   /* Addresses */ 
    useAddressesQuery,

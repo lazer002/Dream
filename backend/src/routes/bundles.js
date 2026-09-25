@@ -132,11 +132,16 @@ router.get("/:publicId", optionalAuth, async (req, res) => {
       published: true,
       active: true,
     })
-      .populate(
-        "products",
-        "publicId title price oldPrice images sizes isOutOfStock active published"
-      )
-      .lean();
+    .populate({
+  path: "products",
+  select:
+    "publicId title price oldPrice images sizes isOutOfStock active published category",
+  populate: {
+    path: "category",
+    select: "name",
+  },
+})
+.lean();
 
     if (!bundle) {
       return res.status(404).json({
@@ -161,21 +166,20 @@ router.get("/:publicId", optionalAuth, async (req, res) => {
       ])
     );
 
-    const productsWithInventory = (
-      bundle.products || []
-    ).map((product) => {
-      const inventory = inventoryMap.get(
-        String(product._id)
-      );
+const productsWithInventory = (bundle.products || []).map(
+  (product) => {
+    const inventory = inventoryMap.get(
+      String(product._id)
+    );
 
-      return {
-        ...product,
-        inventory: inventory?.stock || {},
-      };
-    });
+    return {
+      ...product,
+      category: product.category?.name || "",
+      inventory: inventory?.stock || {},
+    };
+  }
+);
 
-    console.log('✌️bundle --->', bundle);
-    console.log('✌️productsWithInventory --->', productsWithInventory);
     return res.json({
       ...bundle,
       products: productsWithInventory,

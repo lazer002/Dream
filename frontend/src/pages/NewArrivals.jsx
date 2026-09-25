@@ -368,25 +368,34 @@ function QuickView({
   onClose,
   onAddToCart,
 }) {
-  const [imageIndex, setImageIndex] =
-    useState(0);
+  const [imageIndex, setImageIndex] = useState(0);
+  const [selectedSize, setSelectedSize] = useState("");
 
   useEffect(() => {
     setImageIndex(0);
+    setSelectedSize("");
   }, [product]);
 
   if (!product) return null;
 
-  const soldOut =
-    isSoldOut(product);
+  const soldOut = isSoldOut(product);
 
-  const price =
-    Number(product.price) || 0;
+  const price = Number(product.price) || 0;
 
   const oldPrice =
     Number(product.oldPrice) ||
     Number(product.originalPrice) ||
     0;
+
+  const handleAdd = () => {
+    if (soldOut) return;
+
+    if (product.sizes?.length > 0 && !selectedSize) {
+      return;
+    }
+
+    onAddToCart(product, selectedSize);
+  };
 
   return (
     <Dialog
@@ -396,19 +405,14 @@ function QuickView({
       }}
     >
       <DialogContent className="max-w-[1000px] overflow-hidden border-0 p-0">
-
         <div className="grid md:grid-cols-2">
 
           {/* IMAGE */}
-
           <div className="bg-[#f5f5f5]">
-
             <div className="aspect-[3/4]">
               <img
                 src={
-                  product.images?.[
-                    imageIndex
-                  ] ||
+                  product.images?.[imageIndex] ||
                   product.images?.[0] ||
                   "/images/placeholder-400.png"
                 }
@@ -419,40 +423,32 @@ function QuickView({
 
             {product.images?.length > 1 && (
               <div className="flex gap-2 overflow-x-auto p-3">
-
-                {product.images.map(
-                  (image, index) => (
-                    <button
-                      key={image}
-                      type="button"
-                      onClick={() =>
-                        setImageIndex(index)
-                      }
-                      className={`h-16 w-14 shrink-0 overflow-hidden border ${
-                        imageIndex === index
-                          ? "border-black"
-                          : "border-transparent"
-                      }`}
-                    >
-                      <img
-                        src={image}
-                        alt=""
-                        className="h-full w-full object-cover"
-                      />
-                    </button>
-                  )
-                )}
-
+                {product.images.map((image, index) => (
+                  <button
+                    key={image}
+                    type="button"
+                    onClick={() => setImageIndex(index)}
+                    className={`h-16 w-14 shrink-0 overflow-hidden border ${
+                      imageIndex === index
+                        ? "border-black"
+                        : "border-transparent"
+                    }`}
+                  >
+                    <img
+                      src={image}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  </button>
+                ))}
               </div>
             )}
           </div>
 
           {/* DETAILS */}
-
           <div className="flex flex-col p-7 sm:p-10">
 
             <div className="mb-8">
-
               <p className="mb-3 text-[9px] font-bold uppercase tracking-[0.3em] text-gray-400">
                 New arrival
               </p>
@@ -462,7 +458,6 @@ function QuickView({
               </h2>
 
               <div className="mt-4 flex items-center gap-3">
-
                 <span className="text-xl font-bold">
                   {formatPrice(price)}
                 </span>
@@ -472,7 +467,6 @@ function QuickView({
                     {formatPrice(oldPrice)}
                   </span>
                 )}
-
               </div>
             </div>
 
@@ -481,7 +475,6 @@ function QuickView({
             </p>
 
             {/* SIZES */}
-
             {product.sizes?.length > 0 && (
               <div className="mb-8">
 
@@ -499,45 +492,74 @@ function QuickView({
                 </div>
 
                 <div className="grid grid-cols-4 gap-2">
+                  {product.sizes
+                    .filter((size) => size.active !== false)
+                    .map((size) => {
+                      const stock = Number(
+                        product.inventory?.stock?.[size.name] ??
+                        product.inventory?.[size.name] ??
+                        0
+                      );
 
-                  {product.sizes.map(
-                    (size) => {
-                  const stock = Number(
-  product.inventory?.stock?.[size.name] ??
-  product.inventory?.[size.name]
-) || 0;
+                      const isAvailable =
+                        product.inventory?.trackInventory === false ||
+                        stock > 0;
 
-                      const disabled =
-                        product.inventory
-                          ?.trackInventory !==
-                          false &&
-                        stock <= 0;
+                      const isSelected =
+                        selectedSize === size.name;
 
                       return (
-                        <div
+                        <button
                           key={size._id || size.name}
-                          className={`flex h-11 items-center justify-center border text-xs ${
-                            disabled
-                              ? "cursor-not-allowed bg-gray-50 text-gray-300 line-through"
-                              : "border-black"
-                          }`}
+                          type="button"
+                          disabled={!isAvailable}
+                          onClick={() => {
+                            if (isAvailable) {
+                              setSelectedSize(size.name);
+                            }
+                          }}
+                          className={`
+                            relative
+                            flex
+                            h-11
+                            items-center
+                            justify-center
+                            overflow-hidden
+                            border
+                            text-xs
+                            font-semibold
+                            transition-all
+
+                            ${
+                              isSelected
+                                ? "border-black bg-black text-white"
+                                : isAvailable
+                                  ? "border-gray-300 bg-white text-black hover:border-black"
+                                  : "cursor-not-allowed border-gray-200 bg-gray-50 text-gray-300"
+                            }
+                          `}
                         >
                           {size.name}
-                        </div>
-                      );
-                    }
-                  )}
 
+                          {!isAvailable && (
+                            <span className="pointer-events-none absolute left-1/2 top-1/2 h-[1.5px] w-[75%] -translate-x-1/2 -translate-y-1/2 rotate-[-45deg] bg-gray-400" />
+                          )}
+                        </button>
+                      );
+                    })}
                 </div>
+
+                {selectedSize && (
+                  <p className="mt-3 text-[9px] font-semibold uppercase tracking-[0.15em] text-gray-500">
+                    Selected size: {selectedSize}
+                  </p>
+                )}
               </div>
             )}
 
             {/* STOCK */}
-
             <div className="mb-8 border-y py-4">
-
               <div className="flex items-center justify-between">
-
                 <span className="text-[9px] font-bold uppercase tracking-[0.2em] text-gray-400">
                   Availability
                 </span>
@@ -549,27 +571,27 @@ function QuickView({
                       : "text-black"
                   }`}
                 >
-                  {getStockLabel(
-                    product
-                  )}
+                  {getStockLabel(product)}
                 </span>
-
               </div>
-
             </div>
 
+            {/* BUTTONS */}
             <div className="mt-auto space-y-3">
 
               <Button
-                disabled={soldOut}
-                onClick={() =>
-                  onAddToCart(product)
+                disabled={
+                  soldOut ||
+                  (product.sizes?.length > 0 && !selectedSize)
                 }
+                onClick={handleAdd}
                 className="h-14 w-full rounded-none bg-black text-[10px] font-bold uppercase tracking-[0.25em] text-white hover:bg-white hover:text-black hover:ring-1 hover:ring-black"
               >
                 {soldOut
                   ? "Sold out"
-                  : "Add to bag"}
+                  : product.sizes?.length > 0 && !selectedSize
+                    ? "Select size"
+                    : "Add to bag"}
               </Button>
 
               <Link
@@ -581,9 +603,7 @@ function QuickView({
               </Link>
 
             </div>
-
           </div>
-
         </div>
       </DialogContent>
     </Dialog>
@@ -776,32 +796,30 @@ export default function NewArrivals() {
      ADD TO CART
   ======================================================= */
 
-  const handleAddToCart =
-    useCallback(
-      async (product) => {
-        if (isSoldOut(product)) {
-          return;
-        }
+const handleAddToCart = useCallback(
+  async (product, size) => {
+    if (isSoldOut(product)) {
+      return;
+    }
 
-        try {
-          await add({
-            publicId:
-              product.publicId,
-            quantity: 1,
-          });
+    if (product.sizes?.length > 0 && !size) {
+      return;
+    }
 
-          setQuickProduct(
-            null
-          );
-        } catch (error) {
-          console.error(
-            "ADD TO CART ERROR:",
-            error
-          );
-        }
-      },
-      [add]
-    );
+    try {
+      await add({
+        publicId: product.publicId,
+        size,
+        quantity: 1,
+      });
+
+      setQuickProduct(null);
+    } catch (error) {
+      console.error("ADD TO CART ERROR:", error);
+    }
+  },
+  [add]
+);
 
   /* =======================================================
      FILTER RESET

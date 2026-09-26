@@ -212,9 +212,6 @@ const userSchema = new mongoose.Schema(
 
 /* ================= INDEXES ================= */
 
-userSchema.index({
-  email: 1,
-});
 
 userSchema.index({
   status: 1,

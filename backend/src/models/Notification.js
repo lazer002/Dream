@@ -79,7 +79,6 @@ const NotificationSchema = new Schema(
 
       required: true,
 
-      index: true,
     },
 
     /* =====================================================
@@ -227,7 +226,6 @@ const NotificationSchema = new Schema(
 
       default: null,
 
-      index: true,
     },
   },
 

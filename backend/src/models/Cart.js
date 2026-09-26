@@ -459,9 +459,7 @@ cartItemSchema.index({
   updatedAt: -1,
 });
 
-cartItemSchema.index({
-  type: 1,
-});
+
 
 cartItemSchema.index({
   "bundle.publicId": 1,

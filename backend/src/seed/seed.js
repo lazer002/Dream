@@ -6,17 +6,28 @@ import { Product } from '../models/Product.js'
 dotenv.config()
 
 async function run() {
+  // Never seed a production database.
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Refusing to run the seed script with NODE_ENV=production')
+  }
+
+  const adminEmail = process.env.SEED_ADMIN_EMAIL
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD
+
   await connectToDatabase()
 
-  // Admin user
-  const adminEmail = 'admin@demo.com'
-  const existing = await User.findOne({ email: adminEmail })
-  if (!existing) {
-    const passwordHash = await User.hashPassword('admin123')
-    await User.create({ email: adminEmail, name: 'Admin', passwordHash, role: 'admin' })
-    console.log('Created admin user: admin@demo.com / admin123')
+  // Admin user (only when credentials are given explicitly, never a default).
+  if (adminEmail && adminPassword && adminPassword.length >= 12) {
+    const existing = await User.findOne({ email: adminEmail.toLowerCase() })
+    if (!existing) {
+      const passwordHash = await User.hashPassword(adminPassword)
+      await User.create({ email: adminEmail.toLowerCase(), name: 'Admin', passwordHash, role: 'admin' })
+      console.log(`Created admin user: ${adminEmail}`)
+    } else {
+      console.log('Admin user already exists')
+    }
   } else {
-    console.log('Admin user already exists')
+    console.log('Skipping admin user (set SEED_ADMIN_EMAIL and SEED_ADMIN_PASSWORD, 12+ chars)')
   }
 
   // Products

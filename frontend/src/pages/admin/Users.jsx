@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import toast from "react-hot-toast";
+import { errorMessage } from "@/utils/session";
 import {
   Card,
   CardContent,
@@ -96,6 +98,7 @@ export default function Users() {
       }).unwrap();
     } catch (error) {
       console.error("UPDATE USER ROLE:", error);
+      toast.error(errorMessage(error, "Failed to update role"));
     } finally {
       setUpdatingRoleId(null);
     }
@@ -112,6 +115,7 @@ export default function Users() {
       await deleteUser(id).unwrap();
     } catch (error) {
       console.error("DELETE USER:", error);
+      toast.error(errorMessage(error, "Failed to delete user"));
     } finally {
       setDeletingId(null);
     }

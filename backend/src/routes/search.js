@@ -1,3 +1,4 @@
+import { escapeRegex } from "../utils/validate.js";
 import express from "express";
 import { Product } from "../models/Product.js";
 import { Category } from "../models/Category.js";
@@ -9,9 +10,10 @@ router.get("/products", async (req, res) => {
 
   try {
 
-    const q = req.query.q?.trim();
+    const rawQ = typeof req.query.q === "string" ? req.query.q.trim().slice(0, 64) : "";
+    const q = escapeRegex(rawQ);
 
-    if (!q || q.length < 2) {
+    if (rawQ.length < 2) {
       return res.status(200).json([]);
     }
 
@@ -42,7 +44,7 @@ router.get("/products", async (req, res) => {
 
           {
             $text: {
-              $search: q,
+              $search: rawQ,
             },
           },
 

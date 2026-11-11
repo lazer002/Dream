@@ -17,6 +17,8 @@ const PaymentSchema = new mongoose.Schema({
   razorpayOrderId: { type: String },
   razorpayPaymentId: { type: String },
   razorpaySignature: { type: String },
+  refundId: { type: String },
+  refundError: { type: String },
 
   createdAt: { type: Date, default: Date.now }
 });

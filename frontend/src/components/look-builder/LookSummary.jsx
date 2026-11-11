@@ -14,6 +14,7 @@ export default function LookSummary({
   total,
   selectedSizes,
   setSelectedSizes,
+  setSelectedProducts,
   onAddToCart,
 }) {
   return (
@@ -26,7 +27,7 @@ export default function LookSummary({
       <OutfitPreview
   products={products}
   onRemove={(id) =>
-    setSelectedProducts((prev) =>
+    setSelectedProducts?.((prev) =>
       prev.filter(
         (item) => item._id !== id
       )

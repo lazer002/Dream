@@ -1,13 +1,13 @@
+import { formLimiter } from "../middleware/rateLimit.js";
 import express from "express";
 import { ProductRequest } from "../models/ProductRequest.js";
 import { Product } from "../models/Product.js";
-import { optionalAuth ,requireAdmin} from "../middleware/auth.js";
+import { optionalAuth, requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
 
-router.post("/", optionalAuth, async (req, res) => {
+router.post("/", formLimiter, optionalAuth, async (req, res) => {
   try {
-    console.log(req.user)
 
     const { productId, email, size } = req.body;
 
@@ -66,7 +66,7 @@ router.post("/", optionalAuth, async (req, res) => {
   }
 });
 
-router.get("/", requireAdmin, async (req, res) => {
+router.get("/", requireAuth, requireAdmin, async (req, res) => {
   try {
     const requests = await ProductRequest.find()
       .populate("productId", "title images")
@@ -78,7 +78,7 @@ router.get("/", requireAdmin, async (req, res) => {
   }
 });
 
-router.patch("/:id", requireAdmin, async (req, res) => {
+router.patch("/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const request = await ProductRequest.findByIdAndUpdate(
       req.params.id,

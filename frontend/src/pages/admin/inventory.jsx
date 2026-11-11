@@ -46,7 +46,7 @@ import {
 
 import {
   useGetInventoryQuery,
-  useGetProductsQuery,
+  useGetAdminProductsQuery,
   useCreateInventoryMutation,
   useUpdateInventoryMutation,
 } from "@/store/api";
@@ -314,7 +314,7 @@ export default function AdminInventory() {
     data: productsData,
     isLoading: productsLoading,
     refetch: refetchProducts,
-  } = useGetProductsQuery();
+  } = useGetAdminProductsQuery();
 
   const inventories = Array.isArray(
     inventoryData

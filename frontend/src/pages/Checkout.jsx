@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -26,6 +26,7 @@ import {
 import { getDeliveryDate } from "@/utils/public";
 import { useAuth } from "@/state/AuthContext.jsx";
 import { loadRazorpay } from "@/utils/loader.js";
+import { errorMessage } from "@/utils/session";
 
 export default function CheckoutPage() {
   const { user } = useAuth();
@@ -115,8 +116,7 @@ export default function CheckoutPage() {
         setDiscountValue(0);
         toast.error("Invalid discount code");
       }
-    } catch (err) {
-      console.error(err);
+    } catch {
       setDiscountError(
         "Something went wrong while validating the code."
       );
@@ -213,140 +213,170 @@ export default function CheckoutPage() {
         country,
         phone,
       });
-    } catch (err) {
-      console.error("Address save failed", err);
+    } catch {
+      // Saving the address is optional; the order is already placed.
     }
   };
 
+  // One item list for BOTH payment methods. The server works out every price;
+  // we only say what is in the cart (product / size / quantity).
+  const buildOrderItems = () =>
+    items
+      .map((i) => {
+        const bundleProducts = (i.bundleProducts || []).map((bp) => ({
+          productId: bp.publicId,
+          variant: bp.size || "",
+          quantity: 1,
+        }));
+
+        if (i.customBundle || i.isCustomBundle === true) {
+          const bundle = i.customBundle || i.bundle;
+
+          return {
+            customBundle: true,
+            title: bundle?.title || "My Custom Look",
+            quantity: Number(i.quantity) || 1,
+            bundleProducts,
+          };
+        }
+
+        if (i.bundle?.publicId) {
+          return {
+            bundleId: i.bundle.publicId,
+            quantity: Number(i.quantity) || 1,
+            bundleProducts,
+          };
+        }
+
+        if (i.product) {
+          return {
+            productId: i.product.publicId,
+            quantity: Number(i.quantity) || 1,
+            variant: i.size || "",
+          };
+        }
+
+        return null;
+      })
+      .filter(Boolean);
+
+  const buildOrderData = (method) => ({
+    items: buildOrderItems(),
+    paymentMethod: method,
+    shippingMethod,
+    contactEmail,
+    subscribeNews,
+    source: "web",
+    shippingAddress: {
+      firstName,
+      lastName,
+      address,
+      apartment,
+      city,
+      state,
+      zip,
+      country,
+      phone,
+    },
+  });
+
+  // A real lock (state updates are async, so two fast clicks both got past
+  // `if (loading)` and placed two orders).
+  const placingRef = useRef(false);
+
+  // Retrying an online payment reuses the same order instead of creating a
+  // new pending order every time, as long as the cart hasn't changed.
+  const pendingOnlineOrder = useRef(null);
+
+  const cartKey = () =>
+    JSON.stringify(
+      items.map((i) => [i._id, i.quantity, i.size, (i.bundleProducts || []).map((b) => b.size)])
+    );
+
+  // Extras after an order: must never turn a placed order into an "error".
+  const afterOrderPlaced = () => {
+    if (subscribeNews && contactEmail) {
+      api.post("/newsletter", { email: contactEmail }).catch(() => {});
+    }
+
+    saveAddressIfNeeded().catch(() => {});
+  };
+
+  const showOrderError = (err) => {
+    const data = err?.response?.data;
+
+    if (data?.code === "OUT_OF_STOCK") {
+      toast.error(data.error || "An item in your bag just sold out. Please update your bag.");
+      return;
+    }
+
+    toast.error(errorMessage(err, "Could not place your order. Please try again."));
+  };
+
   const handlePayment = async () => {
+    if (placingRef.current) return;
+
+    placingRef.current = true;
+    setLoading(true);
+
     try {
-      if (loading) return;
-
-      setLoading(true);
-
-      const orderData = {
-        items: items
-          .map((i) => {
-            if (i.product) {
-              return {
-                productId: i.product.publicId,
-                quantity: i.quantity,
-                variant: i.size || "",
-              };
-            }
-
-            if (i.bundle) {
-              return {
-               bundleId: i.bundle.publicId,
-                quantity: i.quantity,
-                mainImage: i.mainImage || "default.jpg",
-                bundleProducts: (i.bundleProducts || []).map((bp) => ({
-                  productId: bp.publicId,
-                  quantity: bp.quantity || 1,
-                  variant: bp.size || "",
-                })),
-              };
-            }
-
-            return null;
-          })
-          .filter(Boolean),
-
-        paymentMethod: "razorpay",
-        shippingMethod,
-        contactEmail,
-        subscribeNews,
-        source: "web",
-
-        shippingAddress: {
-          firstName,
-          lastName,
-          address,
-          apartment,
-          city,
-          state,
-          zip,
-          country,
-          phone,
-        },
-      };
-
       const isLoaded = await loadRazorpay();
 
       if (!isLoaded) {
-        toast.error(
-          "Payment failed to load. Check your connection."
-        );
-        setLoading(false);
+        toast.error("Payment failed to load. Check your connection.");
         return;
       }
 
-      const response = await api.post(
-        "/orders/create",
-        orderData
-      );
+      const key = cartKey();
+      let data =
+        pendingOnlineOrder.current?.key === key ? pendingOnlineOrder.current.data : null;
 
-      const data = response.data;
+      if (!data) {
+        const response = await api.post("/orders/create", buildOrderData("razorpay"));
 
-      if (!data?.razorpayOrderId) {
-        toast.error("Order creation failed");
-        return;
+        data = response.data;
+
+        if (!data?.razorpayOrderId) {
+          toast.error("Order creation failed");
+          return;
+        }
+
+        pendingOnlineOrder.current = { key, data };
       }
 
       const options = {
         key: import.meta.env.VITE_PUBLIC_RAZORPAY_KEY,
-        amount: data.amount,
         currency: data.currency,
         order_id: data.razorpayOrderId,
 
         handler: async (res) => {
+          setProcessingPayment(true);
+
+          // Razorpay has taken the money. Whatever happens with the check
+          // below, the order is confirmed by the payment webhook, so never
+          // leave the customer on checkout (they might pay twice).
           try {
-            setProcessingPayment(true);
-
-            const verifyRes = await api.post(
-              "/orders/payment-success",
-              {
-                orderId: data.orderId,
-                razorpay_payment_id:
-                  res.razorpay_payment_id,
-                razorpay_order_id:
-                  res.razorpay_order_id,
-                razorpay_signature:
-                  res.razorpay_signature,
-              }
-            );
-
-            if (verifyRes.data.success) {
-              if (subscribeNews && contactEmail) {
-                try {
-                  await api.post("/newsletter", {
-                    email: contactEmail,
-                  });
-                } catch (err) {
-                  console.error(
-                    "Newsletter subscribe failed",
-                    err
-                  );
-                }
-              }
-
-              await saveAddressIfNeeded();
-
-              toast.success("Payment Successful!");
-
-              if (typeof clearCart === "function") {
-                await clearCart();
-              }
-
-              navigate("/thankyou/" + data.publicOrderId);
-            } else {
-              toast.error("Verification failed");
-            }
-          } catch (err) {
-            toast.error("Verification error");
-          } finally {
-            setProcessingPayment(false);
+            await api.post("/orders/payment-success", {
+              orderId: data.orderId,
+              razorpay_payment_id: res.razorpay_payment_id,
+              razorpay_order_id: res.razorpay_order_id,
+              razorpay_signature: res.razorpay_signature,
+            });
+          } catch {
+            // Thank-you page keeps checking the order status.
           }
+
+          pendingOnlineOrder.current = null;
+          afterOrderPlaced();
+
+          try {
+            if (typeof clearCart === "function") await clearCart();
+          } catch {
+            // ignore
+          }
+
+          setProcessingPayment(false);
+          navigate("/thankyou/" + data.publicOrderId);
         },
 
         modal: {
@@ -374,161 +404,43 @@ export default function CheckoutPage() {
 
       rzp.open();
     } catch (err) {
-      console.error(err);
-      toast.error("Something went wrong");
+      showOrderError(err);
     } finally {
+      placingRef.current = false;
       setLoading(false);
     }
   };
 
   const handleCODOrder = async () => {
+    if (placingRef.current) return;
+
+    placingRef.current = true;
+    setLoading(true);
+
     try {
-      if (loading) return;
-
-      setLoading(true);
-
-      if (
-        addressMode === "new" &&
-        (!contactEmail ||
-          !firstName ||
-          !lastName ||
-          !address ||
-          !phone ||
-          !city ||
-          !state ||
-          !zip)
-      ) {
-        toast.error(
-          "Please fill all required fields before placing the order."
-        );
-        setLoading(false);
-        return;
-      }
-
- const orderItems = items
-  .map((i) => {
-
-    // CUSTOM BUNDLE FIRST
-    if (i.customBundle || i.isCustomBundle === true) {
-      const bundle = i.customBundle || i.bundle;
-
-      return {
-        customBundle: true,
-        title: bundle?.title || "My Custom Look",
-        price: bundle?.price || 0,
-        quantity: i.quantity,
-        mainImage: i.mainImage || bundle?.mainImage,
-
-        bundleProducts: (i.bundleProducts || []).map((bp) => ({
-          productId: bp.publicId,
-          variant: bp.size || "",
-          quantity: bp.quantity || 1,
-        })),
-      };
-    }
-
-    // NORMAL BUNDLE
-    if (i.bundle) {
-      return {
-        bundleId: i.bundle.publicId,
-        quantity: i.quantity,
-        mainImage: i.mainImage || i.bundle.mainImage,
-
-        bundleProducts: (i.bundleProducts || []).map((bp) => ({
-          productId: bp.publicId,
-          variant: bp.size || "",
-          quantity: bp.quantity || 1,
-        })),
-      };
-    }
-
-    // NORMAL PRODUCT
-    if (i.product) {
-      return {
-        productId: i.product.publicId,
-        quantity: Number(i.quantity) || 1,
-        variant: i.size || "",
-      };
-    }
-
-    return null;
-  })
-  .filter(Boolean);
-
-      const orderData = {
-        items: orderItems,
-        contactEmail,
-        subscribeNews,
-        source: "web",
-        shippingMethod,
-        paymentMethod: "cod",
-        discountCode,
-
-        shippingAddress: {
-          firstName,
-          lastName,
-          address,
-          apartment,
-          city,
-          state,
-          zip,
-          country,
-          phone,
-        },
-      };
-
-      const response = await api.post(
-        "/orders/create",
-        orderData
-      );
-
+      const response = await api.post("/orders/create", buildOrderData("cod"));
       const data = response.data;
 
-      if (subscribeNews && contactEmail) {
-        await api.post("/newsletter", {
-          email: contactEmail,
-        });
-      }
-
-      await saveAddressIfNeeded();
-
-      if (!data || !data.success) {
-        toast.error(
-          data?.message ||
-            "Failed to create order. Please try again."
-        );
-        setLoading(false);
+      if (!data?.success) {
+        toast.error(data?.error || "Failed to create order. Please try again.");
         return;
       }
 
-      const orderNumber =
-        data.orderNumber || data.orderId || null;
+      toast.success(`Order placed successfully! Order: ${data.orderNumber}`);
 
-      toast.success(
-        `Order placed successfully! ${
-          orderNumber
-            ? `Order: ${orderNumber}`
-            : `ID: ${data.orderId}`
-        }`
-      );
+      afterOrderPlaced();
 
       try {
-        if (typeof clearCart === "function") {
-          await clearCart();
-        }
-      } catch (e) {
-        toast.error(
-          "Failed to clear cart after order."
-        );
+        if (typeof clearCart === "function") await clearCart();
+      } catch {
+        // Order is placed; a stale bag is not an error for the customer.
       }
 
       navigate("/thankyou/" + data.publicOrderId);
     } catch (err) {
-      console.error("COD Order Error:", err);
-      toast.error(
-        "Failed to place COD order. Please try again."
-      );
+      showOrderError(err);
     } finally {
+      placingRef.current = false;
       setLoading(false);
     }
   };
@@ -601,6 +513,19 @@ export default function CheckoutPage() {
     if (!items.length) {
       toast.error("Your cart is empty");
       return false;
+    }
+
+    // Saved addresses must still have everything the courier needs.
+    if (addressMode === "saved") {
+      if (!selectedAddress) {
+        newErrors.address = "Please choose a delivery address";
+      } else if (!firstName.trim() || !address.trim() || !city.trim() || !phone.trim()) {
+        newErrors.address = "This saved address is incomplete. Please edit it or add a new one.";
+      }
+    }
+
+    if (items.some((i) => Number(i.quantity) > 10)) {
+      newErrors.items = "You can order at most 10 of each item";
     }
 
     setErrors(newErrors);

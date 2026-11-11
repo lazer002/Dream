@@ -303,7 +303,11 @@ function OrderCard({ order }) {
               navigate(
                 `/order-details/${encodeURIComponent(
                   order?.orderNumber
-                )}`
+                )}${
+                  order?.email
+                    ? `?email=${encodeURIComponent(order.email)}`
+                    : ""
+                }`
               )
             }
             className="
@@ -511,7 +515,11 @@ function OrderCard({ order }) {
             navigate(
               `/order-details/${encodeURIComponent(
                 order?.orderNumber
-              )}`
+              )}${
+                order?.email
+                  ? `?email=${encodeURIComponent(order.email)}`
+                  : ""
+              }`
             )
           }
           className="

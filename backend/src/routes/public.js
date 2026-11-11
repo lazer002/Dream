@@ -1,6 +1,8 @@
 import express from 'express'
 import {Category}  from '../models/Category.js'
-import { upload } from '../middleware/upload.js'
+import { singleImage, sniffImage } from '../middleware/upload.js'
+import { uploadLimiter } from '../middleware/rateLimit.js'
+import crypto from 'crypto'
 import { supabase } from '../config/supabase.js'
 import dotenv from 'dotenv'
 import { optionalAuth, requireAuth } from '../middleware/auth.js' // new middleware
@@ -20,11 +22,25 @@ router.get('/categories', async (req, res) => {
 })
 
 
-router.post("/upload/image",optionalAuth,upload.single("file"),async (req, res) => {
+router.post("/upload/image", uploadLimiter, optionalAuth, singleImage("file"), async (req, res) => {
     try {
-      console.log("Upload request - user:", req.user);
+      const userId = req.user?.id || null;
+      const guestId = req.guestId || null;
+
+      // Must be a logged-in user or a guest of this app/site.
+      if (!userId && !guestId) {
+        return res.status(401).json({ error: "Login required" });
+      }
+
       if (!req.file) {
         return res.status(400).json({ error: "No file" });
+      }
+
+      // Real type from the file contents, not the client's claim.
+      const real = sniffImage(req.file.buffer);
+
+      if (!real) {
+        return res.status(400).json({ error: "Invalid file type" });
       }
 
   
@@ -41,24 +57,21 @@ router.post("/upload/image",optionalAuth,upload.single("file"),async (req, res) 
           error: "File too large (max 1MB)",
         });
       }
-      const userId = req.user?.id || null;          // ✅ from requireAuth
-      const guestId = req.headers["x-guest-id"] || null; // ✅ from header
-      // 🔥 naming (track owner)
-      const fileExt = req.file.originalname.split(".").pop();
-      const owner = userId || `guest-${guestId}`;
-      const fileName = `${owner}-${Date.now()}.${fileExt}`;
-      const path = `profile/${fileName}`;
+      // Server-chosen name: owner folder + random id + real extension.
+      const owner = userId ? `u-${userId}` : `g-${crypto.createHash("sha256").update(guestId).digest("hex").slice(0, 16)}`;
+      const path = `profile/${owner}/${crypto.randomUUID()}.${real.ext}`;
 
       // 🔥 upload to supabase
       const { data, error } = await supabase.storage
         .from(process.env.SUPABASE_BUCKET_PUBLIC)
         .upload(path, req.file.buffer, {
-          contentType: req.file.mimetype,
+          contentType: real.mime,
           upsert: false,
         });
 
       if (error) {
-        return res.status(500).json({ error: error.message });
+        console.error("Upload storage error:", error.message);
+        return res.status(500).json({ error: "Upload failed" });
       }
 
       // 🔥 get public url
@@ -72,7 +85,7 @@ router.post("/upload/image",optionalAuth,upload.single("file"),async (req, res) 
         path: data.path,
       });
     } catch (e) {
-      console.error("Upload error:", e);
+      console.error("Upload error:", e.message);
       return res.status(500).json({ error: "Upload failed" });
     }
   }

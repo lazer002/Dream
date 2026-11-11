@@ -1,3 +1,4 @@
+import { escapeRegex, searchText } from "../utils/validate.js";
 import express from 'express'
 import mongoose from "mongoose"
 import { Product } from '../models/Product.js'
@@ -169,15 +170,14 @@ router.get("/",optionalAuth, async (req, res) => {
       isNew,
       onSale,
     } = req.query;
-console.log("req.query",req.query)
     const filter = {
       published: true,
       active: true,
     };
 
     // CATEGORY
-if (category && category !== "All") {
-  const normalizedCategory = category.toLowerCase().trim();
+if (typeof category === "string" && category && category !== "All") {
+  const normalizedCategory = escapeRegex(String(category).toLowerCase().trim().slice(0, 64));
 
   const categoryConditions = [
     {
@@ -214,9 +214,9 @@ if (category && category !== "All") {
 
 
     // SEARCH
-    if (q?.trim()) {
+    if (searchText(q)) {
       filter.title = {
-        $regex: q.trim(),
+        $regex: searchText(q),
         $options: "i",
       };
     }
@@ -409,14 +409,13 @@ if (category && category !== "All") {
 
 router.get("/search",optionalAuth, async (req, res) => {
   try {
-    console.log("Search query:", req.query);
     const { q } = req.query;
 
-    if (!q || q.trim() === "") {
+    if (!searchText(q)) {
       return res.status(400).json({ error: "Query parameter 'q' is required" });
     }
 
-    const regex = new RegExp(q, "i");
+    const regex = new RegExp(searchText(q), "i");
 
     const products = await Product.find({
       published: true,

@@ -1,4 +1,5 @@
 // routes/checkout.js
+import { guestId as validGuestId } from "../utils/validate.js";
 import mongoose from "mongoose";
 import express from "express";
 import { Order } from "../models/Order.js";
@@ -8,6 +9,8 @@ import axios from "axios"; // fixed import
 import { getNextOrderSeq } from "../models/Counter.js";
 import { sendOrderEmail  } from "../utils/sendEmail.js";
 import { requireAuth ,optionalAuth} from "../middleware/auth.js";
+import { orderLimiter, emailActionLimiter, paymentCheckLimiter } from "../middleware/rateLimit.js";
+import { email as validEmail, quantity as validQuantity, str } from "../utils/validate.js";
 import {Product} from "../models/Product.js";
 import { Bundle } from "../models/Bundle.js";
 import {
@@ -21,409 +24,287 @@ const router = express.Router();
 
 
 
-router.post("/create", optionalAuth, async (req, res) => {
-  try {
-    console.log("Create order request body:", JSON.stringify(req.body.items));
-    // return
-
-    const userId = req.user?.id || req.user?._id || null;
-
-    const {
-      items,
-      shippingMethod,
-      billingSame,
-      shippingAddress,
-      contactEmail,
-      paymentMethod,
-      discountCode,
-      source,
-    } = req.body;
-
-    // ✅ Validate items
-    if (!items || items.length === 0) {
-      return res.status(400).json({ success: false, error: "Cart is empty" });
-    }
-
-    // ✅ Validate payment method
-    if (!["cod", "razorpay"].includes(paymentMethod)) {
-      return res.status(400).json({ error: "Invalid payment method" });
-    }
-
-
-
-    let calculatedSubtotal = 0;
-    let originalSubtotal = 0;
-    const validatedItems = [];
-for (const item of items) {
-  // =========================
-  // 📦 NORMAL BUNDLE
-  // =========================
-
-  if (item.bundleId) {
-    const bundle = await Bundle.findOne({
-      publicId: item.bundleId
-    });
-
-    if (!bundle) {
-      return res.status(400).json({
-        error: "Invalid bundle",
-      });
-    }
-
-    const bundleQuantity =
-      Number(item.quantity) || 1;
-
-const itemTotal =
-  Number(bundle.price || 0) * bundleQuantity;
-
-const bundleOldPrice =
-  Number(bundle.oldPrice || bundle.price || 0) *
-  bundleQuantity;
-
-calculatedSubtotal += itemTotal;
-originalSubtotal += bundleOldPrice;
-
-    const bundleProductsValidated = [];
-
-    for (const bp of item.bundleProducts || []) {
-      const product = await Product.findOne({
-        publicId: bp.productId,
-      });
-
-      if (!product) {
-        return res.status(400).json({
-          error: "Invalid bundle product",
-        });
-      }
-
-      const variant = String(
-        bp.variant || ""
-      ).trim();
-
-      const quantity =
-        Number(bp.quantity) || 1;
-
-      const requiredStock =
-        quantity * bundleQuantity;
-
-      if (!variant) {
-        return res.status(400).json({
-          error: `${product.title}: size is required`,
-        });
-      }
-
-      const inventory =
-        await Inventory.findOne({
-          product: product._id,
-          active: true,
-        });
-
-      if (!inventory) {
-        return res.status(400).json({
-          error: `Inventory not found for ${product.title}`,
-        });
-      }
-
-      const availableStock =
-        inventory.stock instanceof Map
-          ? Number(
-              inventory.stock.get(variant) || 0
-            )
-          : Number(
-              inventory.stock?.[variant] || 0
-            );
-
-      if (
-        inventory.trackInventory &&
-        !inventory.allowBackorder &&
-        availableStock < requiredStock
-      ) {
-     return res.status(409).json({
-  success: false,
-  code: "OUT_OF_STOCK",
-  error: `${product.title} (${variant}) has only ${availableStock} left`,
-  productId: product.publicId,
-  variant,
-  availableStock,
-});
-      }
-
-      bundleProductsValidated.push({
-        productId: product._id,
-        title: product.title,
-        variant,
-        quantity,
-        price: product.price,
-        mainImage:
-          product.images?.[0] || "",
-      });
-    }
-
-    validatedItems.push({
-      bundleId: bundle._id,
-      customBundle: false,
-      title: bundle.title,
-      quantity: bundleQuantity,
-      price: bundle.price,
-      total: itemTotal,
-    mainImage:
-  item.mainImage &&
-  item.mainImage !== "default.jpg"
-    ? item.mainImage
-    : bundleProductsValidated[0]?.mainImage || "default.jpg",
-      bundleProducts:
-        bundleProductsValidated,
-    });
-
-    continue;
-  }
-
-  // =========================
-  // 🎁 CUSTOM BUNDLE
-  // =========================
-
-  if (item.customBundle) {
-    let originalBundlePrice = 0;
-
-    const bundleQuantity =
-      Number(item.quantity) || 1;
-
-    const bundleProductsValidated = [];
-
-    if (
-      !Array.isArray(item.bundleProducts) ||
-      item.bundleProducts.length === 0
-    ) {
-      return res.status(400).json({
-        success: false,
-        error:
-          "Custom bundle must contain products",
-      });
-    }
-
-    for (const bp of item.bundleProducts) {
-      const product = await Product.findOne({
-        publicId: bp.productId,
-      });
-
-      if (!product) {
-        return res.status(400).json({
-          success: false,
-          error: "Invalid bundle product",
-        });
-      }
-
-      const quantity =
-        Number(bp.quantity) || 1;
-
-      const variant = String(
-        bp.variant || ""
-      ).trim();
-
-      if (!variant) {
-        return res.status(400).json({
-          success: false,
-          error: `${product.title}: size is required`,
-        });
-      }
-
-      const inventory =
-        await Inventory.findOne({
-          product: product._id,
-          active: true,
-        });
-
-      if (!inventory) {
-        return res.status(400).json({
-          success: false,
-          error: `Inventory not found for ${product.title}`,
-        });
-      }
-
-      const requiredStock =
-        quantity * bundleQuantity;
-
-      const availableStock =
-        inventory.stock instanceof Map
-          ? Number(
-              inventory.stock.get(variant) || 0
-            )
-          : Number(
-              inventory.stock?.[variant] || 0
-            );
-
-      if (
-        inventory.trackInventory &&
-        !inventory.allowBackorder &&
-        availableStock < requiredStock
-      ) {
-     return res.status(409).json({
-  success: false,
-  code: "OUT_OF_STOCK",
-  error: `${product.title} (${variant}) has only ${availableStock} left`,
-  productId: product.publicId,
-  variant,
-  availableStock,
-});
-      }
-
-      originalBundlePrice +=
-        Number(product.price || 0) *
-        quantity;
-
-      bundleProductsValidated.push({
-        productId: product._id,
-        title: product.title,
-        variant,
-        quantity,
-        price: product.price,
-        mainImage:
-          product.images?.[0] || "",
-      });
-    }
-
-    const discountPercentage = 10;
-
-    const discountAmount =
-      originalBundlePrice *
-      (discountPercentage / 100);
-
-    const customBundlePrice = Math.round(
-      originalBundlePrice -
-        discountAmount
-    );
-
-    const itemTotal =
-      customBundlePrice *
-      bundleQuantity;
-
-      originalSubtotal +=
-  originalBundlePrice * bundleQuantity;
-
-    calculatedSubtotal += itemTotal;
-
-    validatedItems.push({
-      customBundle: true,
-
-      title:
-        item.title || "Custom Bundle",
-
-      quantity: bundleQuantity,
-
-      price: customBundlePrice,
-
-      originalPrice:
-        originalBundlePrice,
-
-      discountPercentage,
-
-      discountAmount:
-        Math.round(discountAmount),
-
-      total: itemTotal,
-
-      mainImage:
-        item.mainImage || "",
-
-      bundleProducts:
-        bundleProductsValidated,
-    });
-
-    continue;
-  }
-
-  // =========================
-  // 🛍️ NORMAL PRODUCT
-  // =========================
-
-const product = await Product.findOne({
-  publicId: item.productId,
-});
-
-  if (!product) {
-    return res.status(400).json({
-      error: "Invalid product",
-    });
-  }
-
-  const variant = String(
-    item.variant || ""
-  ).trim();
-
+// Checks one product line against the database: real size + enough stock.
+// Returns { error: {status, body} } or { ok: true }.
+async function checkStock(product, variant, requiredQty) {
   if (!variant) {
-    return res.status(400).json({
-      error: `${product.title}: size is required`,
-    });
+    return { error: { status: 400, body: { error: `${product.title}: size is required` } } };
   }
 
-  const quantity =
-    Number(item.quantity) || 1;
-
-  if (quantity <= 0) {
-    return res.status(400).json({
-      error: "Invalid quantity",
-    });
-  }
-
-  const inventory =
-    await Inventory.findOne({
-      product: product._id,
-      active: true,
-    });
+  const inventory = await Inventory.findOne({ product: product._id, active: true });
 
   if (!inventory) {
-    return res.status(400).json({
-      error: `Inventory not found for ${product.title}`,
-    });
+    return { error: { status: 400, body: { error: `Inventory not found for ${product.title}` } } };
+  }
+
+  const activeSizes = (product.sizes || []).filter((s) => s.active !== false).map((s) => s.name);
+  const stockSizes =
+    inventory.stock instanceof Map ? [...inventory.stock.keys()] : Object.keys(inventory.stock || {});
+  const knownSizes = activeSizes.length ? activeSizes : stockSizes;
+
+  if (!knownSizes.includes(variant)) {
+    return { error: { status: 400, body: { error: `${product.title}: invalid size` } } };
   }
 
   const availableStock =
     inventory.stock instanceof Map
-      ? Number(
-          inventory.stock.get(variant) || 0
-        )
-      : Number(
-          inventory.stock?.[variant] || 0
-        );
+      ? Number(inventory.stock.get(variant) || 0)
+      : Number(inventory.stock?.[variant] || 0);
 
-  if (
-    inventory.trackInventory &&
-    !inventory.allowBackorder &&
-    availableStock < quantity
-  ) {
- return res.status(409).json({
-  success: false,
-  code: "OUT_OF_STOCK",
-  error: `${product.title} (${variant}) has only ${availableStock} left`,
-  productId: product.publicId,
-  variant,
-  availableStock,
-});
+  if (inventory.trackInventory && !inventory.allowBackorder && availableStock < requiredQty) {
+    return {
+      error: {
+        status: 409,
+        body: {
+          success: false,
+          code: "OUT_OF_STOCK",
+          error: `${product.title} (${variant}) has only ${availableStock} left`,
+          productId: product.publicId,
+          variant,
+          availableStock,
+        },
+      },
+    };
   }
 
-const itemTotal =
-  Number(product.price || 0) *
-  quantity;
-
-const productOldPrice =
-  Number(product.oldPrice || product.price || 0) *
-  quantity;
-
-calculatedSubtotal += itemTotal;
-originalSubtotal += productOldPrice;
-
-  validatedItems.push({
-    productId: product._id,
-    title: product.title,
-    quantity,
-    price: product.price,
-    total: itemTotal,
-    variant,
-    mainImage:
-      product.images?.[0] ||
-      "default.jpg",
-  });
+  return { ok: true };
 }
+
+const bad = (res, error, status = 400) => res.status(status).json({ success: false, error });
+
+const CUSTOM_BUNDLE_MIN = 2;
+const CUSTOM_BUNDLE_MAX = 6;
+const CUSTOM_BUNDLE_DISCOUNT = 10; // percent
+const MAX_ORDER_LINES = 50;
+
+router.post("/create", orderLimiter, optionalAuth, async (req, res) => {
+  try {
+    const userId = req.user?.id || null;
+
+    const { items, billingSame, shippingAddress, paymentMethod } = req.body || {};
+    const shippingMethod = str(req.body?.shippingMethod, 50) || "standard";
+    const discountCode = str(req.body?.discountCode, 50) || "";
+    const source = ["web", "mobile"].includes(req.body?.source) ? req.body.source : "web";
+    const contactEmail = validEmail(req.body?.contactEmail);
+
+    if (!Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, error: "Cart is empty" });
+    }
+
+    if (items.length > MAX_ORDER_LINES) {
+      return bad(res, "Too many items in one order");
+    }
+
+    if (!["cod", "razorpay"].includes(paymentMethod)) {
+      return res.status(400).json({ error: "Invalid payment method" });
+    }
+
+    // Address: required strings only (no objects / operators).
+    const address = shippingAddress && typeof shippingAddress === "object" ? shippingAddress : null;
+    const cleanAddress = address && {
+      firstName: str(address.firstName, 100),
+      lastName: str(address.lastName, 100) || "",
+      address: str(address.address, 300),
+      apartment: str(address.apartment, 200) || "",
+      city: str(address.city, 100),
+      state: str(address.state, 100) || "",
+      zip: str(address.zip, 20) || "",
+      country: str(address.country, 100) || "India",
+      phone: str(address.phone, 20),
+    };
+
+    if (
+      !cleanAddress ||
+      !cleanAddress.firstName ||
+      !cleanAddress.address ||
+      !cleanAddress.city ||
+      !cleanAddress.phone
+    ) {
+      return bad(res, "Valid shipping address is required");
+    }
+
+    if (!userId && !contactEmail) {
+      return bad(res, "Valid email is required");
+    }
+
+    let calculatedSubtotal = 0;
+    let originalSubtotal = 0;
+    const validatedItems = [];
+
+    for (const item of items) {
+      if (!item || typeof item !== "object") {
+        return bad(res, "Invalid item");
+      }
+
+      // =========================
+      // 📦 NORMAL BUNDLE: contents + price from the database
+      // =========================
+
+      if (item.bundleId) {
+        const bundle = await Bundle.findOne({ publicId: String(item.bundleId) });
+
+        if (!bundle) return bad(res, "Invalid bundle");
+
+        const bundleQuantity = validQuantity(item.quantity ?? 1);
+
+        if (!bundleQuantity) return bad(res, "Invalid quantity");
+
+        const clientParts = Array.isArray(item.bundleProducts) ? item.bundleProducts : [];
+        const bundleProductsValidated = [];
+
+        for (const productId of bundle.products || []) {
+          const product = await Product.findById(productId);
+
+          if (!product) return bad(res, "Invalid bundle product");
+
+          // The client only chooses the SIZE of each product in the bundle.
+          const chosen = clientParts.find(
+            (bp) =>
+              bp &&
+              (String(bp.productId) === String(product.publicId) ||
+                String(bp.productId) === String(product._id)),
+          );
+          const variant = str(chosen?.variant, 20) || "";
+
+          const check = await checkStock(product, variant, bundleQuantity);
+
+          if (check.error) return res.status(check.error.status).json(check.error.body);
+
+          bundleProductsValidated.push({
+            productId: product._id,
+            title: product.title,
+            variant,
+            quantity: 1,
+            price: product.price,
+            mainImage: product.images?.[0] || "",
+          });
+        }
+
+        if (!bundleProductsValidated.length) return bad(res, "Invalid bundle");
+
+        const itemTotal = Number(bundle.price || 0) * bundleQuantity;
+
+        calculatedSubtotal += itemTotal;
+        originalSubtotal += Number(bundle.oldPrice || bundle.price || 0) * bundleQuantity;
+
+        validatedItems.push({
+          bundleId: bundle._id,
+          customBundle: false,
+          title: bundle.title,
+          quantity: bundleQuantity,
+          price: bundle.price,
+          total: itemTotal,
+          mainImage:
+            bundle.mainImages?.[0] || bundleProductsValidated[0]?.mainImage || "default.jpg",
+          bundleProducts: bundleProductsValidated,
+        });
+
+        continue;
+      }
+
+      // =========================
+      // 🎁 CUSTOM BUNDLE: price = sum of DB prices - 10%
+      // =========================
+
+      if (item.customBundle) {
+        const bundleQuantity = validQuantity(item.quantity ?? 1);
+
+        if (!bundleQuantity) return bad(res, "Invalid quantity");
+
+        const parts = Array.isArray(item.bundleProducts) ? item.bundleProducts : [];
+
+        if (parts.length < CUSTOM_BUNDLE_MIN || parts.length > CUSTOM_BUNDLE_MAX) {
+          return bad(res, `Custom bundle must contain ${CUSTOM_BUNDLE_MIN}-${CUSTOM_BUNDLE_MAX} products`);
+        }
+
+        let originalBundlePrice = 0;
+        const seenProducts = new Set();
+        const bundleProductsValidated = [];
+
+        for (const bp of parts) {
+          const product = bp && (await Product.findOne({ publicId: String(bp.productId) }));
+
+          if (!product) return bad(res, "Invalid bundle product");
+
+          if (seenProducts.has(String(product._id))) {
+            return bad(res, "Custom bundle products must be different");
+          }
+
+          seenProducts.add(String(product._id));
+
+          const variant = str(bp.variant, 20) || "";
+          const check = await checkStock(product, variant, bundleQuantity);
+
+          if (check.error) return res.status(check.error.status).json(check.error.body);
+
+          originalBundlePrice += Number(product.price || 0);
+
+          bundleProductsValidated.push({
+            productId: product._id,
+            title: product.title,
+            variant,
+            quantity: 1,
+            price: product.price,
+            mainImage: product.images?.[0] || "",
+          });
+        }
+
+        const discountAmount = originalBundlePrice * (CUSTOM_BUNDLE_DISCOUNT / 100);
+        const customBundlePrice = Math.round(originalBundlePrice - discountAmount);
+        const itemTotal = customBundlePrice * bundleQuantity;
+
+        originalSubtotal += originalBundlePrice * bundleQuantity;
+        calculatedSubtotal += itemTotal;
+
+        validatedItems.push({
+          customBundle: true,
+          title: str(item.title, 100) || "Custom Bundle",
+          quantity: bundleQuantity,
+          price: customBundlePrice,
+          originalPrice: originalBundlePrice,
+          discountPercentage: CUSTOM_BUNDLE_DISCOUNT,
+          discountAmount: Math.round(discountAmount),
+          total: itemTotal,
+          mainImage: bundleProductsValidated[0]?.mainImage || "default.jpg",
+          bundleProducts: bundleProductsValidated,
+        });
+
+        continue;
+      }
+
+      // =========================
+      // 🛍️ NORMAL PRODUCT
+      // =========================
+
+      const product = await Product.findOne({ publicId: String(item.productId ?? "") });
+
+      if (!product) return bad(res, "Invalid product");
+
+      const quantity = validQuantity(item.quantity ?? 1);
+
+      if (!quantity) return bad(res, "Invalid quantity");
+
+      const variant = str(item.variant, 20) || "";
+      const check = await checkStock(product, variant, quantity);
+
+      if (check.error) return res.status(check.error.status).json(check.error.body);
+
+      const itemTotal = Number(product.price || 0) * quantity;
+
+      calculatedSubtotal += itemTotal;
+      originalSubtotal += Number(product.oldPrice || product.price || 0) * quantity;
+
+      validatedItems.push({
+        productId: product._id,
+        title: product.title,
+        quantity,
+        price: product.price,
+        total: itemTotal,
+        variant,
+        mainImage: product.images?.[0] || "default.jpg",
+      });
+    }
+
   const shippingFee = 0;
 
 const discountAmount = Math.max(
@@ -433,10 +314,19 @@ const discountAmount = Math.max(
 
 const taxAmount = 0;
 
-const grandTotal =
+// COD handling fee (set COD_FEE in .env; the clients must show the server total).
+const codFee = paymentMethod === "cod" ? Math.max(0, Number(process.env.COD_FEE || 0)) : 0;
+
+const grandTotal = Math.round(
   calculatedSubtotal +
   shippingFee +
-  taxAmount;
+  codFee +
+  taxAmount
+);
+
+if (!(grandTotal > 0)) {
+  return bad(res, "Invalid order total");
+}
 
     // =========================
     // 👤 Guest Handling (unchanged)
@@ -445,8 +335,7 @@ const grandTotal =
 let guestId = null;
 
 if (!userId) {
-  const clientGuestId = req.headers["x-guest-id"];
-  console.log("Guest checkout with guestId:", clientGuestId);
+  const clientGuestId = validGuestId(req.headers["x-guest-id"]);
 
   // ✅ FIX: assign to outer variable
   guestId =
@@ -460,15 +349,15 @@ if (!userId) {
     guest = await GuestUser.create({
       guestId,
       email: contactEmail,
-      firstName: shippingAddress.firstName,
-      lastName: shippingAddress.lastName,
-      address: shippingAddress.address,
-      apartment: shippingAddress.apartment || "",
-      city: shippingAddress.city,
-      state: shippingAddress.state || "none",
-      zip: shippingAddress.zip || "none",
-      country: shippingAddress.country || "India",
-      phone: shippingAddress.phone,
+      firstName: cleanAddress.firstName,
+      lastName: cleanAddress.lastName,
+      address: cleanAddress.address,
+      apartment: cleanAddress.apartment,
+      city: cleanAddress.city,
+      state: cleanAddress.state || "none",
+      zip: cleanAddress.zip || "none",
+      country: cleanAddress.country,
+      phone: cleanAddress.phone,
     });
   }
 }
@@ -487,8 +376,8 @@ if (!userId) {
       email: userId ? (req.user.email || contactEmail) : contactEmail,
       orderNumber,
       shippingMethod,
-      billingSame,
-      shippingAddress,
+      billingSame: billingSame !== false,
+      shippingAddress: cleanAddress,
       items: validatedItems, // ✅ secure items
       subtotal: originalSubtotal,
 
@@ -496,7 +385,7 @@ if (!userId) {
 
       couponDiscount: 0,
 
-      shippingFee,
+      shippingFee: shippingFee + codFee,
 
       taxAmount,
 
@@ -557,7 +446,7 @@ if (paymentMethod === "cod") {
 
     if (paymentMethod === "razorpay") {
       const razorpayOptions = {
-        amount: grandTotal  * 100, // 🔥 IMPORTANT (paise)
+        amount: Math.round(grandTotal * 100), // paise, whole number
         currency: "INR",
         receipt: order._id.toString(),
       };
@@ -617,157 +506,271 @@ res.json({
 });
 
   } catch (err) {
-    console.error("Error creating order:", err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error("Error creating order:", err.message);
+    res.status(500).json({ success: false, error: "Could not create order" });
   }
 });
 
 
 
+// Constant-time compare of two hex signatures (no timing leak).
+const sameSignature = (expected, received) => {
+  if (typeof received !== "string" || received.length !== expected.length) return false;
+
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(received));
+};
+
 router.post("/webhook", async (req, res) => {
+
   try {
-    const secret = process.env.RAZORPAY_WEBHOOK_SECRET;
-    const signature = req.headers["x-razorpay-signature"];
+    const secret =
+      process.env.RAZORPAY_WEBHOOK_SECRET;
 
-    // =========================
-    // 🔐 VERIFY WEBHOOK SIGNATURE
-    // =========================
+    const signature =
+      req.headers["x-razorpay-signature"];
 
-    const rawBody = req.body.toString();
+    // =====================================================
+    // 🔐 BASIC VALIDATION
+    // =====================================================
 
-    const expectedSignature = crypto
-      .createHmac("sha256", secret)
-      .update(rawBody)
-      .digest("hex");
+    if (!secret) {
+      console.error(
+        "❌ RAZORPAY_WEBHOOK_SECRET is missing"
+      );
 
-    if (expectedSignature !== signature) {
-      console.log("❌ Invalid webhook signature");
+      return res.sendStatus(500);
+    }
+
+    if (!signature) {
+      console.error(
+        "❌ Razorpay webhook signature missing"
+      );
+
       return res.sendStatus(400);
     }
 
-    const event = JSON.parse(rawBody);
+    // =====================================================
+    // 📦 RAW BODY
+    // IMPORTANT:
+    // express.raw() MUST be configured before express.json()
+    // =====================================================
 
-    // =========================
-    // 💰 PAYMENT SUCCESS
-    // =========================
+    const rawBody = Buffer.isBuffer(req.body)
+      ? req.body.toString("utf8")
+      : String(req.body);
+
+    // =====================================================
+    // 🔐 VERIFY WEBHOOK SIGNATURE
+    // =====================================================
+
+    const expectedSignature =
+      crypto
+        .createHmac("sha256", secret)
+        .update(rawBody)
+        .digest("hex");
+
+    if (!sameSignature(expectedSignature, signature)) {
+      console.error(
+        "❌ INVALID RAZORPAY WEBHOOK SIGNATURE"
+      );
+
+      return res.sendStatus(400);
+    }
+
+    console.log(
+      "✅ Razorpay webhook signature verified"
+    );
+
+    // =====================================================
+    // 📦 PARSE EVENT
+    // =====================================================
+
+    let event;
+
+    try {
+      event = JSON.parse(rawBody);
+    } catch (parseError) {
+      console.error(
+        "❌ Invalid webhook JSON:",
+        parseError
+      );
+
+      return res.sendStatus(400);
+    }
+
+    console.log(
+      "🔔 Razorpay event:",
+      event.event
+    );
+
+    // =====================================================
+    // 💰 PAYMENT CAPTURED
+    // =====================================================
 
     if (event.event === "payment.captured") {
-      const payment = event.payload.payment.entity;
+      const payment =
+        event?.payload?.payment?.entity;
 
-      const session = await mongoose.startSession();
+      if (!payment) {
+        console.error(
+          "❌ payment.captured but payment entity missing"
+        );
+
+        return res.sendStatus(400);
+      }
+
+      console.log("=================================");
+      console.log("💰 PAYMENT CAPTURED");
+      console.log("Payment ID:", payment.id);
+      console.log("Razorpay Order ID:", payment.order_id);
+      console.log("Amount:", payment.amount);
+      console.log("Currency:", payment.currency);
+      console.log("=================================");
+
+      const session =
+        await mongoose.startSession();
+
+      let confirmedOrderId = null;
 
       try {
-        let confirmedOrderId = null;
-
         await session.withTransaction(async () => {
-          // =========================
-          // 🔗 FIND PAYMENT
-          // =========================
+          // =================================================
+          // 🔎 FIND PAYMENT
+          // =================================================
 
-          const paymentDoc = await Payment.findOne({
-            razorpayOrderId: payment.order_id,
-          }).session(session);
+          const paymentDoc =
+            await Payment.findOne({
+              razorpayOrderId: payment.order_id,
+            }).session(session);
 
           if (!paymentDoc) {
-            console.log("⚠️ Payment document not found");
-            return;
+            throw new Error(
+              `Payment document not found for Razorpay order ${payment.order_id}`
+            );
           }
 
-          // =========================
-          // 📦 FIND ORDER
-          // =========================
+          console.log(
+            "✅ Payment document:",
+            paymentDoc._id.toString()
+          );
 
-          const order = await Order.findById(
-            paymentDoc.orderId
-          ).session(session);
+          // =================================================
+          // 🔎 FIND ORDER
+          // =================================================
+
+          const order =
+            await Order.findById(
+              paymentDoc.orderId
+            ).session(session);
 
           if (!order) {
-            console.log("⚠️ Order not found");
-            return;
-          }
-
-          // =========================
-          // 🚫 ALREADY PROCESSED
-          // =========================
-
-          if (paymentDoc.status === "paid") {
-            console.log("ℹ️ Payment already processed");
-            confirmedOrderId = order._id;
-            return;
-          }
-
-          // =========================
-          // 💰 VERIFY AMOUNT
-          // =========================
-
-          if (
-            Number(payment.amount) !==
-            Math.round(Number(order.total) * 100)
-          ) {
             throw new Error(
-              "Amount mismatch in webhook"
+              `Order not found for payment ${paymentDoc._id}`
             );
           }
 
-          // =========================
-          // 💱 VERIFY CURRENCY
-          // =========================
+          console.log(
+            "✅ Order found:",
+            order.orderNumber
+          );
 
-          if (payment.currency !== "INR") {
-            throw new Error(
-              "Currency mismatch in webhook"
-            );
-          }
-
-          // =========================
-          // 🔗 VERIFY RAZORPAY ORDER
-          // =========================
+          // =================================================
+          // 🔐 VERIFY RAZORPAY ORDER ID
+          // =================================================
 
           if (
             payment.order_id !==
             paymentDoc.razorpayOrderId
           ) {
             throw new Error(
-              "Razorpay order mismatch"
+              "Razorpay order ID mismatch"
             );
           }
 
-          // =========================
-          // 📦 DECREASE INVENTORY FIRST
-          // =========================
-          //
-          // IMPORTANT:
-          // Inventory + payment + order are
-          // handled in ONE MongoDB transaction.
-          //
-          // If inventory fails:
-          // transaction rolls back.
-          //
-          // Payment will NOT be marked paid
-          // in our database.
-          //
+          if (
+            order.razorpayOrderId !==
+            payment.order_id
+          ) {
+            throw new Error(
+              "Order Razorpay order ID mismatch"
+            );
+          }
 
-          await updateOrderInventoryInSession(
-            order,
-            session,
-            "decrease"
-          );
+          // =================================================
+          // 💰 VERIFY AMOUNT
+          // =================================================
 
-          // =========================
-          // 💳 MARK PAYMENT PAID
-          // =========================
+          const expectedAmount =
+            Math.round(
+              Number(order.total) * 100
+            );
+
+          if (
+            Number(payment.amount) !==
+            expectedAmount
+          ) {
+            throw new Error(
+              `Amount mismatch. Razorpay=${payment.amount}, Order=${expectedAmount}`
+            );
+          }
+
+          // =================================================
+          // 💱 VERIFY CURRENCY
+          // =================================================
+
+          const expectedCurrency =
+            order.currency || "INR";
+
+          if (
+            payment.currency !==
+            expectedCurrency
+          ) {
+            throw new Error(
+              `Currency mismatch. Razorpay=${payment.currency}, Order=${expectedCurrency}`
+            );
+          }
+
+          // =================================================
+          // 🚫 IDEMPOTENCY
+          // =================================================
+
+          if (
+            paymentDoc.status === "paid" &&
+            order.paymentStatus === "paid" &&
+            order.orderStatus === "confirmed"
+          ) {
+            console.log(
+              "ℹ️ Payment already fully processed"
+            );
+
+            confirmedOrderId =
+              order._id;
+
+            return;
+          }
+
+          // =================================================
+          // 🔒 CLAIM PAYMENT FIRST
+          //
+          // This prevents duplicate Razorpay webhooks
+          // from decreasing inventory twice.
+          // =================================================
 
           const claimedPayment =
             await Payment.findOneAndUpdate(
               {
                 _id: paymentDoc._id,
-                status: { $ne: "paid" },
+                status: {
+                  $ne: "paid",
+                },
               },
               {
                 $set: {
                   status: "paid",
-                  razorpayPaymentId: payment.id,
-                  razorpaySignature: signature,
+                  razorpayPaymentId:
+                    payment.id,
+                  razorpaySignature:
+                    signature,
                 },
               },
               {
@@ -778,60 +781,198 @@ router.post("/webhook", async (req, res) => {
 
           if (!claimedPayment) {
             console.log(
-              "ℹ️ Payment already processed by another webhook"
+              "ℹ️ Payment already claimed by another webhook"
             );
+
             return;
           }
 
-          // =========================
+          console.log(
+            "✅ Payment successfully claimed"
+          );
+
+          // =================================================
+          // 📦 DECREASE INVENTORY
+          //
+          // If this fails, the MongoDB transaction rolls
+          // back INCLUDING the payment claim.
+          // =================================================
+
+          console.log(
+            "📦 Updating inventory..."
+          );
+
+          await updateOrderInventoryInSession(
+            order,
+            session,
+            "decrease"
+          );
+
+          console.log(
+            "✅ Inventory updated"
+          );
+
+          // =================================================
           // ✅ CONFIRM ORDER
-          // =========================
+          // =================================================
 
-          order.paymentStatus = "paid";
-          order.orderStatus = "confirmed";
+          order.paymentStatus =
+            "paid";
 
-          await order.save({ session });
+          order.orderStatus =
+            "confirmed";
 
-          confirmedOrderId = order._id;
+          if (
+            Array.isArray(
+              order.statusHistory
+            )
+          ) {
+            const alreadyConfirmed =
+              order.statusHistory.some(
+                (item) =>
+                  item.status ===
+                  "confirmed"
+              );
+
+            if (!alreadyConfirmed) {
+              order.statusHistory.push({
+                status: "confirmed",
+                updatedAt: new Date(),
+              });
+            }
+          } else {
+            order.statusHistory = [
+              {
+                status: "pending",
+                updatedAt:
+                  order.createdAt ||
+                  new Date(),
+              },
+              {
+                status: "confirmed",
+                updatedAt: new Date(),
+              },
+            ];
+          }
+
+          await order.save({
+            session,
+          });
+
+          confirmedOrderId =
+            order._id;
+
+          console.log(
+            "================================="
+          );
+
+          console.log(
+            "✅ ORDER CONFIRMED:",
+            order.orderNumber
+          );
+
+          console.log(
+            "Payment Status:",
+            order.paymentStatus
+          );
+
+          console.log(
+            "Order Status:",
+            order.orderStatus
+          );
+
+          console.log(
+            "================================="
+          );
         });
 
-        // =========================
-        // 📧 SEND EMAIL AFTER COMMIT
-        // =========================
+        // =====================================================
+        // ✅ TRANSACTION COMMITTED
+        // =====================================================
+
+        console.log(
+          "✅ PAYMENT TRANSACTION COMMITTED"
+        );
+
+        // =====================================================
+        // 📧 EMAIL AFTER DATABASE COMMIT
+        // =====================================================
 
         if (confirmedOrderId) {
           const confirmedOrder =
-            await Order.findById(confirmedOrderId);
+            await Order.findById(
+              confirmedOrderId
+            );
 
           if (confirmedOrder) {
-            await sendOrderEmail({
-              status: "confirmed",
-              order: confirmedOrder,
-            });
+            try {
+              await sendOrderEmail({
+                status: "confirmed",
+                order: confirmedOrder,
+              });
 
-            console.log(
-              `✅ Webhook: Payment captured, inventory deducted and order confirmed: ${confirmedOrder.orderNumber}`
-            );
+              console.log(
+                "📧 Confirmation email sent"
+              );
+            } catch (emailError) {
+              console.error(
+                "⚠️ Confirmation email failed:",
+                emailError
+              );
+            }
           }
         }
 
       } catch (err) {
         console.error(
-          "❌ Payment/inventory transaction failed:",
-          err
+          "================================="
+        );
+
+        console.error(
+          "❌ WEBHOOK TRANSACTION FAILED"
+        );
+        console.error(err?.message || err);
+
+        // Paid, but the stock sold out meanwhile: retrying can never succeed.
+        // Cancel the order and refund the customer, then stop Razorpay retries.
+        if (err?.code === "OUT_OF_STOCK") {
+          try {
+            const paymentDoc = await Payment.findOne({ razorpayOrderId: payment.order_id });
+            const failedOrder = paymentDoc && (await Order.findById(paymentDoc.orderId));
+
+            if (failedOrder && failedOrder.orderStatus !== "cancelled") {
+              await Payment.updateOne(
+                { _id: paymentDoc._id },
+                { $set: { status: "paid", razorpayPaymentId: payment.id } },
+              );
+              await Order.findOneAndUpdate(
+                { _id: failedOrder._id },
+                { $set: { orderStatus: "cancelled", paymentStatus: "paid" } },
+              );
+              await refundRazorpayOrder(failedOrder);
+            }
+          } catch (refundErr) {
+            console.error(`[REFUND NEEDED] Razorpay order ${payment.order_id}:`, refundErr.message);
+          }
+
+          return res.sendStatus(200);
+        }
+
+        console.error(
+          "================================="
         );
 
         /*
-         * IMPORTANT:
+         * IMPORTANT
          *
-         * Do NOT mark payment as paid here.
+         * Because everything is inside the MongoDB
+         * transaction, failure rolls back:
          *
-         * Transaction has rolled back:
-         * - inventory rollback
-         * - payment remains pending
-         * - order remains pending
+         * 1. Payment status
+         * 2. Inventory
+         * 3. Order confirmation
          *
-         * Razorpay can retry the webhook.
+         * Razorpay will retry the webhook.
          */
 
         return res.sendStatus(500);
@@ -839,49 +980,90 @@ router.post("/webhook", async (req, res) => {
       } finally {
         await session.endSession();
       }
+
+      return res.sendStatus(200);
     }
 
-    // =========================
+    // =====================================================
     // ❌ PAYMENT FAILED
-    // =========================
+    // =====================================================
 
-    if (event.event === "payment.failed") {
-      const payment = event.payload.payment.entity;
+    if (
+      event.event === "payment.failed"
+    ) {
+      const payment =
+        event?.payload?.payment?.entity;
 
-      const paymentDoc = await Payment.findOne({
-        razorpayOrderId: payment.order_id,
-      });
+      if (!payment) {
+        console.error(
+          "❌ payment.failed but payment entity missing"
+        );
+
+        return res.sendStatus(400);
+      }
+
+      console.log(
+        "❌ PAYMENT FAILED:",
+        payment.id
+      );
+
+      const paymentDoc =
+        await Payment.findOne({
+          razorpayOrderId:
+            payment.order_id,
+        });
 
       if (
         paymentDoc &&
         paymentDoc.status !== "paid"
       ) {
-        paymentDoc.status = "failed";
+        paymentDoc.status =
+          "failed";
+
+        paymentDoc.razorpayPaymentId =
+          payment.id;
+
         await paymentDoc.save();
+
+        console.log(
+          "✅ Payment marked failed"
+        );
       }
 
-      console.log(
-        "❌ Webhook: Payment failed"
-      );
+      return res.sendStatus(200);
     }
 
-    // =========================
-    // ✅ ALWAYS RETURN 200
-    // =========================
+    // =====================================================
+    // ℹ️ OTHER RAZORPAY EVENTS
+    // =====================================================
+
+    console.log(
+      "ℹ️ Ignored Razorpay event:",
+      event.event
+    );
 
     return res.sendStatus(200);
 
   } catch (err) {
     console.error(
-      "❌ Webhook error:",
-      err
+      "================================="
+    );
+
+    console.error(
+      "❌ RAZORPAY WEBHOOK ERROR"
+    );
+
+    console.error(err);
+
+    console.error(
+      "================================="
     );
 
     return res.sendStatus(500);
   }
 });
 
-router.post("/payment-success", async (req, res) => {
+router.post("/payment-success", paymentCheckLimiter, async (req, res) => {
   try {
     const {
       orderId,
@@ -891,69 +1073,107 @@ router.post("/payment-success", async (req, res) => {
     } = req.body;
 
     // =========================
-    // 🔐 1. VERIFY SIGNATURE
+    // 1. VALIDATE REQUEST
     // =========================
 
-    const body = razorpay_order_id + "|" + razorpay_payment_id;
-
-    const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_SECRET)
-      .update(body.toString())
-      .digest("hex");
-
-    if (expectedSignature !== razorpay_signature) {
+    if (
+      !orderId ||
+      !razorpay_order_id ||
+      !razorpay_payment_id ||
+      !razorpay_signature
+    ) {
       return res.status(400).json({
         success: false,
+        verified: false,
+        error: "Missing payment verification fields",
+      });
+    }
+
+    // =========================
+    // 2. VERIFY RAZORPAY SIGNATURE
+    // =========================
+
+    const body =
+      razorpay_order_id + "|" + razorpay_payment_id;
+
+    const expectedSignature = crypto
+      .createHmac(
+        "sha256",
+        process.env.RAZORPAY_SECRET
+      )
+      .update(body)
+      .digest("hex");
+
+    if (!sameSignature(expectedSignature, razorpay_signature)) {
+      return res.status(400).json({
+        success: false,
+        verified: false,
         error: "Invalid payment signature",
       });
     }
 
     // =========================
-    // 📦 2. FIND ORDER
+    // 3. FIND ORDER
     // =========================
 
     const order = await Order.findById(orderId);
 
     if (!order) {
-      return res.status(404).json({ error: "Order not found" });
-    }
-
-
-
-if (order.razorpayOrderId !== razorpay_order_id) {
-  return res.status(400).json({
-    success: false,
-    error: "Razorpay order mismatch",
-  });
-}
-
-    // =========================
-    // 🔁 3. PREVENT DOUBLE PROCESS
-    // =========================
-
-    if (order.paymentStatus === "paid") {
-      return res.json({ success: true, message: "Already processed" });
+      return res.status(404).json({
+        success: false,
+        verified: false,
+        error: "Order not found",
+      });
     }
 
     // =========================
-    // 🔗 4. VERIFY ORDER ↔ PAYMENT LINK
+    // 4. VERIFY RAZORPAY ORDER ID
+    // =========================
+
+    if (
+      order.razorpayOrderId !==
+      razorpay_order_id
+    ) {
+      return res.status(400).json({
+        success: false,
+        verified: false,
+        error: "Razorpay order mismatch",
+      });
+    }
+
+    // =========================
+    // 5. FIND PAYMENT DOCUMENT
     // =========================
 
     const paymentDoc = await Payment.findOne({
       razorpayOrderId: razorpay_order_id,
     });
 
-    if (!paymentDoc || paymentDoc.orderId.toString() !== orderId) {
-      return res.status(400).json({
+    if (!paymentDoc) {
+      return res.status(404).json({
         success: false,
-        error: "Order mismatch",
+        verified: false,
+        error: "Payment record not found",
       });
     }
 
-
-    
     // =========================
-    // 💰 5. VERIFY WITH RAZORPAY API
+    // 6. VERIFY PAYMENT ↔ ORDER
+    // =========================
+
+    if (
+      paymentDoc.orderId.toString() !==
+      orderId.toString()
+    ) {
+      return res.status(400).json({
+        success: false,
+        verified: false,
+        error: "Payment and order mismatch",
+      });
+    }
+
+    // =========================
+    // 7. VERIFY PAYMENT WITH RAZORPAY
     // =========================
 
     const razorpayRes = await axios.get(
@@ -968,39 +1188,100 @@ if (order.razorpayOrderId !== razorpay_order_id) {
 
     const paymentData = razorpayRes.data;
 
-if (paymentData.status !== "captured") {
-  paymentDoc.status = "failed";
-  await paymentDoc.save();
+    // =========================
+    // 8. VERIFY PAYMENT STATUS
+    // =========================
 
-  return res.status(400).json({
-    success: false,
-    error: "Payment not captured",
-  });
-}
-    if (
-      paymentData.amount !== order.total * 100 ||
-      paymentData.currency !== "INR"
-    ) {
+    if (paymentData.status !== "captured") {
       return res.status(400).json({
         success: false,
-        error: "Amount mismatch",
+        verified: false,
+        error: "Payment not captured",
       });
     }
 
-// =========================
-// ✅ 6. VERIFICATION ONLY
-// =========================
-// Do NOT mark payment/order as paid here.
-// Webhook is responsible for final processing.
+    // =========================
+    // 9. VERIFY RAZORPAY ORDER
+    // =========================
 
-return res.json({
-  success: true,
-  message: "Payment verified successfully. Awaiting webhook confirmation.",
-});
+    if (
+      paymentData.order_id !==
+      razorpay_order_id
+    ) {
+      return res.status(400).json({
+        success: false,
+        verified: false,
+        error: "Razorpay payment order mismatch",
+      });
+    }
+
+    // =========================
+    // 10. VERIFY AMOUNT
+    // =========================
+
+    const expectedAmount = Math.round(
+      Number(order.total) * 100
+    );
+
+    if (
+      Number(paymentData.amount) !==
+      expectedAmount
+    ) {
+      return res.status(400).json({
+        success: false,
+        verified: false,
+        error: "Payment amount mismatch",
+      });
+    }
+
+    // =========================
+    // 11. VERIFY CURRENCY
+    // =========================
+
+    if (paymentData.currency !== "INR") {
+      return res.status(400).json({
+        success: false,
+        verified: false,
+        error: "Payment currency mismatch",
+      });
+    }
+
+    // =========================
+    // 12. VERIFICATION ONLY
+    // =========================
+    //
+    // DO NOT:
+    // - mark Payment as paid
+    // - mark Order as paid
+    // - confirm Order
+    // - decrease inventory
+    //
+    // WEBHOOK DOES ALL OF THAT.
+    // =========================
+
+    return res.status(200).json({
+      success: true,
+      verified: true,
+      confirmed: false,
+      orderId: order._id,
+      orderNumber: order.orderNumber,
+      paymentStatus: order.paymentStatus,
+      orderStatus: order.orderStatus,
+      message:
+        "Payment verified successfully. Awaiting Razorpay webhook confirmation.",
+    });
 
   } catch (err) {
-    console.error("Payment verification error:", err);
-    res.status(500).json({ success: false, error: err.message });
+    console.error(
+      "Payment verification error:",
+      err
+    );
+
+    return res.status(500).json({
+      success: false,
+      verified: false,
+      error: "Payment verification failed",
+    });
   }
 });
 
@@ -1008,11 +1289,10 @@ return res.json({
 
 router.get("/track", optionalAuth, async (req, res) => {
   try {
-    console.log("Track order query:", req.query);
-
-    const { email, orderNumber } = req.query;
+    const email = validEmail(req.query.email);
+    const orderNumber = str(req.query.orderNumber, 50);
     const userId = req.user?.id || null;
-    const guestId = req.headers["x-guest-id"];
+    const guestId = validGuestId(req.headers["x-guest-id"]);
 
     // =========================
     // 🔍 BASIC VALIDATION
@@ -1078,7 +1358,7 @@ router.get("/track", optionalAuth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error("Track order error:", err);
+    console.error("Track order error:", err.message);
 
     return res.status(500).json({
       success: false,
@@ -1087,9 +1367,10 @@ router.get("/track", optionalAuth, async (req, res) => {
   }
 });
 
-router.post("/track-email",optionalAuth, async (req, res) => {
+router.post("/track-email", emailActionLimiter, optionalAuth, async (req, res) => {
   try {
-    const { email, orderNumber } = req.body;
+    const email = validEmail(req.body?.email);
+    const orderNumber = str(req.body?.orderNumber, 50);
 
     if (!email || !orderNumber) {
       return res.status(400).json({
@@ -1098,8 +1379,8 @@ router.post("/track-email",optionalAuth, async (req, res) => {
       });
     }
 
-    const normalizedEmail = email.trim().toLowerCase();
-    const normalizedOrderNumber = orderNumber.trim();
+    const normalizedEmail = email;
+    const normalizedOrderNumber = orderNumber;
 
     const order = await Order.findOne({
       email: normalizedEmail,
@@ -1135,9 +1416,7 @@ router.post("/track-email",optionalAuth, async (req, res) => {
       throw result.error;
     }
 
-    console.log(
-      `📧 Tracking email sent to ${order.email} for ${order.orderNumber}`
-    );
+    
 
     return res.json({
       success: true,
@@ -1145,7 +1424,7 @@ router.post("/track-email",optionalAuth, async (req, res) => {
     });
 
   } catch (err) {
-    console.error("❌ Tracking email error:", err);
+    console.error("Tracking email error:", err?.message || err);
 
     return res.status(500).json({
       success: false,
@@ -1157,7 +1436,7 @@ router.post("/track-email",optionalAuth, async (req, res) => {
 router.get("/mine", optionalAuth, async (req, res) => {
   try {
     const userId = req.user?.id;
-    const guestId = req.headers["x-guest-id"];
+    const guestId = validGuestId(req.headers["x-guest-id"]);
 
 
     let orders = [];
@@ -1169,7 +1448,7 @@ router.get("/mine", optionalAuth, async (req, res) => {
     } else {
       return res.status(400).json({ error: "No identity" });
     }
-console.log(orders.length)
+
     res.json({
       orders: orders.sort((a, b) => b.createdAt - a.createdAt),
     });
@@ -1181,9 +1460,9 @@ console.log(orders.length)
 router.post("/merge-orders", requireAuth, async (req, res) => {
   try {
     const userId = req.user.id;
-    const guestId = req.headers["x-guest-id"];
+    const guestId = validGuestId(req.headers["x-guest-id"]);
 
-    console.log("🔄 MERGING guestId:", guestId, "→ user:", userId);
+    
 
     if (!guestId) {
       return res.json({ message: "No guest orders" });
@@ -1197,7 +1476,7 @@ router.post("/merge-orders", requireAuth, async (req, res) => {
       }
     );
 
-    console.log("✅ Orders merged:", result.modifiedCount);
+    
 
     res.json({ success: true, merged: result.modifiedCount });
   } catch (err) {
@@ -1207,9 +1486,11 @@ router.post("/merge-orders", requireAuth, async (req, res) => {
 });
 router.get("/:publicOrderId", optionalAuth, async (req, res) => {
   try {
+    // publicOrderId is a random UUID (works like a private link), but never
+    // return internal ids / payment secrets with it.
     const order = await Order.findOne({
-      publicOrderId: req.params.publicOrderId,
-    });
+      publicOrderId: str(req.params.publicOrderId, 64) || "-",
+    }).select("-guestId -userId -razorpaySignature -razorpayPaymentId");
 
     if (!order) {
       return res.status(404).json({
@@ -1223,7 +1504,7 @@ router.get("/:publicOrderId", optionalAuth, async (req, res) => {
       order,
     });
   } catch (error) {
-    console.error("Get order error:", error);
+    console.error("Get order error:", error.message);
 
     res.status(500).json({
       success: false,
@@ -1231,12 +1512,53 @@ router.get("/:publicOrderId", optionalAuth, async (req, res) => {
     });
   }
 });
-router.put("/cancel", optionalAuth, async (req, res) => {
-  const session = await mongoose.startSession();
+// Stock is taken when a COD order is placed, or when an online payment is
+// captured (webhook). Only give back what was actually taken.
+const stockWasDeducted = (order) =>
+  order.paymentMethod === "cod" || order.paymentStatus === "paid";
+
+async function refundRazorpayOrder(order) {
+  const payment = await Payment.findOne({ orderId: order._id, status: "paid" });
+  const paymentId = payment?.razorpayPaymentId || order.razorpayPaymentId;
+
+  if (!payment || !paymentId) return { refunded: false, reason: "no captured payment" };
 
   try {
-    const { orderId } = req.body;
-    const guestId = req.headers["x-guest-id"];
+    const refund = await axios.post(
+      `https://api.razorpay.com/v1/payments/${encodeURIComponent(paymentId)}/refund`,
+      { amount: Math.round(Number(payment.amount) * 100), notes: { orderNumber: order.orderNumber } },
+      {
+        auth: { username: process.env.RAZORPAY_KEY_ID, password: process.env.RAZORPAY_SECRET },
+        timeout: 15000,
+      },
+    );
+
+    await Payment.updateOne(
+      { _id: payment._id },
+      { $set: { status: "refunded", refundId: refund.data?.id, refundError: null } },
+    );
+
+    return { refunded: true };
+  } catch (err) {
+    const reason = err.response?.data?.error?.description || err.message;
+
+    await Payment.updateOne({ _id: payment._id }, { $set: { refundError: reason } });
+    // Needs manual action in the Razorpay dashboard.
+    console.error(`[REFUND NEEDED] order ${order.orderNumber}:`, reason);
+
+    return { refunded: false, reason };
+  }
+}
+
+router.put("/cancel", optionalAuth, async (req, res) => {
+  const session = await mongoose.startSession();
+  try {
+    const orderId = str(req.body?.orderId, 50);
+
+    if (!orderId || !mongoose.isValidObjectId(orderId)) {
+      return res.status(404).json({ success: false, error: "Order not found" });
+    }
+    const guestId = validGuestId(req.headers["x-guest-id"]);
     const userId = req.user?.id || null;
 
     const order = await Order.findById(orderId);
@@ -1334,11 +1656,13 @@ router.put("/cancel", optionalAuth, async (req, res) => {
       // 📦 RESTORE INVENTORY
       // =========================
 
-      await updateOrderInventoryInSession(
-        updatedOrder,
-        session,
-        "increase"
-      );
+      if (stockWasDeducted(updatedOrder)) {
+        await updateOrderInventoryInSession(
+          updatedOrder,
+          session,
+          "increase"
+        );
+      }
 
       cancelledOrderId =
         updatedOrder._id;
@@ -1348,31 +1672,32 @@ router.put("/cancel", optionalAuth, async (req, res) => {
     // 📦 GET UPDATED ORDER
     // =========================
 
-    const cancelledOrder =
-      await Order.findById(
-        cancelledOrderId
-      );
+    const cancelledOrder = await Order.findById(cancelledOrderId);
+
+    // Paid online: money goes back automatically.
+    let refund = null;
+
+    if (cancelledOrder.paymentMethod === "razorpay" && cancelledOrder.paymentStatus === "paid") {
+      refund = await refundRazorpayOrder(cancelledOrder);
+    }
 
     return res.json({
       success: true,
-      message:
-        "Order cancelled successfully",
+      message: refund
+        ? refund.refunded
+          ? "Order cancelled. Your refund has been started."
+          : "Order cancelled. Your refund will be processed by our team."
+        : "Order cancelled successfully",
+      refundStarted: Boolean(refund?.refunded),
       order: cancelledOrder,
     });
 
   } catch (err) {
-    console.error(
-      "❌ Cancel error:",
-      err
-    );
+    console.error("Cancel error:", err.message);
 
-    return res.status(
-      err.status || 500
-    ).json({
+    return res.status(err.status || 500).json({
       success: false,
-      error:
-        err.message ||
-        "Cancel failed",
+      error: err.status ? err.message : "Cancel failed",
     });
 
   } finally {

@@ -1,9 +1,10 @@
+import { formLimiter } from "../middleware/rateLimit.js";
 import { Newsletter } from "../models/Newsletter.js";
-import { requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import express from "express";
 const router = express.Router();
 
-router.post("/", async (req, res) => {
+router.post("/", formLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -42,7 +43,7 @@ router.post("/", async (req, res) => {
 });
 
 
-router.post("/unsubscribe", async (req, res) => {
+router.post("/unsubscribe", formLimiter, async (req, res) => {
   try {
     const { email } = req.body;
 
@@ -62,7 +63,7 @@ router.post("/unsubscribe", async (req, res) => {
   }
 });
 
-router.get("/", requireAdmin, async (req, res) => {
+router.get("/", requireAuth, requireAdmin, async (req, res) => {
   try {
     const users = await Newsletter.find({ subscribed: true })
       .sort({ createdAt: -1 });

@@ -47,6 +47,7 @@ import {
   useGetProductsByIdsQuery,
 } from "@/store/api";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/utils/session";
 
 /* =====================================================
    HELPERS
@@ -2785,22 +2786,24 @@ function AccountContent({
     if (!file) return;
 
     if (
-      !file.type.startsWith(
-        "image/"
-      )
+      ![
+        "image/jpeg",
+        "image/png",
+        "image/webp",
+      ].includes(file.type)
     ) {
       toast.error(
-        "Please select an image"
+        "Please select a JPG, PNG or WebP image"
       );
       return;
     }
 
     if (
       file.size >
-      5 * 1024 * 1024
+      1 * 1024 * 1024
     ) {
       toast.error(
-        "Image must be smaller than 5MB"
+        "Image must be smaller than 1MB"
       );
       return;
     }
@@ -2930,15 +2933,11 @@ function AccountContent({
         "Profile updated successfully"
       );
     } catch (err) {
-      console.error(
-        "PROFILE UPDATE ERROR:",
-        err
-      );
-
       toast.error(
-        err?.response?.data
-          ?.message ||
+        errorMessage(
+          err,
           "Failed to update profile"
+        )
       );
     } finally {
       setSaving(false);
@@ -3044,7 +3043,7 @@ function AccountContent({
             <input
               ref={fileInputRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               className="hidden"
               onChange={(event) =>
                 pickAvatar(

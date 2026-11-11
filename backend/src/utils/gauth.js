@@ -1,271 +1,177 @@
-import { OAuth2Client } from 'google-auth-library'
-import { User } from '../models/User.js'
-import { signAccessToken, signRefreshToken } from '../utils/jwt.js' // your JWT utils
-import axios from 'axios' // for mobile token exchange
-const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID)
+// utils/gauth.js
+//
+// Google sign-in for both clients:
+//   POST /api/auth/google         web: { token } = Google ID token
+//   POST /api/auth/google/mobile  app: { code, codeVerifier, redirectUri } (PKCE)
+// Both end in the same session system (utils/session.js).
+
+import { OAuth2Client } from "google-auth-library";
+import axios from "axios";
+import { User } from "../models/User.js";
+import { startSession } from "./session.js";
+import { str } from "./validate.js";
+
+const webClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+const mobileClient = new OAuth2Client(process.env.GOOGLE_CLIENT_APP);
+
+// Redirect URIs the app may use for the PKCE code exchange. Must match what the
+// app sent to Google. Comma-separated in GOOGLE_APP_REDIRECT_URIS.
+const allowedAppRedirects = () =>
+  (process.env.GOOGLE_APP_REDIRECT_URIS || "com.anonymous.monkey:/oauthredirect")
+    .split(",")
+    .map((uri) => uri.trim())
+    .filter(Boolean);
+
+const userResponse = (user) => ({
+  id: user._id.toString(),
+  email: user.email,
+  name: user.name,
+  role: user.role,
+  avatar: user.avatar,
+  wishlist: user.wishlist,
+  cart: user.cart,
+  addresses: user.addresses,
+  lastLogin: user.lastLogin,
+});
+
+class GoogleAuthError extends Error {
+  constructor(status, message) {
+    super(message);
+    this.status = status;
+  }
+}
+
+/** Find or create the user for a verified Google identity. */
+async function userFromGoogle(payload, loginSource) {
+  const { email: rawEmail, name, picture, sub, email_verified } = payload || {};
+
+  if (!rawEmail || !sub) throw new GoogleAuthError(400, "Google account missing email");
+
+  // Never attach a Google login to an account by an unverified email.
+  if (!email_verified) throw new GoogleAuthError(401, "Google email is not verified");
+
+  const email = String(rawEmail).toLowerCase();
+
+  let user = await User.findOne({ email });
+
+  if (!user) {
+    try {
+      user = await User.create({
+        name: name || "",
+        email,
+        googleId: sub,
+        avatar: picture || "",
+        provider: "google",
+        loginSource,
+        role: "user",
+        isVerified: true,
+        lastLogin: new Date(),
+      });
+    } catch (createErr) {
+      // Another request created the user at the same moment.
+      if (createErr?.code !== 11000) throw createErr;
+      user = await User.findOne({ email });
+    }
+  }
+
+  if (user.status && user.status !== "active") {
+    throw new GoogleAuthError(403, "Account disabled");
+  }
+
+  // The email already belongs to a different Google account.
+  if (user.googleId && user.googleId !== sub) {
+    throw new GoogleAuthError(401, "This email is linked to another Google account");
+  }
+
+  if (!user.googleId) user.googleId = sub;
+  if (!user.name || user.name === "New User") user.name = name || user.name;
+  if (picture && !user.avatar) user.avatar = picture;
+  user.isVerified = true;
+  user.lastLogin = new Date();
+
+  await user.save();
+
+  return user;
+}
+
+const sendError = (res, err, label) => {
+  if (err instanceof GoogleAuthError) {
+    return res.status(err.status).json({ success: false, message: err.message });
+  }
+
+  console.error(label, err.response?.data?.error || err.message);
+
+  return res.status(401).json({ success: false, message: "Google authentication failed" });
+};
+
+/* ---------- WEB ---------- */
 
 export const googleLogin = async (req, res) => {
   try {
-    const { token } = req.body;
-    if (!token) return res.status(400).json({ message: 'Missing Google token' });
+    const token = str(req.body?.token, 4096);
 
-    const ticket = await client.verifyIdToken({
+    if (!token) return res.status(400).json({ message: "Missing Google token" });
+
+    const ticket = await webClient.verifyIdToken({
       idToken: token,
       audience: process.env.GOOGLE_CLIENT_ID,
     });
 
-    const payload = ticket.getPayload();
-    if (!payload) return res.status(401).json({ message: 'Invalid Google token' });
+    const user = await userFromGoogle(ticket.getPayload(), "web");
+    const tokens = await startSession(req, res, user);
 
-    const { email, name, picture, sub, email_verified } = payload;
-    if (!email) return res.status(400).json({ message: 'Google token missing email' });
-
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      try {
-        user = await User.create({
-          name: name || '',
-          email,
-          googleId: sub,
-          avatar: picture || '',
-          provider: 'google',
-          loginSource: 'web',
-          role: 'user',
-          isVerified: Boolean(email_verified),
-          wishlist: [],
-          cart: [],
-          addresses: [],
-          orders: [],
-          lastLogin: new Date(),
-        });
-      } catch (createErr) {
-        // rare race: another process created the user concurrently
-        if (createErr && createErr.code === 11000) {
-          user = await User.findOne({ email });
-        } else {
-          throw createErr;
-        }
-      }
-    } else {
-      // keep googleId if missing and update name/avatar if changed
-      let changed = false;
-      if (!user.googleId && sub) {
-        user.googleId = sub;
-        changed = true;
-      }
-      if (name && user.name !== name) {
-        user.name = name;
-        changed = true;
-      }
-      if (picture && user.avatar !== picture) {
-        user.avatar = picture;
-        changed = true;
-      }
-      user.lastLogin = new Date();
-      if (email_verified && !user.isVerified) {
-        user.isVerified = true;
-        changed = true;
-      }
-      if (changed) await user.save();
-      else await user.updateOne({ lastLogin: user.lastLogin }); // cheap write for lastLogin
-    }
-
-    const jwtPayload = {
-      id: user._id.toString(),
-      role: user.role,
-      email: user.email,
-      name: user.name,
-    };
-
-    const accessToken = signAccessToken(jwtPayload);
-    const refreshToken = signRefreshToken(jwtPayload);
-
-    res.cookie("refreshToken", refreshToken, {
-  httpOnly: true,
-  secure: false,        // true in production (HTTPS)
-  sameSite: "lax",      // or "none" if cross-site + HTTPS
-  path: "/",
-  maxAge: 30 * 24 * 60 * 60 * 1000,
-});
-
-    res.json({
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        avatar: user.avatar,
-        wishlist: user.wishlist,
-        cart: user.cart,
-        addresses: user.addresses,
-        lastLogin: user.lastLogin,
-      },
-      accessToken,
-    
-    });
+    return res.json({ user: userResponse(user), ...tokens });
   } catch (err) {
-    console.error('Google login error:', err);
-    res.status(401).json({ message: 'Invalid Google token' });
+    return sendError(res, err, "Google login error:");
   }
 };
 
-
-
-
-
-const mobile_client = new OAuth2Client(process.env.GOOGLE_CLIENT_APP);
+/* ---------- MOBILE (PKCE code exchange) ---------- */
 
 export const googleLoginMobile = async (req, res) => {
   try {
-    const { code,codeVerifier } = req.body;
+    const code = str(req.body?.code, 2048);
+    const codeVerifier = str(req.body?.codeVerifier, 256);
+    const requestedRedirect = str(req.body?.redirectUri, 512);
+    const allowed = allowedAppRedirects();
 
-    if (!code) {
-      return res.status(400).json({
-        success: false,
-        message: "Missing authorization code",
-      });
+    if (!code || !codeVerifier) {
+      return res.status(400).json({ success: false, message: "Missing authorization code" });
     }
 
-    // 🔥 STEP 1: Exchange code → tokens
+    if (requestedRedirect && !allowed.includes(requestedRedirect)) {
+      return res.status(400).json({ success: false, message: "Redirect URI not allowed" });
+    }
+
     const tokenRes = await axios.post(
       "https://oauth2.googleapis.com/token",
       {
         code,
         client_id: process.env.GOOGLE_CLIENT_APP,
-        redirect_uri: "com.anonymous.monkey:/oauthredirect",
+        redirect_uri: requestedRedirect || allowed[0],
         grant_type: "authorization_code",
         code_verifier: codeVerifier,
-      }
+      },
+      { timeout: 10000 },
     );
 
-    const { id_token } = tokenRes.data;
+    const idToken = tokenRes.data?.id_token;
 
-    if (!id_token) {
-      return res.status(400).json({
-        success: false,
-        message: "Failed to retrieve id_token",
-      });
+    if (!idToken) {
+      return res.status(400).json({ success: false, message: "Failed to retrieve id_token" });
     }
 
-    // 🔥 STEP 2: Verify token
-    const ticket = await mobile_client.verifyIdToken({
-      idToken: id_token,
+    const ticket = await mobileClient.verifyIdToken({
+      idToken,
       audience: process.env.GOOGLE_CLIENT_APP,
     });
 
-    const payload = ticket.getPayload();
+    const loginSource = req.headers["x-os"] === "ios" ? "ios" : "android";
+    const user = await userFromGoogle(ticket.getPayload(), loginSource);
+    const tokens = await startSession(req, res, user);
 
-    if (!payload) {
-      return res.status(401).json({
-        success: false,
-        message: "Invalid Google token",
-      });
-    }
-
-    const { email, name, picture, sub, email_verified } = payload;
-
-    if (!email) {
-      return res.status(400).json({
-        success: false,
-        message: "Google account missing email",
-      });
-    }
-
-    // 🔥 STEP 3: Find or create user
-    let user = await User.findOne({ email });
-
-    if (!user) {
-      user = await User.create({
-        name: name || "",
-        email,
-        googleId: sub,
-        provider: "google",
-        avatar: picture || "",
-        role: "user",
-        loginSource: "android", // or "ios" based on your app
-        isVerified: Boolean(email_verified),
-        wishlist: [],
-        cart: [],
-        addresses: [],
-        orders: [],
-        lastLogin: new Date(),
-      });
-    } else {
-      // 🔐 Security check
-      if (user.status !== "active") {
-        return res.status(403).json({
-          success: false,
-          message: "Account disabled",
-        });
-      }
-
-      let updated = false;
-
-      if (!user.googleId) {
-        user.googleId = sub;
-        updated = true;
-      }
-
-      if (name && user.name !== name) {
-        user.name = name;
-        updated = true;
-      }
-
-      if (picture && user.avatar !== picture) {
-        user.avatar = picture;
-        updated = true;
-      }
-
-      if (email_verified && !user.isVerified) {
-        user.isVerified = true;
-        updated = true;
-      }
-
-      user.provider = "google";
-      user.lastLogin = new Date();
-
-      if (updated) await user.save();
-      else await user.updateOne({ lastLogin: user.lastLogin });
-    }
-
-    // 🔥 STEP 4: Generate JWT
-    const jwtPayload = {
-      id: user._id.toString(),
-      email: user.email,
-      role: user.role,
-      name: user.name,
-    };
-
-    const accessToken = signAccessToken(jwtPayload);
-    const refreshToken = signRefreshToken(jwtPayload);
-
-    // 🔥 STEP 5: Response
-    return res.json({
-      success: true,
-      user: {
-        id: user._id.toString(),
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        avatar: user.avatar,
-        wishlist: user.wishlist,
-        cart: user.cart,
-        addresses: user.addresses,
-        lastLogin: user.lastLogin,
-      },
-      accessToken,
-      refreshToken,
-    });
+    return res.json({ success: true, user: userResponse(user), ...tokens });
   } catch (err) {
-    console.error(
-      "Google Mobile Login Error:",
-      err.response?.data || err.message
-    );
-
-    return res.status(500).json({
-      success: false,
-      message: "Google authentication failed",
-    });
+    return sendError(res, err, "Google mobile login error:");
   }
 };

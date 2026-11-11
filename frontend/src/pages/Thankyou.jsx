@@ -24,22 +24,37 @@ export default function ThankYouPage() {
   const [loading, setLoading] = useState(!state?.order);
   const [copied, setCopied] = useState(false);
 
+  // Online payments are confirmed by the payment webhook a few seconds after
+  // the customer lands here, so keep checking (every 3s, up to 1 minute).
+  const [checks, setChecks] = useState(0);
+
+  const awaitingPayment =
+    order?.paymentMethod === "razorpay" &&
+    order?.paymentStatus !== "paid" &&
+    order?.orderStatus !== "cancelled";
+
   useEffect(() => {
-    if (!order && publicOrderId) {
-      const fetchOrder = async () => {
+    if (!publicOrderId) return;
+    if (order && !awaitingPayment) return;
+    if (checks > 20) return;
+
+    const timer = setTimeout(
+      async () => {
         try {
           const res = await api.get(`/orders/${publicOrderId}`);
           setOrder(res.data.order);
-        } catch (err) {
-          console.error("Failed to fetch order", err);
+        } catch {
+          // shown as "Order not found" below
         } finally {
           setLoading(false);
+          setChecks((n) => n + 1);
         }
-      };
+      },
+      order ? 3000 : 0
+    );
 
-      fetchOrder();
-    }
-  }, [publicOrderId, order]);
+    return () => clearTimeout(timer);
+  }, [publicOrderId, order, awaitingPayment, checks]);
 
   if (loading) {
     return (
@@ -83,7 +98,8 @@ export default function ThankYouPage() {
   const {
     items = [],
     shippingAddress = {},
-    subtotal = 0,
+        subtotal = 0,
+    discountAmount = 0,
     shippingFee = 0,
     total = 0,
     orderNumber,
@@ -92,6 +108,22 @@ export default function ThankYouPage() {
   } = order;
 
 const isPaid = paymentStatus === "paid";
+const isOnline = paymentMethod === "razorpay";
+const isCancelled = order.orderStatus === "cancelled";
+const paymentBadge = isPaid
+  ? "Payment successful"
+  : isCancelled
+    ? "Order cancelled"
+    : isOnline
+      ? checks > 20
+        ? "Payment being confirmed"
+        : "Confirming payment…"
+      : "Cash on Delivery";
+const statusHeadline = isCancelled
+  ? "This order was cancelled"
+  : isOnline && !isPaid
+    ? "We're confirming your payment"
+    : "Your order is confirmed";
   const formatPrice = (value = 0) =>
     `₹${Number(value || 0).toLocaleString("en-IN", {
       minimumFractionDigits: 2,
@@ -106,8 +138,8 @@ const isPaid = paymentStatus === "paid";
       setTimeout(() => {
         setCopied(false);
       }, 1800);
-    } catch (error) {
-      console.error(error);
+        } catch {
+      // clipboard not available
     }
   };
 
@@ -134,7 +166,7 @@ const statusIndex = {
   delivered: 3,
 };
 
-const currentStatus = order.status?.toLowerCase() || "confirmed";
+const currentStatus = order.orderStatus?.toLowerCase() || "confirmed";
 const currentIndex = statusIndex[currentStatus] ?? 0;
   return (
     <div className="min-h-screen bg-[#f7f7f7] text-gray-900">
@@ -159,8 +191,9 @@ const currentIndex = statusIndex[currentStatus] ?? 0;
             </h1>
 
             <p className="mt-4 max-w-xl text-sm leading-6 text-gray-500 sm:text-base">
-              Your order has been confirmed. We'll carefully prepare your
-              items and get them on their way to you.
+              {isOnline && !isPaid && !isCancelled
+                ? "Your payment is being confirmed. This usually takes a few seconds — please don't pay again. You'll get an email as soon as it's confirmed."
+                : "Your order has been confirmed. We'll carefully prepare your items and get them on their way to you."}
             </p>
 
             <div className="mt-7 flex flex-wrap items-center justify-center gap-3">
@@ -193,7 +226,7 @@ const currentIndex = statusIndex[currentStatus] ?? 0;
                     : "bg-amber-50 text-amber-700"
                 }`}
               >
-                {isPaid ? "Payment successful" : "Cash on Delivery"}
+                {paymentBadge}
               </div>
             </div>
           </div>
@@ -211,7 +244,7 @@ const currentIndex = statusIndex[currentStatus] ?? 0;
               </p>
 
               <h2 className="mt-1 text-xl font-semibold">
-                Your order is confirmed
+                {statusHeadline}
               </h2>
             </div>
 
@@ -552,8 +585,17 @@ const currentIndex = statusIndex[currentStatus] ?? 0;
                   </span>
                 </div>
 
+                {Number(discountAmount) > 0 && (
+                  <div className="flex justify-between text-gray-500">
+                    <span>Discount</span>
+                    <span className="font-medium text-green-700">
+                      -{formatPrice(discountAmount)}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex justify-between text-gray-500">
-                  <span>Shipping</span>
+                  <span>{isOnline ? "Shipping" : "Shipping & COD fee"}</span>
                   <span className="font-medium text-gray-900">
                     {shippingFee > 0
                       ? formatPrice(shippingFee)

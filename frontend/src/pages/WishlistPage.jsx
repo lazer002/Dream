@@ -1,13 +1,13 @@
 // src/pages/WishlistPage.jsx
 
 import React, { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, ShoppingBag, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 
 import { useWishlist } from "@/state/WishlistContext";
 import { useCart } from "@/state/CartContext";
-import { useGetProductsByIdsQuery } from "@/store/api";
+import { useGetProductsByIdsQuery, useGetBundleQuery } from "@/store/api";
 
 /* =========================================================
    HELPERS
@@ -67,14 +67,18 @@ const isProductSoldOut = (product) => {
 function WishlistCard({
   product,
   onRemove,
-  onAddToBag,
+    onAddToBag,
+  isBundle = false,
 }) {
+  const navigate = useNavigate();
   const productId = getProductId(product);
-
   const image = getImage(product);
   const secondImage = getSecondImage(product);
-
-  const soldOut = isProductSoldOut(product);
+  // Bundles have no single stock number; their page checks each product.
+  const soldOut = isBundle ? false : isProductSoldOut(product);
+  const href = isBundle
+    ? `/collections/${product?.publicId}`
+    : `/product/${product?.publicId}`;
 
   const price = Number(product?.price || 0);
 
@@ -98,7 +102,7 @@ function WishlistCard({
       "
     >
       <Link
-        to={`/product/${product?.publicId}`}
+        to={href}
         className="
           relative
           block
@@ -360,7 +364,7 @@ function WishlistCard({
         <button
           type="button"
           disabled={soldOut}
-          onClick={() => onAddToBag(product)}
+          onClick={() => (isBundle ? navigate(href) : onAddToBag(product))}
           className={`
             flex
             w-full
@@ -383,10 +387,40 @@ function WishlistCard({
         >
           <ShoppingBag className="h-4 w-4" />
 
-          {soldOut ? "Sold Out" : "Add to Bag"}
+          {soldOut ? "Sold Out" : isBundle ? "Choose Sizes" : "Add to Bag"}
         </button>
       </div>
     </article>
+  );
+}
+
+/* =========================================================
+   SAVED BUNDLE (wishlist stores bundle publicIds too)
+========================================================= */
+
+function WishlistBundleItem({ publicId, onRemove }) {
+  const { data: bundle, isError } = useGetBundleQuery(publicId);
+
+  if (isError || !bundle?.publicId) return null;
+
+  const images = [
+    ...(bundle.mainImages || []),
+    ...(bundle.mainImage ? [bundle.mainImage] : []),
+  ].filter(Boolean);
+
+  return (
+    <WishlistCard
+      isBundle
+      product={{
+        publicId: bundle.publicId,
+        title: bundle.title,
+        price: bundle.price,
+        oldPrice: bundle.oldPrice,
+        images,
+        collection: "Bundle",
+      }}
+      onRemove={onRemove}
+    />
   );
 }
 
@@ -666,6 +700,15 @@ export default function WishlistPage() {
       .filter(Boolean);
   }, [productsData, publicIds]);
 
+    // Saved ids the product lookup didn't return are bundles.
+  const bundleIds = useMemo(() => {
+    if (productsLoading || productsFetching) return [];
+
+    const found = new Set(products.map((p) => String(p.publicId)));
+
+    return publicIds.filter((id) => !found.has(id));
+  }, [publicIds, products, productsLoading, productsFetching]);
+
   const loading =
     wishlistLoading ||
     productsLoading ||
@@ -927,7 +970,7 @@ export default function WishlistPage() {
               Explore Products
             </Link>
           </div>
-        ) : products.length === 0 ? (
+        ) : products.length === 0 && bundleIds.length === 0 ? (
           <div
             className="
               flex
@@ -967,8 +1010,16 @@ export default function WishlistPage() {
                   product?._id
                 }
                 product={product}
-                onRemove={handleRemove}
+                                onRemove={handleRemove}
                 onAddToBag={handleAddToBag}
+              />
+            ))}
+
+            {bundleIds.map((id) => (
+              <WishlistBundleItem
+                key={id}
+                publicId={id}
+                onRemove={handleRemove}
               />
             ))}
           </div>

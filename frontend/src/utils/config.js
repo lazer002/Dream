@@ -1,14 +1,22 @@
 import axios from "axios";
+import {
+  API_URL,
+  getAccessToken,
+  freshAccessToken,
+  isAuthUrl,
+  refreshAccessToken,
+  goToLogin,
+} from "@/utils/session";
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:4000/api",
+  baseURL: API_URL,
   timeout: 10000,
   withCredentials: true,
 });
 
 /* ================= REQUEST ================= */
 
-api.interceptors.request.use((config) => {
+api.interceptors.request.use(async (config) => {
   let guestId = localStorage.getItem("ds_guest");
   if (!guestId) {
     guestId = crypto.randomUUID();
@@ -18,7 +26,8 @@ api.interceptors.request.use((config) => {
   config.headers = config.headers || {};
   config.headers["x-guest-id"] = guestId;
 
-  const token = localStorage.getItem("ds_access");
+  // Renewed shortly before expiry (except for the auth calls themselves).
+  const token = isAuthUrl(config.url) ? getAccessToken() : await freshAccessToken();
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -26,69 +35,45 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-/* ================= RESPONSE (🔥 ADD THIS) ================= */
-
-let isRefreshing = false;
-let queue = [];
+/* ================= RESPONSE ================= */
+// Same rules as store/api.js (shared refresh in utils/session.js): only a
+// logged-in request with an expired token is refreshed and retried once.
 
 api.interceptors.response.use(
   (res) => res,
   async (error) => {
-    const originalReq = error.config;
+    const originalReq = error.config || {};
 
-    // 🔥 only handle 401
-    if (error.response?.status === 401 && !originalReq._retry) {
-      originalReq._retry = true;
+    const shouldRefresh =
+      error.response?.status === 401 &&
+      !originalReq._retry &&
+      Boolean(getAccessToken()) &&
+      !isAuthUrl(originalReq.url);
 
-      // 🔁 if already refreshing → wait
-      if (isRefreshing) {
-        return new Promise((resolve, reject) => {
-          queue.push({ resolve, reject });
-        })
-          .then((token) => {
-            originalReq.headers.Authorization = `Bearer ${token}`;
-            return api(originalReq);
-          })
-          .catch((err) => Promise.reject(err));
-      }
-
-      isRefreshing = true;
-
-      try {
-        console.log("🔥 REFRESH CALL");
-
-        const { data } = await api.post("/auth/refresh", {}, {
-          withCredentials: true,
-        });
-
-        // save new token
-        localStorage.setItem("ds_access", data.accessToken);
-
-        // resolve queued requests
-        queue.forEach((p) => p.resolve(data.accessToken));
-        queue = [];
-
-        // retry original request
-        originalReq.headers.Authorization = `Bearer ${data.accessToken}`;
-        return api(originalReq);
-
-      } catch (err) {
-        queue.forEach((p) => p.reject(err));
-        queue = [];
-
-        // logout fallback
-        localStorage.removeItem("ds_access");
-        localStorage.removeItem("ds_refresh");
-
-        window.location.href = "/login";
-
-        return Promise.reject(err);
-      } finally {
-        isRefreshing = false;
-      }
+    if (!shouldRefresh) {
+      return Promise.reject(error);
     }
 
-    return Promise.reject(error);
+    originalReq._retry = true;
+
+    let newToken;
+
+    try {
+      newToken = await refreshAccessToken();
+    } catch {
+      // 429 / offline: stay logged in, report the original error.
+      return Promise.reject(error);
+    }
+
+    if (!newToken) {
+      goToLogin();
+      return Promise.reject(error);
+    }
+
+    originalReq.headers = originalReq.headers || {};
+    originalReq.headers.Authorization = `Bearer ${newToken}`;
+
+    return api(originalReq);
   }
 );
 

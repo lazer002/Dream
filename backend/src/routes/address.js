@@ -1,6 +1,6 @@
 import express from "express";
 import { User } from "../models/User.js";
-import { GuestUser } from "../models/GuestUser.js";
+import { Guest } from "../models/Guest.js";
 import { optionalAuth } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -29,9 +29,11 @@ const getAddressOwner = async (req) => {
 
   // GUEST USER
   if (req.guestId) {
-    const guest = await GuestUser.findOne({
+    const guest = await Guest.findOne({
       guestId: req.guestId,
     });
+
+
 
     if (!guest) {
       return {
@@ -58,7 +60,7 @@ const getAddressOwner = async (req) => {
    POST /api/address
 
    USER  -> User.addresses[]
-   GUEST -> GuestUser.addresses[]
+   GUEST -> Guest.addresses[]
 ========================================================= */
 
 router.post("/", optionalAuth, async (req, res) => {
@@ -87,6 +89,9 @@ router.post("/", optionalAuth, async (req, res) => {
 
     const { owner, type } =
       await getAddressOwner(req);
+    console.log('✌️type --->', type);
+
+
 
     if (!type) {
       return res.status(401).json({

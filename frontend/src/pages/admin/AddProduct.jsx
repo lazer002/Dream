@@ -34,6 +34,22 @@ import {
   useUploadAdminImagesMutation,
 } from "@/store/api";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/utils/session";
+import { IMAGE_ACCEPT, pickImageFiles } from "./imageUpload";
+
+// Only http(s) links may go into the description HTML.
+const toSafeHttpUrl = (raw) => {
+  try {
+    const url = new URL(String(raw).trim());
+
+    return url.protocol === "http:" ||
+      url.protocol === "https:"
+      ? url.href
+      : null;
+  } catch {
+    return null;
+  }
+};
 
 const getSizeOptions = (categoryId, categories) => {
   const category = categories.find(
@@ -120,8 +136,9 @@ const [detailsMode, setDetailsMode] =
   };
 
   const handleFiles = (event) => {
-    const selected = Array.from(
-      event.target.files || []
+    const selected = pickImageFiles(
+      event.target.files,
+      files.length
     );
 
     setFiles((prev) => [...prev, ...selected]);
@@ -204,18 +221,32 @@ const insertDetailsHtml = (before, after) => {
   });
 };
   const insertLink = () => {
-    const url = window.prompt("Enter URL");
+    const raw = window.prompt("Enter URL");
 
-    if (!url) return;
+    if (!raw) return;
+
+    const url = toSafeHttpUrl(raw);
+
+    if (!url) {
+      toast.error("Enter a valid http(s) URL");
+      return;
+    }
 
     insertHtml(`<a href="${url}">`, "</a>");
   };
 const insertDetailsLink = () => {
-  const url = window.prompt(
+  const raw = window.prompt(
     "Enter URL"
   );
 
-  if (!url) return;
+  if (!raw) return;
+
+  const url = toSafeHttpUrl(raw);
+
+  if (!url) {
+    toast.error("Enter a valid http(s) URL");
+    return;
+  }
 
   insertDetailsHtml(
     `<a href="${url}" target="_blank" rel="noopener noreferrer">`,
@@ -328,10 +359,10 @@ async function submit(e) {
     console.error("create product:", error);
 
     toast.error(
-      error?.data?.message ||
-        error?.data?.error ||
-        error?.message ||
-        "Failed to create product"
+      errorMessage(
+        error,
+        error?.message || "Failed to create product"
+      )
     );
   }
 }
@@ -891,7 +922,7 @@ const sizeOptions = getSizeOptions(
                   ref={fileInputRef}
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept={IMAGE_ACCEPT}
                   onChange={handleFiles}
                   className="hidden"
                 />

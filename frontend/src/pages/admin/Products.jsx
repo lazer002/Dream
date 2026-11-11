@@ -19,7 +19,7 @@ import {
 } from "lucide-react";
 
 import {
-  useGetProductsQuery,
+  useGetAdminProductsQuery,
   useGetInventoryQuery,
   useGetCategoriesQuery,
   useUpdateAdminProductMutation,
@@ -72,7 +72,7 @@ const {
   data: productsResponse,
   isLoading: productsLoading,
   refetch: refetchProducts,
-} = useGetProductsQuery();
+} = useGetAdminProductsQuery();
 
 const {
   data: inventoryResponse,

@@ -36,9 +36,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/utils/session";
+import { IMAGE_ACCEPT, pickImageFiles } from "./imageUpload";
 import {
-  useGetBundlesQuery,
-  useGetProductsQuery,
+  useGetAdminBundlesQuery,
+  useGetAdminProductsQuery,
   useUpdateBundleMutation,
   useDeleteBundleMutation,
   useUploadAdminImagesMutation,
@@ -149,20 +151,15 @@ export default function ShowBundle() {
   const {
     data: bundlesData,
     isLoading: bundlesLoading,
-  } = useGetBundlesQuery();
+  } = useGetAdminBundlesQuery();
 
 const {
   data: productsData,
   isLoading: productsLoading,
   isFetching: productsFetching,
-} = useGetProductsQuery(
-  {
-    limit: 100,
-  },
-  {
-    skip: !editBundle,
-  }
-);
+} = useGetAdminProductsQuery(undefined, {
+  skip: !editBundle,
+});
 
   const [updateBundle, { isLoading: updatingBundle }] =
     useUpdateBundleMutation();
@@ -236,10 +233,7 @@ const {
       console.error("Failed to delete:", err);
 
       toast.error(
-        err?.data?.error ||
-          err?.data?.message ||
-          err?.error ||
-          "Failed to delete bundle"
+        errorMessage(err, "Failed to delete bundle")
       );
     }
   };
@@ -315,9 +309,15 @@ const {
   };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files || []);
+    const files = pickImageFiles(
+      e.target.files,
+      images.filter((image) => image.file).length
+    );
 
-    if (!files.length) return;
+    if (!files.length) {
+      e.target.value = "";
+      return;
+    }
 
     const newImages = files.map((file) => ({
       file,
@@ -470,7 +470,7 @@ const {
         .filter(Boolean);
 
       await updateBundle({
-        id: editBundle.publicId,
+        publicId: editBundle.publicId,
         data: {
           title: editBundle.title.trim(),
           description: editBundle.description || "",
@@ -495,10 +495,7 @@ const {
       console.error("Failed to update bundle:", err);
 
       toast.error(
-        err?.data?.error ||
-          err?.data?.message ||
-          err?.error ||
-          "Failed to update bundle"
+        errorMessage(err, "Failed to update bundle")
       );
     }
   };
@@ -1073,7 +1070,7 @@ const {
                       variant="outline"
                       size="sm"
                       onClick={() =>
-                        handleDeleteBundle(bundle._id)
+                        handleDeleteBundle(bundle.publicId)
                       }
                       className="h-9 w-9 rounded-lg border-red-200 p-0 hover:bg-red-50"
                     >
@@ -1264,7 +1261,7 @@ const {
                           <input
                             type="file"
                             multiple
-                            accept="image/*"
+                            accept={IMAGE_ACCEPT}
                             onChange={
                               handleImageUpload
                             }

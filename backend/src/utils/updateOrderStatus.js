@@ -121,7 +121,6 @@ try {
     html: tmpl.html,
   });
 
-console.log("Email send initiated:", { to: updated.email, subject: tmpl.subject });
 
   if (awaitEmail) {
     emailResult = await sendPromise;
@@ -142,7 +141,6 @@ console.log("Email send initiated:", { to: updated.email, subject: tmpl.subject 
 
 try {
   console.log(updated)
-  console.log("Creating notification for status change:", { orderId, newStatus: normalized, statusUnchanged, userId: updated.userId, guestId: updated.guestId });
   const tmpl = getEmailTemplate(normalized, { order: updated });
   if (!statusUnchanged) {
     await createNotification({

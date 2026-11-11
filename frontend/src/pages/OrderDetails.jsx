@@ -20,10 +20,14 @@ import {
   XCircle,
 } from "lucide-react";
 import {
+  useLocation,
   useNavigate,
   useParams,
+  useSearchParams,
 } from "react-router-dom";
 import toast from "react-hot-toast";
+
+import { errorMessage } from "@/utils/session";
 
 import {
   useTrackOrderQuery,
@@ -1313,6 +1317,15 @@ function CancelModal({
 export default function OrderDetails() {
   const navigate = useNavigate();
   const { orderNumber } = useParams();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
+  // Guests need the order email too (backend checks orderNumber + email + guest id).
+  const orderEmail = (
+    searchParams.get("email") ||
+    location.state?.email ||
+    ""
+  ).trim();
 
   const decodedOrderNumber =
     decodeURIComponent(
@@ -1329,6 +1342,9 @@ export default function OrderDetails() {
     {
       orderNumber:
         decodedOrderNumber,
+      ...(orderEmail
+        ? { email: orderEmail }
+        : {}),
     },
     {
       skip: !decodedOrderNumber,
@@ -1359,11 +1375,11 @@ export default function OrderDetails() {
   const currentStatus =
     getCurrentStatus(order);
 
+  // Backend only cancels orders that are still pending/confirmed.
   const canCancel = [
     "pending",
     "confirmed",
-    "processing",
-  ].includes(currentStatus);
+  ].includes(order?.orderStatus);
 
   const canReturn = [
     "shipped",
@@ -1402,7 +1418,7 @@ export default function OrderDetails() {
     if (!order?._id) return;
 
     try {
-      await cancelOrder(
+      const result = await cancelOrder(
         order._id
       ).unwrap();
 
@@ -1411,12 +1427,15 @@ export default function OrderDetails() {
       await refetch();
 
       toast.success(
-        "Order cancelled"
+        result?.message ||
+          "Order cancelled"
       );
     } catch (error) {
       toast.error(
-        error?.data?.message ||
+        errorMessage(
+          error,
           "Unable to cancel order"
+        )
       );
     }
   };

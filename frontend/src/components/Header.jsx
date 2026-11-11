@@ -39,15 +39,20 @@ const navItems = [
     title: "COLLECTIONS",
     url: "/collections",
   },
-  {
+    {
     id: "new-arrivals",
     title: "NEW ARRIVALS",
     url: "/newarrivals",
   },
+  {
+    id: "create-bundle",
+    title: "CREATE BUNDLE",
+    url: "/build-your-look",
+    badge: "NEW",
+  },
 ];
 
 
-// 4. ADD THIS COMPONENT AT THE BOTTOM OF Header.jsx
 
 function QuickViewModal({
   product,
@@ -169,6 +174,8 @@ function QuickViewModal({
   overflow-hidden
   md:h-[70vh]
           ">
+
+            
             <img
               src={
                 product?.images?.[0] ||
@@ -1602,10 +1609,15 @@ ${mobileOpen ? "translate-x-0" : "-translate-x-full"}`}
                     <Link
                       to={item.url || "#"}
                       onClick={() => setMobileOpen(false)}
-                      className="block px-2 py-2.5 rounded-lg text-sm font-semibold tracking-wide uppercase
+                      className="flex items-center justify-between px-2 py-2.5 rounded-lg text-sm font-semibold tracking-wide uppercase
                       hover:bg-black hover:text-white transition-colors"
                     >
                       {item.title}
+                      {item.badge && (
+                        <span className="rounded-full bg-black px-2 py-0.5 text-[10px] font-bold tracking-[0.15em] text-white">
+                          {item.badge}
+                        </span>
+                      )}
                     </Link>
                   </li>
                 ))}

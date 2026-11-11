@@ -165,10 +165,10 @@ export default function RelatedProducts({
         {/* HEADER */}
         <div className="mb-8 flex items-end justify-between md:mb-10">
           <div>
+
             <p className="mb-2 text-sm uppercase tracking-[0.3em] text-neutral-500">
               You may also like
             </p>
-
             <h2 className="text-2xl font-bold tracking-tight text-black md:text-5xl">
               Related{" "}
               {isBundle
@@ -177,7 +177,7 @@ export default function RelatedProducts({
             </h2>
           </div>
 
-          {/* DESKTOP ARROWS */}
+          {/* DESKTOP ARROWS hjgyufyf7yg */}
           <div className="hidden items-center gap-2 md:flex">
             <button
               type="button"

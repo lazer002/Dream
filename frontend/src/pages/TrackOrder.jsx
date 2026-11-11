@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import api from "@/utils/config";
+import { errorMessage } from "@/utils/session";
 
 
 /* =========================================================
@@ -1224,19 +1225,30 @@ useEffect(() => {
     ?.trim()
     .toUpperCase();
 
+  const urlEmail = searchParams
+    .get("email")
+    ?.trim();
+
   if (!urlOrderNumber) return;
 
   setOrderNumber(urlOrderNumber);
+
+  if (urlEmail) setEmail(urlEmail);
+
+  // Order number AND email are both needed to look an order up.
+  if (!urlEmail) return;
 
   const fetchOrderFromUrl = async () => {
     setLoading(true);
     setError("");
 
     try {
+      const params = new URLSearchParams();
+      params.set("orderNumber", urlOrderNumber);
+      params.set("email", urlEmail);
+
       const response = await api.get(
-        `/orders/track?orderNumber=${encodeURIComponent(
-          urlOrderNumber
-        )}`
+        `/orders/track?${params.toString()}`
       );
 
       const found =
@@ -1263,16 +1275,17 @@ useEffect(() => {
         localStorage.setItem(
           "track_order_last",
           JSON.stringify({
-            email: found.email || "",
+            email: found.email || urlEmail,
             orderNumber: urlOrderNumber,
           })
         );
       }
     } catch (err) {
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
+        errorMessage(
+          err,
           "We couldn't find this order."
+        )
       );
     } finally {
       setLoading(false);
@@ -1304,15 +1317,14 @@ useEffect(() => {
         .trim()
         .toUpperCase();
 
-    if (!cleanEmail && !cleanOrder) {
+    if (!cleanEmail || !cleanOrder) {
       setError(
-        "Enter your email or order number."
+        "Enter both your email and order number."
       );
       return;
     }
 
     if (
-      cleanEmail &&
       !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
         cleanEmail
       )
@@ -1381,9 +1393,10 @@ useEffect(() => {
       }
     } catch (err) {
       setError(
-        err?.response?.data?.message ||
-          err?.response?.data?.error ||
+        errorMessage(
+          err,
           "We couldn't find an order with those details."
+        )
       );
     } finally {
       setLoading(false);
@@ -1440,8 +1453,10 @@ useEffect(() => {
         setEmailSent(true);
       } catch (err) {
         setError(
-          err?.response?.data?.message ||
+          errorMessage(
+            err,
             "Unable to send the tracking email."
+          )
         );
       } finally {
         setLoading(false);

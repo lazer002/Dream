@@ -1,5 +1,6 @@
 // routes/bundles.js
 
+import { searchText } from "../utils/validate.js";
 import express from "express";
 import { Bundle } from "../models/Bundle.js";
 import { Product } from "../models/Product.js";
@@ -33,26 +34,26 @@ router.get("/",optionalAuth, async (req, res) => {
     };
 
     if (category && category !== "All") {
-      filter.category = category;
+      filter.category = String(category).slice(0, 64);
     }
 
-    if (q?.trim()) {
+    if (searchText(q)) {
       filter.$or = [
         {
           title: {
-            $regex: q.trim(),
+            $regex: searchText(q),
             $options: "i",
           },
         },
         {
           description: {
-            $regex: q.trim(),
+            $regex: searchText(q),
             $options: "i",
           },
         },
         {
           tags: {
-            $regex: q.trim(),
+            $regex: searchText(q),
             $options: "i",
           },
         },
@@ -207,7 +208,6 @@ router.post(
     let bundle = null;
 
     try {
-      console.log(req.body);
 
       const {
         title,

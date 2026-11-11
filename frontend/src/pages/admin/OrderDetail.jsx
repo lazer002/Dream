@@ -230,8 +230,7 @@ useEffect(() => {
   );
 
   setTrackingNumber(
-    order?.shipment?.trackingNumber ||
-      order?.trackingNumber ||
+    order?.trackingId ||
       ""
   );
 }, [order]);
@@ -280,7 +279,7 @@ const saveShipment = async () => {
   try {
     await updateOrderShipment({
       publicOrderId,
-      trackingNumber: trackingNumber.trim(),
+      trackingId: trackingNumber.trim(),
     }).unwrap();
 
     showNotif(
@@ -313,7 +312,7 @@ const saveNote = async () => {
   try {
     await addOrderNote({
       publicOrderId,
-      text: internalNote.trim(),
+      note: internalNote.trim(),
     }).unwrap();
 
     setInternalNote("");
@@ -342,7 +341,6 @@ const triggerEmail = async () => {
   try {
     await sendOrderEmail({
       publicOrderId,
-      template: "status_change",
     }).unwrap();
 
     showNotif(
@@ -1810,6 +1808,7 @@ const openBundleProduct = () => {
               <CardContent className="space-y-4 p-6">
                 <Textarea
                   placeholder="Add a private note..."
+                  maxLength={1000}
                   value={internalNote}
                   onChange={(e) =>
                     setInternalNote(
@@ -1835,9 +1834,9 @@ const openBundleProduct = () => {
                   Add note
                 </Button>
 
-                {order.notes?.length > 0 && (
+                {order.adminNotes?.length > 0 && (
                   <div className="space-y-3 border-t pt-4">
-                    {order.notes
+                    {order.adminNotes
                       .slice()
                       .reverse()
                       .map(
@@ -1848,19 +1847,18 @@ const openBundleProduct = () => {
                           >
                             <div className="flex items-center justify-between gap-2">
                               <span className="text-[11px] font-semibold text-gray-500">
-                                {note.createdBy ||
-                                  "Admin"}
+                                {"Admin"}
                               </span>
 
                               <span className="text-[10px] text-gray-400">
                                 {formatDate(
-                                  note.createdAt
+                                  note.at
                                 )}
                               </span>
                             </div>
 
                             <p className="mt-2 text-xs leading-5 text-gray-700">
-                              {note.text}
+                              {note.note}
                             </p>
                           </div>
                         )

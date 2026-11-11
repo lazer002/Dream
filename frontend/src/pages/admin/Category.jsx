@@ -25,6 +25,8 @@ import {
   X,
 } from "lucide-react";
 
+import { errorMessage } from "@/utils/session";
+import { IMAGE_ACCEPT, pickImageFiles } from "./imageUpload";
 import {
   useGetAdminCategoriesQuery,
   useCreateCategoryMutation,
@@ -132,18 +134,10 @@ export default function CategoriesAdmin() {
     }));
   };
 
-  const handlePhotoChange = (file) => {
+  const handlePhotoChange = (selected) => {
+    const [file] = pickImageFiles(selected ? [selected] : []);
+
     if (!file) return;
-
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image");
-      return;
-    }
-
-    if (file.size > 5 * 1024 * 1024) {
-      alert("Image must be smaller than 5MB");
-      return;
-    }
 
     if (preview?.startsWith("blob:")) {
       URL.revokeObjectURL(preview);
@@ -250,10 +244,10 @@ export default function CategoriesAdmin() {
       console.error("SAVE CATEGORY ERROR:", error);
 
       alert(
-        error?.data?.message ||
-          error?.data?.error ||
-          error?.message ||
-          "Something went wrong"
+        errorMessage(
+          error,
+          error?.message || "Something went wrong"
+        )
       );
     }
   };
@@ -545,7 +539,7 @@ export default function CategoriesAdmin() {
 
               <Input
                 type="file"
-                accept="image/*"
+                accept={IMAGE_ACCEPT}
                 disabled={saving}
                 onChange={(event) =>
                   handlePhotoChange(

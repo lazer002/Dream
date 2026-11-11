@@ -15,6 +15,8 @@ import {
 } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/utils/session";
+import { IMAGE_ACCEPT, pickImageFiles } from "./imageUpload";
 
 import {
   useGetAdminBundleByIdQuery,
@@ -205,8 +207,10 @@ export default function AdminBundleDetail() {
     });
   };
 
-  const uploadBundleImages = async (files) => {
-    if (!files?.length || !bundle?.publicId) return;
+  const uploadBundleImages = async (selected) => {
+    const files = pickImageFiles(selected);
+
+    if (!files.length || !bundle?.publicId) return;
 
     try {
       const fd = new FormData();
@@ -266,10 +270,10 @@ export default function AdminBundleDetail() {
       );
 
       toast.error(
-        error?.data?.message ||
-          error?.data?.error ||
-          error?.message ||
-          "Failed to upload images"
+        errorMessage(
+          error,
+          error?.message || "Failed to upload images"
+        )
       );
     }
   };
@@ -687,7 +691,7 @@ export default function AdminBundleDetail() {
 
                   <input
                     type="file"
-                    accept="image/*"
+                    accept={IMAGE_ACCEPT}
                     multiple
                     className="hidden"
                     disabled={uploading}

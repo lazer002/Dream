@@ -1,13 +1,14 @@
 // cart.js
 
 import express from "express";
+import { quantity as validQuantity, str, isObjectId, MAX_LINE_QUANTITY } from "../utils/validate.js";
 import mongoose from "mongoose";
 
 import { CartItem } from "../models/Cart.js";
 import { Product } from "../models/Product.js";
 import { Inventory } from "../models/Inventory.js";
 import { Bundle } from "../models/Bundle.js";
-
+import { Guest } from "../models/Guest.js";
 import { optionalAuth, requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
@@ -48,14 +49,9 @@ function normalizeSize(value) {
   return String(value).trim();
 }
 
+// Whole number 1..MAX_LINE_QUANTITY (shared rule, see utils/validate.js).
 function normalizeQuantity(value) {
-  const quantity = Number(value);
-
-  if (!Number.isInteger(quantity) || quantity < 1) {
-    return null;
-  }
-
-  return quantity;
+  return validQuantity(value);
 }
 
 /* =========================================================
@@ -165,30 +161,60 @@ async function validateInventory({
   size,
   quantity,
 }) {
+  if (!validQuantity(quantity)) {
+    return {
+      ok: false,
+      status: 400,
+      code: "QUANTITY_LIMIT",
+      error: Number(quantity) > 1 ? "You can add at most 10 of this item" : "Invalid quantity",
+    };
+  }
+
   const inventory = await Inventory.findOne({
     product: product._id,
     active: true,
   }).lean();
 
+  // Products without an inventory record can't be sold (same rule as checkout).
   if (!inventory) {
     return {
-      ok: true,
-      inventory: null,
-      available: Infinity,
+      ok: false,
+      status: 409,
+      code: "OUT_OF_STOCK",
+      error: `${product.title || "Product"} is not available`,
     };
   }
 
-  if (!inventory.trackInventory) {
+  // Size is always checked, whether or not stock is tracked.
+  const sizes = Array.isArray(product.sizes)
+    ? product.sizes
+    : [];
+
+  if (sizes.length) {
+    const sizeOk =
+      size &&
+      sizes.some(
+        (item) =>
+          String(item.name).toLowerCase() === String(size).toLowerCase() &&
+          item.active !== false
+      );
+
+    if (!sizeOk) {
+      return {
+        ok: false,
+        status: 400,
+        error: size ? "Invalid size" : "Please select a size",
+      };
+    }
+  }
+
+  if (!inventory.trackInventory || inventory.allowBackorder) {
     return {
       ok: true,
       inventory,
       available: Infinity,
     };
   }
-
-  const sizes = Array.isArray(product.sizes)
-    ? product.sizes
-    : [];
 
   if (sizes.length) {
     if (!size) {
@@ -301,6 +327,7 @@ async function makeProductCartData(publicId) {
    CART RESPONSE
 ========================================================= */
 
+
 async function populateCartItem(item) {
   const data = item.toObject();
 
@@ -308,10 +335,9 @@ async function populateCartItem(item) {
    * PRODUCT
    */
   if (data.type === "product" && data.publicId) {
-    const product =
-      await makeProductCartData(
-        data.publicId
-      );
+    const product = await makeProductCartData(
+      data.publicId
+    );
 
     return {
       ...data,
@@ -326,57 +352,65 @@ async function populateCartItem(item) {
     data.type === "bundle" &&
     Array.isArray(data.bundleProducts)
   ) {
-    const bundleProducts =
-      await Promise.all(
-        data.bundleProducts.map(
-          async (bundleProduct) => {
-            const product =
-              await makeProductCartData(
-                bundleProduct.publicId
-              );
-            console.log('✌️product --->', product);
+    /*
+     * POPULATE BUNDLE PRODUCTS
+     */
+    const bundleProducts = await Promise.all(
+      data.bundleProducts.map(async (bundleProduct) => {
+        const product = await makeProductCartData(
+          bundleProduct.publicId
+        );
 
+        return {
+          publicId: bundleProduct.publicId,
 
-return {
-  publicId: bundleProduct.publicId,
+          sku:
+            bundleProduct.sku ||
+            product?.sku ||
+            null,
 
-  sku:
-    bundleProduct.sku ||
-    product?.sku ||
-    null,
+          title:
+            bundleProduct.title ||
+            product?.title ||
+            null,
 
-  title:
-    bundleProduct.title ||
-    product?.title ||
-    null,
+          image:
+            bundleProduct.image ||
+            product?.images?.[0] ||
+            null,
 
-  image:
-    bundleProduct.image ||
-    product?.images?.[0] ||
-    null,
+          price: Number(
+            product?.price ??
+            bundleProduct.price ??
+            0
+          ),
 
-  price:
-    product?.price ?? 0,
+          oldPrice: Number(
+            product?.oldPrice ??
+            bundleProduct.oldPrice ??
+            product?.price ??
+            bundleProduct.price ??
+            0
+          ),
 
-  category:
-    product?.category ?? null,
+          category: product?.category ?? null,
 
-  tags:
-    product?.tags || [],
+          tags: product?.tags || [],
 
-  size:
-    bundleProduct.size || null,
+          size: bundleProduct.size || null,
 
-  quantity:
-    Number(bundleProduct.quantity || 1),
+          quantity: Number(
+            bundleProduct.quantity || 1
+          ),
 
-  inventory:
-    product?.inventory || null,
-};
-          }
-        )
-      );
+          inventory: product?.inventory || null,
+        };
+      })
+    );
 
+    /*
+     * INITIAL BUNDLE DATA
+     */
     let bundle = data.bundle || null;
 
     /*
@@ -386,28 +420,28 @@ return {
       !data.isCustomBundle &&
       data.bundle?.publicId
     ) {
-      const dbBundle =
-        await findBundleByPublicId(
-          data.bundle.publicId
-        );
+      const dbBundle = await findBundleByPublicId(
+        data.bundle.publicId
+      );
 
       if (dbBundle) {
         bundle = {
-          publicId:
-            dbBundle.publicId,
+          publicId: dbBundle.publicId,
 
           title:
             dbBundle.title ||
             data.bundle.title ||
             null,
 
-          price:
+          price: Number(
             dbBundle.price ??
             data.bundle.price ??
-            0,
+            0
+          ),
 
-          oldPrice:
-            dbBundle.oldPrice ?? 0,
+          oldPrice: Number(
+            dbBundle.oldPrice ?? 0
+          ),
 
           images:
             dbBundle.images ||
@@ -417,6 +451,45 @@ return {
       }
     }
 
+    /*
+     * CUSTOM BUNDLE ORIGINAL PRICE
+     */
+    if (data.isCustomBundle && bundle) {
+      const originalBundlePrice =
+        bundleProducts.reduce(
+          (sum, product) => {
+            const originalPrice = Number(
+              product.oldPrice ??
+              product.price ??
+              0
+            );
+
+            const quantity = Number(
+              product.quantity || 1
+            );
+
+            return sum + originalPrice * quantity;
+          },
+          0
+        );
+
+      const currentBundlePrice = Number(
+        bundle.price ?? data.price ?? 0
+      );
+
+      bundle = {
+        ...bundle,
+
+        oldPrice: Math.max(
+          currentBundlePrice,
+          originalBundlePrice
+        ),
+      };
+    }
+
+    /*
+     * RETURN POPULATED CART ITEM
+     */
     return {
       ...data,
       bundle,
@@ -426,6 +499,7 @@ return {
 
   return data;
 }
+
 
 /* =========================================================
    GET CART
@@ -519,12 +593,12 @@ router.get(
     } catch (error) {
       console.error(
         "GET CART ERROR:",
-        error
+        error.message
       );
 
       return res.status(500).json({
         success: false,
-        error: error.message,
+        error: "Could not load cart",
       });
     }
   }
@@ -541,7 +615,7 @@ router.post(
     try {
       const owner = getCartOwner(req);
 
-      console.log("✌️owner --->", owner);
+
 
       if (!owner) {
         return res.status(400).json({
@@ -858,6 +932,7 @@ router.post(
       const owner =
         getCartOwner(req);
 
+
       if (!owner) {
         return res.status(400).json({
           success: false,
@@ -1094,7 +1169,7 @@ router.post(
        */
       if (
         isCustomBundle &&
-        !bundle.title
+        !str(bundle.title, 100)
       ) {
         return res.status(400).json({
           success: false,
@@ -1102,11 +1177,23 @@ router.post(
         });
       }
 
-      if (!bundleProducts.length) {
+      if (!bundleProducts.length || bundleProducts.length > 10) {
         return res.status(400).json({
           success: false,
           error: "bundleProducts are required",
         });
+      }
+
+      // Same custom-bundle rule as checkout (routes/orders.js).
+      if (isCustomBundle) {
+        const ids = bundleProducts.map((bp) => normalizePublicId(bp?.publicId));
+
+        if (ids.length < 2 || ids.length > 6 || new Set(ids).size !== ids.length) {
+          return res.status(400).json({
+            success: false,
+            error: "A custom bundle needs 2-6 different products",
+          });
+        }
       }
 
       if (!quantity) {
@@ -1137,10 +1224,10 @@ router.post(
             bundleProduct.size
           );
 
-        const productQuantity =
-          normalizeQuantity(
-            bundleProduct.quantity ?? 1
-          );
+        // Each product appears once in a bundle (custom bundles: always 1).
+        const productQuantity = isCustomBundle
+          ? 1
+          : normalizeQuantity(bundleProduct?.quantity ?? 1);
 
         if (!publicId) {
           return res.status(400).json({
@@ -1192,9 +1279,9 @@ router.post(
           });
 
         if (!check.ok) {
-          return res.status(409).json({
+          return res.status(check.status || 409).json({
             success: false,
-            code: "OUT_OF_STOCK",
+            code: check.code || (check.status === 400 ? "INVALID_ITEM" : "OUT_OF_STOCK"),
             error:
               `${product.title}: ${check.error}`,
           });
@@ -1213,6 +1300,11 @@ router.post(
           image:
             product.images?.[0] || null,
 
+              price: Number(product.price ?? 0),
+  oldPrice: Number(
+    product.oldPrice ?? product.price ?? 0
+  ),
+
           size,
 
           quantity:
@@ -1226,18 +1318,33 @@ router.post(
        * =====================================================
        */
 
+      // Custom bundle price is ALWAYS computed here: DB prices - 10%.
+      // (The price the client sends is ignored.)
+      const customPrice = Math.round(
+        resolvedProducts.reduce(
+          (sum, product) => sum + Number(product.price || 0) * Number(product.quantity || 1),
+          0,
+        ) * 0.9,
+      );
+
       let finalBundle = {
         publicId: null,
 
         title:
-          bundle.title ||
+          str(bundle.title, 100) ||
           "Custom Bundle",
 
-        price:
-          Number(bundle.price || 0),
+        price: customPrice,
+
+  oldPrice: resolvedProducts.reduce((sum, product) => {
+    return (
+      sum +
+      Number(product.oldPrice ?? product.price ?? 0) *
+        Number(product.quantity || 1)
+    );
+  }, 0),
 
         mainImage:
-          bundle.mainImage ||
           resolvedProducts[0]?.image ||
           null,
       };
@@ -1268,7 +1375,7 @@ router.post(
           mainImage:
             dbBundle.images?.[0] ||
             dbBundle.mainImages?.[0] ||
-            bundle.mainImage ||
+            resolvedProducts[0]?.image ||
             null,
         };
       }
@@ -1667,10 +1774,17 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const guestId =
-        normalizePublicId(
-          req.body.guestId
-        );
+      // Only the caller's OWN guest cart (x-guest-id of this device/browser)
+      // can be merged. A guestId in the body must match it.
+      const guestId = req.guestId || null;
+      const bodyGuestId = normalizePublicId(req.body?.guestId);
+
+      if (bodyGuestId && guestId && bodyGuestId !== guestId) {
+        return res.status(403).json({
+          success: false,
+          error: "Can only merge this device's cart",
+        });
+      }
 
       if (!guestId) {
         return res.status(400).json({
@@ -1712,13 +1826,10 @@ router.post(
             });
 
           if (existing) {
-            existing.quantity =
-              Number(
-                existing.quantity || 0
-              ) +
-              Number(
-                guestItem.quantity || 1
-              );
+            existing.quantity = Math.min(
+              Number(existing.quantity || 0) + Number(guestItem.quantity || 1),
+              MAX_LINE_QUANTITY,
+            );
 
             await existing.save();
           } else {
@@ -1826,13 +1937,10 @@ router.post(
           }
 
           if (existing) {
-            existing.quantity =
-              Number(
-                existing.quantity || 0
-              ) +
-              Number(
-                guestItem.quantity || 1
-              );
+            existing.quantity = Math.min(
+              Number(existing.quantity || 0) + Number(guestItem.quantity || 1),
+              MAX_LINE_QUANTITY,
+            );
 
             await existing.save();
           } else {

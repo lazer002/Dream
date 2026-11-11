@@ -6,6 +6,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  useRef,
 } from "react";
 import { useLocation } from "react-router-dom";
 import {
@@ -138,20 +139,28 @@ const {
      GUEST -> USER SYNC
   ===================================================== */
 
-  useEffect(() => {
-    if (isAdmin || !user || !guestId) return;
+  const userId = user?._id || user?.id || null;
+  const lastSyncedIdRef = useRef(null);
 
-    let cancelled = false;
+  useEffect(() => {
+    if (!userId) {
+      lastSyncedIdRef.current = null;
+      return;
+    }
+
+    if (isAdmin || !guestId) return;
+
+    // Once per login, not on every user object change.
+    if (lastSyncedIdRef.current === userId) return;
+    lastSyncedIdRef.current = userId;
 
     const sync = async () => {
       try {
         const local = readLocal();
 
-        const result = await syncWishlist({
+        await syncWishlist({
           items: local,
         }).unwrap();
-
-        if (cancelled) return;
 
         localStorage.removeItem(LS_KEY);
         setGuestWishlist([]);
@@ -163,35 +172,32 @@ const {
          * No manual refetch here.
          */
 
-        if (local.length || result?.items?.length) {
+        if (local.length) {
           toast.success(
             "Wishlist synced successfully"
           );
         }
       } catch (error) {
-        if (cancelled) return;
+        // Allow a retry on the next login.
+        lastSyncedIdRef.current = null;
 
-        console.error(
+        console.warn(
           "WISHLIST SYNC ERROR:",
-          error
+          error?.status
         );
 
         toast.error(
-          error?.data?.message ||
-            error?.error ||
+          error?.data?.error ||
+            error?.data?.message ||
             "Failed to sync wishlist"
         );
       }
     };
 
     sync();
-
-    return () => {
-      cancelled = true;
-    };
   }, [
-     isAdmin,
-    user,
+    isAdmin,
+    userId,
     guestId,
     syncWishlist,
   ]);

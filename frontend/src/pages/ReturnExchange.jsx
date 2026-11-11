@@ -7,10 +7,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import toast from "react-hot-toast";
 import { Upload, ArrowRight, Check, Trash2 } from "lucide-react";
 import { useAuth } from "../state/AuthContext.jsx";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { errorMessage } from "@/utils/session";
 
 // Simple return/exchange page — per-item photos only + validation
 const SIZE_OPTIONS = ["XS", "S", "M", "L", "XL", "XXL"];
+
+// Same limits as POST /api/upload/image.
+const MAX_PHOTO_BYTES = 1 * 1024 * 1024;
+const PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 function Stepper({ step }) {
   const steps = ["Order", "Items", "Confirm"];
@@ -60,7 +65,7 @@ function FileUploader({ previews = [], onFiles, label = "Attach photos", limit =
         <span>{label}</span>
         <input
           type="file"
-          accept="image/*"
+          accept="image/jpeg,image/png,image/webp"
           multiple
           onChange={(e) => onFiles(Array.from(e.target.files || []).slice(0, limit))}
           className="hidden"
@@ -112,8 +117,13 @@ export default function ReturnExchangePage() {
   const { user } = useAuth();
   const [step, setStep] = useState(1);
 const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const urlOrderNumber = (searchParams.get("orderNumber") || "").trim().toUpperCase();
 
-  const [orderId, setOrderId] = useState("");
+  const [orderId, setOrderId] = useState(urlOrderNumber);
+  const [myOrders, setMyOrders] = useState([]);
+  const [pickupAddress, setPickupAddress] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -153,13 +163,41 @@ const navigate = useNavigate();
   async function loadMyOrders() {
     setLoading(true);
     try {
-      const { data } = await api.get("/orders/my");
-      if (Array.isArray(data.orders) && data.orders.length) setOrder(data.orders[0]);
+      const { data } = await api.get("/orders/mine");
+      const list = Array.isArray(data?.orders) ? data.orders : [];
+      setMyOrders(list);
+
+      // The order from the URL first, else the most recent DELIVERED order.
+      const byDate = (a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      const fromUrl = urlOrderNumber
+        ? list.find((o) => String(o.orderNumber || "").toUpperCase() === urlOrderNumber)
+        : null;
+      const delivered = list.filter((o) => o.orderStatus === "delivered").sort(byDate)[0];
+
+      selectOrder(fromUrl || delivered || null);
     } catch (err) {
       console.error("Failed to load orders:", err);
-      toast.error("Failed to load your orders");
+      toast.error(errorMessage(err, "Failed to load your orders"));
     } finally {
       setLoading(false);
+    }
+  }
+
+  // Switch to another order: drop selections made for the previous one.
+  function selectOrder(next) {
+    setOrder(next);
+    setItemsSelected({});
+    setPerItemAction({});
+    setPerItemReason({});
+    setPerItemExchangeSize({});
+    setPerItemDetails({});
+    setPerItemFiles({});
+    setPerItemPreviews({});
+    setErrors({});
+    if (next?.shippingAddress) {
+      const a = next.shippingAddress;
+      setPickupAddress((prev) => prev || [a.address || a.line1, a.apartment || a.line2, a.city, a.state, a.pincode || a.zip].filter(Boolean).join(", "));
+      setPhone((prev) => prev || a.phone || next.phone || "");
     }
   }
 
@@ -186,7 +224,12 @@ const navigate = useNavigate();
   }
 
   function handlePerItemFiles(itemId, files) {
-    const arr = Array.from(files || []).slice(0, 5);
+    const picked = Array.from(files || []);
+    const bad = picked.find((f) => !PHOTO_TYPES.includes(f.type));
+    if (bad) { toast.error("Photos must be JPG, PNG or WEBP"); return; }
+    const big = picked.find((f) => f.size > MAX_PHOTO_BYTES);
+    if (big) { toast.error("Each photo must be 1MB or smaller"); return; }
+    const arr = picked.slice(0, 5);
     setPerItemFiles((prev) => ({ ...prev, [itemId]: arr }));
     const previews = arr.map((f) => URL.createObjectURL(f));
     (perItemPreviews[itemId] || []).forEach((u) => { try { URL.revokeObjectURL(u); } catch {} });
@@ -209,13 +252,14 @@ const navigate = useNavigate();
     if (!orderId || !email) { toast.error("Order ID and email are required"); return; }
     setLoading(true); setError(""); setOrder(null);
     try {
-      const res = await api.get("/orders/track", { params: { email, orderNumber: orderId } });
-      if (res.data?.order) { setOrder(res.data.order); setStep(2); toast.success("Order found!"); }
+      const res = await api.get("/orders/track", { params: { email: email.trim(), orderNumber: orderId.trim().toUpperCase() } });
+      if (res.data?.order) { selectOrder(res.data.order); setStep(2); toast.success("Order found!"); }
       else { setError(res.data?.message || "Order not found"); toast.error(res.data?.message || "Order not found"); }
     } catch (err) {
       console.error(err);
-      setError(err?.response?.data?.message || "Lookup failed");
-      toast.error(err?.response?.data?.message || "Lookup failed");
+      const msg = errorMessage(err, "Lookup failed");
+      setError(msg);
+      toast.error(msg);
     } finally { setLoading(false); }
   }
 
@@ -234,6 +278,15 @@ const navigate = useNavigate();
     const itemIds = Object.keys(itemsSelected);
     if (!itemIds.length) {
       toast.error("Select item(s) to return or exchange");
+      return false;
+    }
+
+    if (!pickupAddress.trim()) {
+      toast.error("Enter a pickup address");
+      return false;
+    }
+    if (!/^[0-9+\-\s]{7,20}$/.test(phone.trim())) {
+      toast.error("Enter a valid phone number");
       return false;
     }
 
@@ -294,23 +347,24 @@ const navigate = useNavigate();
         perItemUploaded[itemId] = [];
         const files = perItemFiles[itemId] || [];
         for (const f of files) {
+          if (!PHOTO_TYPES.includes(f.type) || f.size > MAX_PHOTO_BYTES) continue;
           const fd = new FormData();
           fd.append("file", f);
           const res = await api.post("/upload/image", fd, {
             headers: { "Content-Type": "multipart/form-data" },
           });
-          if (res?.data?.url) perItemUploaded[itemId].push(res.data.url);
-          else if (res?.data?.path) perItemUploaded[itemId].push(res.data.path);
-          else if (res?.data?.publicUrl) perItemUploaded[itemId].push(res.data.publicUrl);
+          // The backend only keeps https photo urls.
+          const url = res?.data?.url;
+          if (typeof url === "string" && url.startsWith("https://")) perItemUploaded[itemId].push(url);
         }
       }
 
       const payloadItems = itemIds.map((itemId) => {
         const it = (order?.items || []).find((o) => (o._id || o.id || o.sku) === itemId) || {};
         return {
-          orderItemId: itemId,
+          orderItemId: String(it?._id || itemId),
           productId: it?.productId || it?.product_id || null,
-          qty: itemsSelected[itemId] || 1,
+          qty: Math.max(1, Math.floor(Number(itemsSelected[itemId]) || 1)),
           action: perItemAction[itemId] || actionType || "refund",
           reason: perItemReason[itemId] || reason || "",
           exchangeSize: perItemExchangeSize[itemId] || null,
@@ -325,7 +379,9 @@ const navigate = useNavigate();
       const payload = {
         orderId: order?._id?.toString ? order._id.toString() : order?.id || order?.orderNumber || orderId,
         orderNumber: order?.orderNumber || order?.id || null,
-        guestEmail: (user && user.email) ? user.email : (email || order?.email || null),
+        ...(!user ? { email: (email || order?.email || "").trim() } : {}),
+        pickupAddress: pickupAddress.trim(),
+        phone: phone.trim(),
         items: payloadItems,
         details: additionalDetails || "",
         notes: notes || "",
@@ -337,7 +393,8 @@ const navigate = useNavigate();
       const targetOrderNumber = payload.orderNumber || saved?.orderNumber || saved?.orderId || order?.orderNumber;
       setRma(saved);
       if (targetOrderNumber) {
-        navigate(`/return/${targetOrderNumber}`);
+        const guestEmail = !user ? (email || order?.email || "").trim() : "";
+        navigate(`/return/${encodeURIComponent(targetOrderNumber)}${guestEmail ? `?email=${encodeURIComponent(guestEmail)}` : ""}`);
         return; // we redirect; skip setStep(3) UI here
       } else {
         setStep(3);
@@ -349,7 +406,7 @@ const navigate = useNavigate();
       }
     } catch (err) {
       console.error("submitReturnRequest error:", err);
-      toast.error(err?.response?.data?.message || err.message || "Error creating return");
+      toast.error(errorMessage(err, "Error creating return"));
     } finally {
       setLoading(false);
     }
@@ -393,12 +450,27 @@ const navigate = useNavigate();
                   ) : (
                     <div className="space-y-3">
                       <Label>Your recent order</Label>
-                      {loading ? <div className="text-gray-500">Loading...</div> : <OrderCard order={order} />}
+                      {myOrders.length > 0 && (
+                        <Select
+                          value={order?._id ? String(order._id) : ""}
+                          onValueChange={(v) => selectOrder(myOrders.find((o) => String(o._id) === v) || null)}
+                        >
+                          <SelectTrigger className="w-full"><SelectValue placeholder="Choose an order" /></SelectTrigger>
+                          <SelectContent>
+                            {myOrders.map((o) => (
+                              <SelectItem key={String(o._id)} value={String(o._id)}>
+                                {o.orderNumber || o._id} • {o.orderStatus}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      )}
+                      {loading ? <div className="text-gray-500">Loading...</div> : order ? <OrderCard order={order} /> : <div className="text-gray-500">{myOrders.length ? "No delivered order found. Choose an order above." : "No orders found."}</div>}
                       <div className="mt-3 flex gap-2">
-                        <Button onClick={() => setStep(2)} className="bg-black text-white">Use this order</Button>
-                        <Button variant="outline" onClick={() => setOrder(null)}>Choose another</Button>
+                        <Button onClick={() => setStep(2)} className="bg-black text-white" disabled={!order}>Use this order</Button>
+                        <Button variant="outline" onClick={() => selectOrder(null)}>Choose another</Button>
                       </div>
-                      <div className="text-xs text-gray-500 mt-2">To use a different order paste an Order ID above.</div>
+                      <div className="text-xs text-gray-500 mt-2">Only delivered orders can be returned or exchanged.</div>
                     </div>
                   )}
                 </div>
@@ -532,7 +604,7 @@ const navigate = useNavigate();
                   <div>
                     <div className="mt-6 p-4 bg-gray-50 rounded">
                       <div className="text-sm text-gray-700">
-                        <strong>Return Window:</strong> 15 days from delivery.
+                        <strong>Return Window:</strong> 7 days from delivery.
                         <div className="text-xs text-gray-500 mt-1">Items must be unused, with tags. Some categories are non-returnable.</div>
                       </div>
                       <div className="text-sm text-gray-700 mt-3"><strong>Refunds:</strong> Processed to original payment method within 5-7 business days after we receive the item.</div>
@@ -656,6 +728,17 @@ const navigate = useNavigate();
 
                       <div className="pt-4 border-t" />
 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <Label>Pickup address</Label>
+                          <Input placeholder="House no, street, city, pincode" value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} maxLength={500} />
+                        </div>
+                        <div>
+                          <Label>Phone</Label>
+                          <Input type="tel" placeholder="Phone for pickup" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} />
+                        </div>
+                      </div>
+
                       <div className="flex items-center justify-between">
                         <div className="text-sm text-gray-700">Total items</div>
                         <div className="font-semibold">{Object.keys(itemsSelected).reduce((acc, k) => acc + (itemsSelected[k] || 0), 0)}</div>
@@ -688,7 +771,9 @@ const navigate = useNavigate();
                 <p className="text-sm text-gray-600">Status: <strong>{rma.status}</strong></p>
                 <div className="mt-3 flex gap-2">
                   <Button onClick={() => { navigator.clipboard.writeText(rma.rmaNumber || rma.id || rma._id || ""); toast.success("RMA copied"); }}>Copy RMA</Button>
-                  <Link href={`/returns/${rma.rmaNumber || rma.id || rma._id}`} className="ml-2 text-sm text-black underline">View status</Link>
+                  {(rma.orderNumber || order?.orderNumber) && (
+                    <Link to={`/return/${encodeURIComponent(rma.orderNumber || order?.orderNumber)}${!user && (email || order?.email) ? `?email=${encodeURIComponent(email || order?.email)}` : ""}`} className="ml-2 text-sm text-black underline">View status</Link>
+                  )}
                 </div>
               </div>
             )}

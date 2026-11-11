@@ -40,6 +40,9 @@ const ReturnRequestSchema = new Schema({
   userId: { type: Schema.Types.ObjectId, ref: "User", default: null },
   guestId: { type: String, default: null },
   guestEmail: { type: String, default: null },
+  // Where to pick the items up (sent by web and app).
+  pickupAddress: { type: String, default: "", maxlength: 500 },
+  phone: { type: String, default: "", maxlength: 20 },
 
   status: {
     type: String,

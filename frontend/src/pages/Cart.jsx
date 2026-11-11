@@ -25,6 +25,9 @@ import { useCart } from "../state/CartContext.jsx";
 import { useWishlist } from "../state/WishlistContext.jsx";
 import { getDeliveryDate } from "@/utils/public.js";
 
+// Server limit per cart line (400 QUANTITY_LIMIT above this).
+const MAX_LINE_QTY = 10;
+
 export default function Cart() {
   const {
     items = [],
@@ -215,20 +218,13 @@ const getAvailableForSize = useCallback(
     0
   );
 
-  const tax = subtotal * 0.05;
-
-  const deliveryFee =
-    subtotal > 500 ||
-    subtotal === 0
-      ? 0
-      : 50;
+  // The server charges no extra tax (prices include it) and no shipping.
+  const deliveryFee = 0;
 
   const discount = 0;
 
   const total =
-    subtotal +
-    tax +
-    deliveryFee -
+    subtotal -
     discount;
 
   const closeRemoveModal = useCallback(
@@ -318,6 +314,14 @@ const getAvailableForSize = useCallback(
 
     const currentQuantity =
       Number(item.quantity || 0);
+
+    if (currentQuantity >= MAX_LINE_QTY) {
+      toast.error(
+        `You can add up to ${MAX_LINE_QTY} of this item`
+      );
+
+      return;
+    }
 
     const available =
       getAvailableForSize(item);
@@ -707,13 +711,6 @@ const getAvailableForSize = useCallback(
                 />
 
                 <SummaryRow
-                  label="Tax"
-                  value={formatCurrency(
-                    tax
-                  )}
-                />
-
-                <SummaryRow
                   label="Shipping"
                   value={
                     deliveryFee ===
@@ -1002,8 +999,9 @@ const CartItemCard = memo(
       getAvailableForSize(item);
 
     const isAtLimit =
-  Number.isFinite(available) &&
-  Number(item.quantity) >= available;
+  Number(item.quantity) >= MAX_LINE_QTY ||
+  (Number.isFinite(available) &&
+    Number(item.quantity) >= available);
 
 const itemUpdateId = isBundleItem(item)
   ? `bundle-${item._id}`

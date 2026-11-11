@@ -75,7 +75,6 @@ router.post(
   requireAuth,
   requireAdmin,
   async (req, res) => {
-    console.log(req.body);
 
     const uploadedImages = Array.isArray(req.body.images)
       ? [...req.body.images]

@@ -22,6 +22,7 @@ import {
 
 import { useAuth } from "./AuthContext.jsx";
 import { useLocation } from "react-router-dom";
+import { errorMessage } from "@/utils/session";
 
 const CartContext = createContext(null);
 
@@ -50,6 +51,9 @@ const ensureGuestId = () => {
 
 export function CartProvider({ children }) {
   const { user, guestId } = useAuth();
+  // Per user: another account in the same tab must still merge its guest cart.
+  const userKey = user?._id || user?.id || user?.email || "";
+  const mergedKey = `cart_merged_${userKey}`;
 const location = useLocation();
   const isAdminPage =
     location.pathname.startsWith("/admin");
@@ -204,7 +208,7 @@ const [updatingItemId, setUpdatingItemId] =
         await refetch();
 
         sessionStorage.setItem(
-          "cart_merged",
+          mergedKey,
           "true"
         );
       } catch (error) {
@@ -214,24 +218,37 @@ const [updatingItemId, setUpdatingItemId] =
         );
 
         toast.error(
-          error?.data?.error ||
-            error?.data?.message ||
+          errorMessage(
+            error,
             "Failed to merge guest cart"
+          )
         );
       }
     }, [
       user,
       guestId,
+      mergedKey,
       mergeCartMutation,
       refetch,
     ]);
+
+  // Logged out: forget the merge flags so the next login merges again.
+  useEffect(() => {
+    if (user) return;
+
+    try {
+      Object.keys(sessionStorage)
+        .filter((key) => key.startsWith("cart_merged_"))
+        .forEach((key) => sessionStorage.removeItem(key));
+    } catch {}
+  }, [user]);
 
   useEffect(() => {
     if (!user || !guestId) return;
 
     const alreadyMerged =
       sessionStorage.getItem(
-        "cart_merged"
+        mergedKey
       );
 
     if (alreadyMerged) return;
@@ -240,6 +257,7 @@ const [updatingItemId, setUpdatingItemId] =
   }, [
     user,
     guestId,
+    mergedKey,
     mergeGuestCart,
   ]);
 
@@ -260,14 +278,14 @@ const [updatingItemId, setUpdatingItemId] =
         toast.error(
           "Product publicId is required"
         );
-        return;
+        return false;
       }
 
       if (!size) {
         toast.error(
           "Please select a size!"
         );
-        return;
+        return false;
       }
 
       try {
@@ -282,6 +300,8 @@ const [updatingItemId, setUpdatingItemId] =
         toast.success(
           "Added to cart"
         );
+
+        return true;
       } catch (error) {
         console.error(
           "ADD CART ERROR:",
@@ -289,13 +309,15 @@ const [updatingItemId, setUpdatingItemId] =
         );
 
         toast.error(
-          error?.data?.error ||
-            error?.data?.message ||
-            error?.error ||
+          errorMessage(
+            error,
             "Failed to add item"
+          )
         );
 
-        await refetch();
+        refetch();
+
+        return false;
       }
     },
     [
@@ -364,9 +386,10 @@ const update = useCallback(
       );
 
       toast.error(
-        error?.data?.error ||
-          error?.data?.message ||
+        errorMessage(
+          error,
           "Failed to update cart"
+        )
       );
     } finally {
       setUpdatingItemId(null);
@@ -497,7 +520,7 @@ const update = useCallback(
           toast.error(
             "Bundle has no products"
           );
-          return;
+          return false;
         }
 
         const isCustomBundle =
@@ -522,7 +545,7 @@ const update = useCallback(
                 "product"
               }`
             );
-            return;
+            return false;
           }
 
           /*
@@ -547,7 +570,7 @@ const update = useCallback(
                 "product"
               }`
             );
-            return;
+            return false;
           }
 
           bundleProducts.push({
@@ -620,7 +643,7 @@ const update = useCallback(
           toast.error(
             "Bundle publicId is required"
           );
-          return;
+          return false;
         }
 
         try {
@@ -633,6 +656,8 @@ const update = useCallback(
           toast.success(
             "Bundle added to cart!"
           );
+
+          return true;
         } catch (error) {
           console.error(
             "ADD BUNDLE ERROR:",
@@ -640,13 +665,15 @@ const update = useCallback(
           );
 
           toast.error(
-            error?.data?.error ||
-              error?.data?.message ||
-              error?.error ||
+            errorMessage(
+              error,
               "Failed to add bundle"
+            )
           );
 
-          await refetch();
+          refetch();
+
+          return false;
         }
       },
       [

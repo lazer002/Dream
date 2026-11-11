@@ -1,6 +1,7 @@
 import { Facebook, Instagram, MessageCircle } from "lucide-react";
 import { useState } from "react";
 import api from "@/utils/config";
+import { errorMessage } from "@/utils/session";
 import { toast } from "react-hot-toast";
 import { Link } from "react-router-dom";
 export default function Footer() {
@@ -26,8 +27,7 @@ const handleSubmit = async (e) => {
     setEmail(""); // reset input
 
   } catch (err) {
-    console.error(err);
-    toast.error("Failed to subscribe");
+    toast.error(errorMessage(err, "Failed to subscribe"));
   } finally {
     setLoading(false);
   }
@@ -118,11 +118,7 @@ const handleSubmit = async (e) => {
                         </ul>
                     </div>
                      <div>
-                        <img
-                            src="/logo.png"
-                            alt="Monkiess"
-                            className="h-10 mb-4"
-                        />
+                        <p className="mb-4 text-2xl font-black tracking-tight">GARRIB</p>
                     <p className="uppercase font-bold text-[16px]  origin-left inline-block">
   GET EXCLUSIVE OFFERS IN YOUR INBOX!
 </p>

@@ -309,7 +309,17 @@ export default function Orders() {
         return "";
       }
 
-      return String(value).replace(
+      let text = String(value);
+
+      // Stop spreadsheet formula injection (=, +, -, @, tab, CR).
+      if (
+        typeof value !== "number" &&
+        /^[=+\-@\t\r]/.test(text)
+      ) {
+        text = `'${text}`;
+      }
+
+      return text.replace(
         /"/g,
         '""'
       );

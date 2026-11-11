@@ -1,5 +1,6 @@
 // src/pages/ProductDetail.jsx
 
+import { safeHtml } from "@/lib/safeHtml";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate,useLocation } from "react-router-dom";
 import { useCart } from "../state/CartContext.jsx";
@@ -31,6 +32,15 @@ import {
   useGetProductQuery,
   useGetRelatedProductsQuery,
 } from "@/store/api";
+
+// XS, S, M, L, XL, XXL... in the usual order (unknown sizes keep their place at the end).
+const SIZE_ORDER = ["XXS", "XS", "S", "M", "L", "XL", "XXL", "XXXL", "3XL", "4XL"];
+const sortSizes = (sizes = []) =>
+  [...sizes].sort((a, b) => {
+    const ia = SIZE_ORDER.indexOf(String(a?.name).toUpperCase());
+    const ib = SIZE_ORDER.indexOf(String(b?.name).toUpperCase());
+    return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+  });
 
 export default function ProductDetail() {
   const { wishlist, addToWishlist, removeFromWishlist } =
@@ -101,7 +111,6 @@ export default function ProductDetail() {
   const touchEndX = useRef(null);
 const fromBuildYourLook =
   location.state?.fromBuildYourLook === true;
-console.log('✌️fromBuildYourLook --->', fromBuildYourLook);
 
   const [zoomPosition, setZoomPosition] =
     useState({
@@ -250,7 +259,8 @@ console.log('✌️fromBuildYourLook --->', fromBuildYourLook);
                 flex-1
                 rounded-2xl
                 bg-gray-200
-                h-[55vh]
+                aspect-[4/5]
+                md:aspect-auto
                 md:h-[82vh]
               "
             />
@@ -388,10 +398,11 @@ console.log('✌️fromBuildYourLook --->', fromBuildYourLook);
   // SIZES / STOCK
   // =====================================================
 
-  const activeSizes =
+  const activeSizes = sortSizes(
     product?.sizes?.filter(
       (size) => size.active !== false
-    ) || [];
+    ) || []
+  );
 
   const getSizeQty = (name) =>
     Number(
@@ -634,7 +645,9 @@ flex-shrink-0
             >
 
               <div
-                className="flex h-full transition-transform duration-500 ease-in-out"
+                // Fixed frame: 4:5 on phones, fixed height on desktop. Every
+                // photo fills it, so a shorter photo never leaves an empty band.
+                className="flex aspect-[4/5] w-full transition-transform duration-500 ease-in-out md:aspect-auto md:h-[82vh]"
                 style={{
                   transform: `translateX(-${activeImage * 100}%)`,
                 }}
@@ -644,15 +657,7 @@ flex-shrink-0
                     key={idx}
                     src={img}
                     alt={`${product.title}-${idx}`}
-                    className="
-        w-full
-        shrink-0
-
-        max-h-[55vh]
-        md:max-h-[82vh]
-
-        object-cover
-      "
+                    className="h-full w-full shrink-0 object-cover"
                   />
                 ))}
               </div>
@@ -679,21 +684,6 @@ flex-shrink-0
                 {activeImage + 1}/{images.length}
               </div>
               {/* MAGNIFIER LENS */}
-              <div className="flex justify-center gap-2 mt-3 md:hidden">
-                {images.map((_, idx) => (
-                  <button
-                    key={idx}
-                    onClick={() => setActiveImage(idx)}
-                    className={`
-        h-2 rounded-full transition-all
-        ${activeImage === idx
-                        ? "w-6 bg-black"
-                        : "w-2 bg-gray-300"
-                      }
-      `}
-                  />
-                ))}
-              </div>
               {showMagnifier && (
                 <div
                   className="
@@ -867,9 +857,7 @@ flex-shrink-0
     [&_td]:border-gray-200
     [&_td]:p-2
   "
-  dangerouslySetInnerHTML={{
-    __html: product.description || "",
-  }}
+  dangerouslySetInnerHTML={safeHtml(product.description)}
 />
 
           <div className="flex flex-wrap items-baseline gap-2 md:gap-3">
@@ -878,18 +866,21 @@ flex-shrink-0
               ₹ {price.toFixed(2)}
             </span>
 
-            {/* Original MRP — 20% higher, crossed out */}
-            <span className="text-gray-500 text-sm md:text-lg font-medium flex items-baseline gap-1">
-              MRP
-              <span className="text-base md:text-xl line-through text-gray-500">
-                ₹ {product.oldPrice.toFixed(2)}
-              </span>
-            </span>
+            {/* MRP + % off only when the old price really is higher */}
+            {Number(product.oldPrice) > price && (
+              <>
+                <span className="text-gray-500 text-sm md:text-lg font-medium flex items-baseline gap-1">
+                  MRP
+                  <span className="text-base md:text-xl line-through text-gray-500">
+                    ₹ {Number(product.oldPrice).toFixed(2)}
+                  </span>
+                </span>
 
-            {/* Optional Discount Label */}
-            <span className="text-sm md:text-[21px] font-semibold text-red-600">
-              {Math.floor(product.discount)}% OFF
-            </span>
+                <span className="text-sm md:text-[21px] font-semibold text-red-600">
+                  {Math.round(((Number(product.oldPrice) - price) / Number(product.oldPrice)) * 100)}% OFF
+                </span>
+              </>
+            )}
           </div>
 
           <span className="text-green-700 text-base md:text-[19px]">Inclusive of all taxes</span>
@@ -909,8 +900,7 @@ flex-shrink-0
               </label>
 
              <div className="flex flex-wrap gap-3 px-2">
-  {product.sizes
-    .filter((size) => size.active !== false)
+  {sortSizes(product.sizes.filter((size) => size.active !== false))
     .map(({ name }) => {
       const count = Number(product.inventory?.[name] || 0);
       const isAvailable = count > 0;
@@ -1195,9 +1185,7 @@ flex-shrink-0
           [&_img]:rounded-xl
           [&_img]:my-4
         "
-        dangerouslySetInnerHTML={{
-          __html: product.details || "",
-        }}
+        dangerouslySetInnerHTML={safeHtml(product.details)}
       />
     </AccordionContent>
   </AccordionItem>

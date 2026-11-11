@@ -5,6 +5,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 import toast from "react-hot-toast";
 import { loadGoogleScript } from "../utils/loader.js";
+import { errorMessage } from "@/utils/session";
 
 export default function Signup() {
   const { register, loginWithGoogle } = useAuth();
@@ -47,10 +48,7 @@ export default function Signup() {
       toast.success("Account created successfully");
       navigate("/");
     } catch (error) {
-      setError(
-        error?.response?.data?.message ||
-          "Signup failed"
-      );
+      setError(errorMessage(error, "Signup failed"));
     } finally {
       setLoading(false);
     }
@@ -68,10 +66,7 @@ export default function Signup() {
       toast.success("Signed up with Google");
       navigate("/");
     } catch (error) {
-      setError(
-        error?.response?.data?.message ||
-          "Google signup failed"
-      );
+      setError(errorMessage(error, "Google signup failed"));
     } finally {
       setLoading(false);
     }
@@ -244,9 +239,13 @@ export default function Signup() {
                     placeholder="Create a password"
                     autoComplete="new-password"
                     required
-                    minLength={6}
+                    minLength={8}
                     className="h-[52px] w-full rounded-xl border border-black/15 bg-white px-4 text-sm text-black outline-none transition focus:border-black focus:ring-2 focus:ring-black/5"
                   />
+
+                  <p className="mt-2 text-xs text-gray-500">
+                    At least 8 characters
+                  </p>
                 </div>
 
                 <button

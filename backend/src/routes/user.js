@@ -4,13 +4,36 @@ import { User } from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
 
 const router = express.Router();
+
+// Avatars may only point at our own storage (or Google profile photos).
+const allowedAvatarHosts = () => {
+  const hosts = ["lh3.googleusercontent.com"];
+
+  try {
+    if (process.env.SUPABASE_URL) hosts.push(new URL(process.env.SUPABASE_URL).host);
+  } catch {
+    // ignore bad env value
+  }
+
+  return hosts;
+};
+
+const isAllowedAvatar = (value) => {
+  try {
+    const url = new URL(value);
+
+    return url.protocol === "https:" && allowedAvatarHosts().includes(url.host);
+  } catch {
+    return false;
+  }
+};
 router.put("/update",requireAuth, async (req, res) => {
   try {
-    console.log("Update user request body:", req.body);
-    console.log("Authenticated user:", req.user);
     const userId = req.user.id;
 
-    const { name, phone, avatar } = req.body;
+    const name = typeof req.body?.name === "string" ? req.body.name.slice(0, 100) : undefined;
+    const phone = typeof req.body?.phone === "string" ? req.body.phone.trim().slice(0, 20) : undefined;
+    const avatar = typeof req.body?.avatar === "string" ? req.body.avatar.trim().slice(0, 500) : undefined;
 
     const user = await User.findById(userId);
 
@@ -29,7 +52,7 @@ router.put("/update",requireAuth, async (req, res) => {
       });
     }
 
-    if (phone && phone.length < 8) {
+    if (phone && !/^\+?[0-9 ()-]{8,20}$/.test(phone)) {
       return res.status(400).json({
         success: false,
         message: "Invalid phone number",
@@ -42,8 +65,7 @@ router.put("/update",requireAuth, async (req, res) => {
 
     // 🔥 AVATAR (FROM SUPABASE URL)
     if (avatar) {
-      // basic safety check
-      if (!avatar.startsWith("http")) {
+      if (!isAllowedAvatar(avatar)) {
         return res.status(400).json({
           success: false,
           message: "Invalid avatar URL",
@@ -69,7 +91,7 @@ router.put("/update",requireAuth, async (req, res) => {
       },
     });
   } catch (err) {
-    console.error("Update user error:", err);
+    console.error("Update user error:", err.message);
     return res.status(500).json({
       success: false,
       message: "Update failed",

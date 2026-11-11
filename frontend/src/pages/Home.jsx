@@ -31,6 +31,7 @@ import {
 import { Swiper, SwiperSlide } from "swiper/react";
 import { X, ChevronRight } from "lucide-react";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/utils/session";
 
 import { useGetCategoriesQuery } from "@/store/api";
 import {
@@ -269,9 +270,11 @@ export default function Home() {
         message: "",
       });
     } catch (error) {
-      console.error(error);
       toast.error(
-        "Failed to send message"
+        errorMessage(
+          error,
+          "Failed to send message"
+        )
       );
     } finally {
       setLoading(false);
@@ -405,8 +408,9 @@ md:object-[72%_center
       pointer-events-none
     "
     style={{
+      // Inline noise texture (the old external file now returns 402).
       backgroundImage:
-        'url(\"https://grainy-gradients.vercel.app/noise.svg\")',
+        "url(\"data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>\")",
     }}
   />
 
@@ -1713,6 +1717,10 @@ z-0
               <div className="relative border-4 border-white rounded-3xl overflow-hidden shadow-2xl">
                 <video
                   src="/videos/app-preview.mp4"
+                  // File not uploaded yet: hide instead of a broken player.
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                   autoPlay
                   muted
                   loop

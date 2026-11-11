@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useSearchParams } from "react-router-dom";
 import {
   Card,
   CardHeader,
@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
 import api from "@/utils/config";
+import { errorMessage } from "@/utils/session";
 
 const Skeleton = ({ className = "" }) => (
   <div className={`animate-pulse rounded-md bg-muted ${className}`} />
@@ -55,34 +56,34 @@ const STATUS_HINTS = {
   cancelled: "This return was cancelled.",
 };
 
-async function fetchReturnRequest(orderNumber) {
+async function fetchReturnRequest(orderNumber, email) {
   try {
-    const res = await api.get(`/returns/order/${orderNumber}`);
+    const res = await api.get(
+      `/returns/order/${encodeURIComponent(orderNumber)}`,
+      { params: email ? { email } : {} }
+    );
     const data = res.data;
     const returnRequest = Array.isArray(data) ? data[0] : data;
 
     if (!returnRequest) {
-      throw new Error("No return found for this order.");
+      throw new Error("No return request for this order yet.");
     }
 
     return returnRequest;
   } catch (error) {
+    // 404 = no return request for this order (or not your order).
     if (error.response && error.response.status === 404) {
-      const res = await api.get("/returns", {
-        params: { orderNumber },
-      });
-      const data = res.data;
-      const returnRequest = Array.isArray(data) ? data[0] : data;
-
-      if (!returnRequest) {
-        throw new Error("No return found for this order.");
-      }
-
-      return returnRequest;
+      throw new Error("No return request for this order yet.");
     }
 
-    console.error("Error fetching return:", error);
-    throw new Error(`Failed to fetch return for order ${orderNumber}`);
+    if (error.response) {
+      console.error("Error fetching return:", error);
+      throw new Error(
+        errorMessage(error, `Failed to fetch return for order ${orderNumber}`)
+      );
+    }
+
+    throw error;
   }
 }
 
@@ -102,6 +103,8 @@ const formatCurrency = (amount) => {
 export default function ReturnStatusPage() {
   const params = useParams();
   const orderNumber = params.orderNumber || "";
+  const [searchParams] = useSearchParams();
+  const email = (searchParams.get("email") || "").trim();
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -120,7 +123,7 @@ export default function ReturnStatusPage() {
       try {
         setLoading(true);
         setError(null);
-        const result = await fetchReturnRequest(orderNumber);
+        const result = await fetchReturnRequest(orderNumber, email);
         if (!cancelled) {
           setData(result);
         }
@@ -141,7 +144,7 @@ export default function ReturnStatusPage() {
     return () => {
       cancelled = true;
     };
-  }, [orderNumber]);
+  }, [orderNumber, email]);
 
   const currentIndex =
     data && data.status ? RETURN_STATUS_STEPS.indexOf(data.status) : -1;

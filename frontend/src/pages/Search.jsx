@@ -62,11 +62,6 @@ useEffect(() => {
         "/categories"
       );
 
-      console.log(
-        "Categories:",
-        res.data
-      );
-
       setCategories(
         Array.isArray(res.data)
           ? res.data

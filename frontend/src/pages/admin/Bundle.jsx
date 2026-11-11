@@ -4,8 +4,10 @@ import { useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import toast from "react-hot-toast";
+import { errorMessage } from "@/utils/session";
+import { IMAGE_ACCEPT, pickImageFiles } from "./imageUpload";
 import {
-  useGetProductsQuery,
+  useGetAdminProductsQuery,
   useCreateBundleMutation,
   useUploadAdminImagesMutation,
 } from "@/store/api";
@@ -36,9 +38,7 @@ export default function Bundle() {
   const {
     data: productsData,
     isLoading: loadingProducts,
-  } = useGetProductsQuery({
-    limit: 100,
-  });
+  } = useGetAdminProductsQuery();
 
   const allProducts = Array.isArray(productsData)
     ? productsData
@@ -123,7 +123,10 @@ export default function Bundle() {
   };
 
   const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files || []);
+    const files = pickImageFiles(
+      e.target.files,
+      images.length
+    );
 
     const newImages = files.map((file) => ({
       file,
@@ -215,8 +218,6 @@ if (files.length > 0) {
     uploadResponse?.images?.map(
       (image) => image.url
     ) || [];
-
-  console.log("UPLOADED BUNDLE IMAGES:", imageUrls);
 }
 
 await createBundle({
@@ -269,10 +270,10 @@ await createBundle({
   );
 
   toast.error(
-    err?.data?.error ||
-      err?.data?.message ||
-      err?.message ||
-      "Error creating bundle"
+    errorMessage(
+      err,
+      err?.message || "Error creating bundle"
+    )
   );
 }
   }
@@ -415,7 +416,7 @@ await createBundle({
                 <input
                   type="file"
                   multiple
-                  accept="image/*"
+                  accept={IMAGE_ACCEPT}
                   onChange={handleImageUpload}
                   className="hidden"
                 />

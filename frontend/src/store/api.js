@@ -5,9 +5,14 @@ import {
   fetchBaseQuery,
 } from "@reduxjs/toolkit/query/react";
 
-const API_URL =
-  import.meta.env.VITE_API_URL ||
-  "http://localhost:4000/api";
+import {
+  API_URL,
+    getAccessToken,
+  freshAccessToken,
+  isAuthUrl,
+  refreshAccessToken,
+  goToLogin,
+} from "@/utils/session";
 
 const getGuestId = () => {
   let guestId =
@@ -29,9 +34,11 @@ const rawBaseQuery = fetchBaseQuery({
   baseUrl: API_URL,
   credentials: "include",
 
-  prepareHeaders: (headers) => {
-    const token =
-      localStorage.getItem("ds_access");
+  // Token renewed shortly before expiry (auth calls use it as-is).
+  prepareHeaders: async (headers, { endpoint }) => {
+    const token = /^(login|register|googleLogin|refreshToken)$/.test(endpoint || "")
+      ? getAccessToken()
+      : await freshAccessToken();
 
     const guestId = getGuestId();
 
@@ -53,94 +60,39 @@ const rawBaseQuery = fetchBaseQuery({
   },
 });
 
-let refreshPromise = null;
+// One shared refresh for RTK and axios (utils/session.js).
+const baseQueryWithReauth = async (args, api, extraOptions) => {
+  let result = await rawBaseQuery(args, api, extraOptions);
 
-const baseQueryWithReauth = async (
-  args,
-  api,
-  extraOptions
-) => {
-  let result = await rawBaseQuery(
-    args,
-    api,
-    extraOptions
-  );
+  const url = typeof args === "string" ? args : args?.url;
 
-  if (result?.error?.status !== 401) {
+  // Only a logged-in request with an expired token is refreshed. Guests and
+  // /auth/* calls (wrong password etc.) return their real error.
+  if (result?.error?.status !== 401 || !getAccessToken() || isAuthUrl(url)) {
     return result;
-  }
-
-  if (!refreshPromise) {
-    refreshPromise = (async () => {
-      try {
-        const refreshResult =
-          await rawBaseQuery(
-            {
-              url: "/auth/refresh",
-              method: "POST",
-            },
-            api,
-            extraOptions
-          );
-
-        if (
-          refreshResult?.data?.accessToken
-        ) {
-          localStorage.setItem(
-            "ds_access",
-            refreshResult.data.accessToken
-          );
-
-          return refreshResult.data.accessToken;
-        }
-
-        throw new Error(
-          "Refresh token failed"
-        );
-      } finally {
-        refreshPromise = null;
-      }
-    })();
   }
 
   try {
-    const newToken =
-      await refreshPromise;
+    const newToken = await refreshAccessToken();
 
-    if (!newToken) {
-      throw new Error(
-        "No access token returned"
-      );
+    if (newToken) {
+      return rawBaseQuery(args, api, extraOptions);
     }
-
-    result = await rawBaseQuery(
-      args,
-      api,
-      extraOptions
-    );
-
+  } catch {
+    // 429 / offline: keep the user logged in, show the original error.
     return result;
-  } catch (error) {
-    localStorage.removeItem(
-      "ds_access"
-    );
-
-    api.dispatch(
-      api.util.resetApiState()
-    );
-
-    window.location.href = "/login";
-
-    return {
-      error: {
-        status: 401,
-        data: {
-          message:
-            "Session expired",
-        },
-      },
-    };
   }
+
+  // Session really expired.
+  api.dispatch(api.util.resetApiState());
+  goToLogin();
+
+  return {
+    error: {
+      status: 401,
+      data: { message: "Session expired" },
+    },
+  };
 };
 
 export const api = createApi({
@@ -1461,6 +1413,29 @@ updateReturnStatus: builder.mutation({
 // admin bunlde detailed page 
 // =====================================================
 
+getAdminBundles: builder.query({
+  query: () => "/admin/bundles",
+
+  transformResponse: (response) => {
+    if (Array.isArray(response)) return response;
+
+    return response?.bundles || response?.data || [];
+  },
+
+  providesTags: (result) => [
+    ...(Array.isArray(result)
+      ? result.map((bundle) => ({
+          type: "Bundles",
+          id: String(bundle.publicId || bundle._id),
+        }))
+      : []),
+    {
+      type: "Bundles",
+      id: "LIST",
+    },
+  ],
+}),
+
 getAdminBundleById: builder.query({
   query: (publicId) => `/admin/bundles/${publicId}`,
 
@@ -1578,10 +1553,13 @@ updateAdminOrderStatus: builder.mutation({
 }),
 
 updateAdminOrderShipment: builder.mutation({
-  query: ({ publicOrderId, trackingNumber }) => ({
-    url: `/admin/orders/${publicOrderId}/shipment`,
-    method: "PATCH",
-    body: { trackingNumber },
+  query: ({ publicOrderId, trackingId, estimatedDelivery }) => ({
+    url: `/admin/orders/${publicOrderId}/tracking`,
+    method: "PUT",
+    body: {
+      trackingId,
+      ...(estimatedDelivery && { estimatedDelivery }),
+    },
   }),
 
   invalidatesTags: (result, error, { publicOrderId }) => [
@@ -1597,10 +1575,10 @@ updateAdminOrderShipment: builder.mutation({
 }),
 
 addAdminOrderNote: builder.mutation({
-  query: ({ publicOrderId, text }) => ({
+  query: ({ publicOrderId, note }) => ({
     url: `/admin/orders/${publicOrderId}/notes`,
     method: "POST",
-    body: { text },
+    body: { note },
   }),
 
   invalidatesTags: (result, error, { publicOrderId }) => [
@@ -1612,10 +1590,9 @@ addAdminOrderNote: builder.mutation({
 }),
 
 sendAdminOrderEmail: builder.mutation({
-  query: ({ publicOrderId, template = "status_change" }) => ({
-    url: `/admin/orders/${publicOrderId}/send-email`,
+  query: ({ publicOrderId }) => ({
+    url: `/admin/orders/${publicOrderId}/email`,
     method: "POST",
-    body: { template },
   }),
 }),
 
@@ -1708,6 +1685,7 @@ useDeleteAdminProductImageMutation,
 useUpdateBundleMutation,
 useDeleteBundleMutation,
  useGetAdminBundleByIdQuery,
+ useGetAdminBundlesQuery,
   useDeleteBundleImageMutation,
 
 

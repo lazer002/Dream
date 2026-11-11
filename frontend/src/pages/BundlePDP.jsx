@@ -1,8 +1,7 @@
 // BundlePDP.jsx
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useParams } from "react-router-dom";
-import api from "@/utils/config";
 import { useGetBundleQuery } from "@/store/api";
 import {
   Select,
@@ -30,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useCart } from "@/state/CartContext";
+import { useWishlist } from "@/state/WishlistContext";
 import RelatedProducts from "@/components/RelatedProducts";
 import RecentlyViewed from "@/components/RecentlyViewed";
 
@@ -47,7 +47,19 @@ const {
    refetchOnMountOrArgChange: 60,
 });
   const [activeImage, setActiveImage] = useState(0);
-  const [wishlisted, setWishlisted] = useState(false);
+  // Saved in the real wishlist (the backend accepts bundle publicIds too).
+  const { isInWishlist, addToWishlist, removeFromWishlist } = useWishlist();
+  const wishlisted = Boolean(bundle?.publicId) && isInWishlist(bundle.publicId);
+
+  const toggleWishlist = () => {
+    if (!bundle?.publicId) return;
+
+    if (wishlisted) {
+      removeFromWishlist(bundle.publicId);
+    } else {
+      addToWishlist(bundle.publicId);
+    }
+  };
   const [selectedSizes, setSelectedSizes] = useState({});
 
   const [showMagnifier, setShowMagnifier] = useState(false);
@@ -55,24 +67,6 @@ const {
     x: 50,
     y: 50,
   });
-
-  useEffect(() => {
-    const fetchBundle = async () => {
-      try {
-        setLoading(true);
-
-        const res = await api.get(`/bundles/${publicId}`);
-
-        setBundle(res.data);
-      } catch (err) {
-        console.error("GET BUNDLE ERROR:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBundle();
-  }, [publicId]);
 
   const handleSizeChange = (productId, size) => {
     setSelectedSizes((prev) => ({
@@ -130,20 +124,30 @@ const isBundleOutOfStock =
     (product) => !isProductOutOfStock(product)
   );
 
+  // A bundle is sold as a whole: every product needs a size in stock.
+  const unavailableProduct =
+    bundle?.products?.find((product) =>
+      isProductOutOfStock(product)
+    ) || null;
+
+  const cannotAdd =
+    isBundleOutOfStock || Boolean(unavailableProduct);
+
   const allSizesSelected =
     bundle?.products?.every(
-      (product) =>
-        isProductOutOfStock(product) ||
-        selectedSizes[product._id]
+      (product) => selectedSizes[product._id]
     );
 
   const handleAddToCart = () => {
-    if (isBundleOutOfStock) return;
+    if (cannotAdd) {
+      if (unavailableProduct) {
+        alert(`${unavailableProduct.title} is out of stock, so this bundle can't be added right now.`);
+      }
+      return;
+    }
 
     const missingSize = bundle.products.find(
-      (product) =>
-        !isProductOutOfStock(product) &&
-        !selectedSizes[product._id]
+      (product) => !selectedSizes[product._id]
     );
 
     if (missingSize) {
@@ -692,7 +696,7 @@ const isBundleOutOfStock =
 
             <Button
               disabled={
-                isBundleOutOfStock ||
+                cannotAdd ||
                 !allSizesSelected
               }
               className="
@@ -726,9 +730,8 @@ const isBundleOutOfStock =
                 text-xl
                 py-6
               "
-              onClick={() =>
-                setWishlisted(!wishlisted)
-              }
+              onClick={toggleWishlist}
+              aria-pressed={wishlisted}
             >
               <Heart
                 className={`w-5 h-5 ${
@@ -742,9 +745,15 @@ const isBundleOutOfStock =
 
           </div>
 
+          {unavailableProduct && !isBundleOutOfStock && (
+            <p className="text-sm text-red-600">
+              {unavailableProduct.title} is out of stock, so this bundle can't be added right now.
+            </p>
+          )}
+
           <Button
             disabled={
-              isBundleOutOfStock ||
+              cannotAdd ||
               !allSizesSelected
             }
             variant="outline"

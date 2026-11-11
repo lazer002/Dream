@@ -1,363 +1,341 @@
-import express from 'express'
-import { User } from '../models/User.js'
-import { signAccessToken, signRefreshToken, verifyRefreshToken } from '../utils/jwt.js'
-import { googleLogin, googleLoginMobile } from '../utils/gauth.js'
-import { OTP } from '../models/Otp.js'
-import bcrypt from 'bcryptjs'
-import { sendOtpMail } from '../utils/mailer.js'
-import { requireAuth } from '../middleware/auth.js'
-const router = express.Router()
+// routes/auth.js
+//
+// Login for BOTH clients. Web gets the refresh token as an httpOnly cookie,
+// the app (x-platform: mobile / no Origin) gets it in the JSON body. Response
+// shapes are the same as before: { user, accessToken[, refreshToken] }.
 
-router.post('/register', async (req, res) => {
+import crypto from "crypto";
+import express from "express";
+import bcrypt from "bcryptjs";
+import { User } from "../models/User.js";
+import { OTP } from "../models/Otp.js";
+import { googleLogin, googleLoginMobile } from "../utils/gauth.js";
+import { sendOtpMail } from "../utils/mailer.js";
+import { requireAuth } from "../middleware/auth.js";
+import { authLimiter, otpSendLimiter, refreshLimiter } from "../middleware/rateLimit.js";
+import { email as validEmail, str } from "../utils/validate.js";
+import {
+  SessionError,
+  endAllSessions,
+  endSession,
+  publicUser,
+  refreshSession,
+  startSession,
+} from "../utils/session.js";
+
+const router = express.Router();
+
+const OTP_LENGTH = 6;
+const OTP_TTL_MS = 10 * 60 * 1000;
+const OTP_MAX_ATTEMPTS = 5;
+const OTP_RESEND_GAP_MS = 30 * 1000;
+const OTP_MAX_PER_WINDOW = 5;
+const OTP_WINDOW_MS = 15 * 60 * 1000;
+const MIN_PASSWORD = 8;
+
+const generateOtp = () =>
+  crypto.randomInt(10 ** (OTP_LENGTH - 1), 10 ** OTP_LENGTH).toString();
+
+const accountBlocked = (user) => user.status && user.status !== "active";
+
+/* ---------- REGISTER ---------- */
+
+router.post("/register", authLimiter, async (req, res) => {
   try {
-    const { email, name, password } = req.body;
+    const email = validEmail(req.body?.email);
+    const name = str(req.body?.name, 100);
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
 
     if (!email || !name || !password) {
-      return res.status(400).json({ error: 'Missing fields' });
+      return res.status(400).json({ error: "Valid name, email and password are required" });
+    }
+
+    if (password.length < MIN_PASSWORD || password.length > 128) {
+      return res
+        .status(400)
+        .json({ error: `Password must be at least ${MIN_PASSWORD} characters` });
     }
 
     const existing = await User.findOne({ email });
+
     if (existing) {
-      return res.status(409).json({ error: 'Email already registered' });
+      return res.status(409).json({ error: "Email already registered" });
     }
 
     const passwordHash = await User.hashPassword(password);
-    const user = await User.create({ email, name, passwordHash });
+    const user = await User.create({ email, name, passwordHash, provider: "local" });
 
-    const payload = {
-      id: user._id.toString(),
-      role: user.role,
-      email: user.email,
-      name: user.name,
-    };
+    const tokens = await startSession(req, res, user);
 
-    const isMobile = req.headers["x-platform"] === "mobile";
-
-    const accessToken = signAccessToken(payload);
-    const refreshToken = signRefreshToken(payload);
-
-    // 🔥 WEB → set cookie
-    if (!isMobile) {
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: false, // true in production (HTTPS)
-        sameSite: "lax",
-        path: "/",
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
-
-      return res.json({
-        user: {
-          id: payload.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        },
-        accessToken,
-      });
-    }
-
-    // 🔥 MOBILE → send refreshToken
-    return res.json({
-      user: {
-        id: payload.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      accessToken,
-      refreshToken,
-    });
-
+    return res.json({ user: publicUser(user), ...tokens });
   } catch (e) {
-    console.error("Register error:", e);
-    res.status(500).json({ error: 'Registration failed' });
+    console.error("Register error:", e.message);
+    return res.status(500).json({ error: "Registration failed" });
   }
 });
 
-// POST /auth/login
-router.post('/login', async (req, res) => {
+/* ---------- PASSWORD LOGIN ---------- */
+
+router.post("/login", authLimiter, async (req, res) => {
   try {
-    const { email, password } = req.body;
+    const email = validEmail(req.body?.email);
+    const password = typeof req.body?.password === "string" ? req.body.password : "";
+
+    if (!email || !password) {
+      return res.status(401).json({ error: "Invalid credentials" });
+    }
 
     const user = await User.findOne({ email }).select("+passwordHash");
 
-    if (!user) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (!user || !(await user.verifyPassword(password))) {
+      return res.status(401).json({ error: "Invalid credentials" });
     }
 
-    const ok = await user.verifyPassword(password);
-    if (!ok) {
-      return res.status(401).json({ error: 'Invalid credentials' });
+    if (accountBlocked(user)) {
+      return res.status(403).json({ error: "Account disabled" });
     }
 
-    const payload = {
-      id: user._id.toString(),
-      role: user.role,
-      email: user.email,
-      name: user.name,
-    };
+    user.lastLogin = new Date();
+    await user.save();
 
-    const isMobile = req.headers["x-platform"] === "mobile";
+    const tokens = await startSession(req, res, user);
 
-    const accessToken = signAccessToken(payload);
-    const refreshToken = signRefreshToken(payload);
-
-    // 🔥 WEB → set cookie
-    if (!isMobile) {
-      res.cookie("refreshToken", refreshToken, {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-        maxAge: 30 * 24 * 60 * 60 * 1000,
-      });
-
-      return res.json({
-        user: {
-          id: payload.id,
-          email: user.email,
-          name: user.name,
-          role: user.role,
-        },
-        accessToken,
-      });
-    }
-
-    // 🔥 MOBILE → send refreshToken in body
-    return res.json({
-      user: {
-        id: payload.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-      },
-      accessToken,
-      refreshToken,
-    });
-
+    return res.json({ user: publicUser(user), ...tokens });
   } catch (e) {
-    console.error('Login error:', e);
-    res.status(500).json({ error: 'Login failed' });
+    console.error("Login error:", e.message);
+    return res.status(500).json({ error: "Login failed" });
   }
 });
 
-router.post('/refresh', async (req, res) => {
+/* ---------- REFRESH (cookie for web, body for app) ---------- */
+
+router.post("/refresh", refreshLimiter, async (req, res) => {
   try {
-    console.log("cookies:", req.cookies);
+    const { user: _user, ...tokens } = await refreshSession(req, res);
 
-    const refreshToken =
-      req.cookies?.refreshToken || req.body?.refreshToken;
-
-    if (!refreshToken) {
-      return res.status(400).json({ error: 'Missing refreshToken' });
-    }
-
-    const payload = verifyRefreshToken(refreshToken);
-
-    const accessToken = signAccessToken({
-      id: payload.id,
-      role: payload.role,
-      email: payload.email,
-      name: payload.name,
-    });
-
-    return res.json({ accessToken });
-
+    return res.json(tokens);
   } catch (e) {
-    console.error("Refresh error:", e);
-
-    // 🔥 only clear cookie if it exists (web case)
-    if (req.cookies?.refreshToken) {
-      res.clearCookie("refreshToken", {
-        httpOnly: true,
-        secure: process.env.NODE_ENV === "production",
-        sameSite: "lax",
-        path: "/",
-      });
+    if (!(e instanceof SessionError)) {
+      console.error("Refresh error:", e.message);
     }
 
-    return res.status(401).json({ error: 'Invalid refresh token' });
+    return res.status(401).json({ error: "Invalid refresh token", code: "SESSION_EXPIRED" });
   }
 });
 
-router.post('/otp/send', async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ error: 'Email required' });
+/* ---------- LOGOUT ---------- */
 
-    // Create user if not exists
-    let user = await User.findOne({ email });
-    if (!user) {
-      user = await User.create({ email, name: 'New User' });
+router.post("/logout", async (req, res) => {
+  await endSession(req, res);
+
+  return res.json({ success: true });
+});
+
+/* ---------- OTP: SEND ---------- */
+
+router.post("/otp/send", otpSendLimiter, async (req, res) => {
+  try {
+    const email = validEmail(req.body?.email);
+
+    if (!email) return res.status(400).json({ error: "Valid email required" });
+
+    // Per-email limits (stops email bombing one address from many IPs).
+    const recent = await OTP.find({
+      email,
+      createdAt: { $gt: new Date(Date.now() - OTP_WINDOW_MS) },
+    })
+      .sort({ createdAt: -1 })
+      .select("createdAt")
+      .lean();
+
+    if (recent.length && Date.now() - recent[0].createdAt.getTime() < OTP_RESEND_GAP_MS) {
+      return res.status(429).json({ error: "Please wait a few seconds before requesting a new code" });
     }
 
-    // Generate OTP and hash it
-    const otp = Math.floor(1000 + Math.random() * 9000).toString();
+    if (recent.length >= OTP_MAX_PER_WINDOW) {
+      return res.status(429).json({ error: "Too many codes requested, try again later" });
+    }
+
+    const existing = await User.findOne({ email }).select("status").lean();
+
+    if (existing && accountBlocked(existing)) {
+      // Same response as success: don't reveal account state.
+      return res.json({ message: "OTP sent to email" });
+    }
+
+    const otp = generateOtp();
     const otpHash = await bcrypt.hash(otp, 10);
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 5 min expiry
 
-    // Save OTP in OTP collection
-    await OTP.create({ email, otpHash, expiresAt });
+    // Verify only ever checks the newest code; older ones expire on their own
+    // (kept until then so the per-email limits above can count them).
+    await OTP.create({ email, otpHash, expiresAt: new Date(Date.now() + OTP_TTL_MS) });
 
-    // Send OTP email
     await sendOtpMail(email, otp);
 
-    res.json({ message: 'OTP sent to email' });
+    return res.json({ message: "OTP sent to email" });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'Failed to send OTP' });
+    console.error("OTP send error:", e.message);
+    return res.status(500).json({ error: "Failed to send OTP" });
   }
 });
 
+/* ---------- OTP: VERIFY ---------- */
 
-router.post('/otp/verify', async (req, res) => {
+router.post("/otp/verify", authLimiter, async (req, res) => {
   try {
-    const { email, otp } = req.body;
-    if (!email || !otp) return res.status(400).json({ error: 'Email and OTP required' });
+    const email = validEmail(req.body?.email);
+    const otp = typeof req.body?.otp === "string" ? req.body.otp.trim() : String(req.body?.otp ?? "");
 
-    const user = await User.findOne({ email });
-    if (!user) return res.status(401).json({ error: 'User not found' });
-
-    // Find latest OTP for this email
-    const otpEntry = await OTP.findOne({ email }).sort({ createdAt: -1 });
-    if (!otpEntry) return res.status(401).json({ error: 'OTP not found or expired' });
-
-
-    // Check expiry
-    if (otpEntry.expiresAt < new Date()) {
-      await OTP.deleteOne({ _id: otpEntry._id }); // remove expired OTP
-      return res.status(401).json({ error: 'OTP expired' });
+    if (!email || !/^\d{4,8}$/.test(otp)) {
+      return res.status(400).json({ error: "Email and OTP required" });
     }
 
-    // Verify OTP
-    const isValid = await otpEntry.verifyOtp(otp);
-    if (!isValid) return res.status(401).json({ error: 'Invalid OTP' });
+    const otpEntry = await OTP.findOne({ email }).sort({ createdAt: -1 });
 
-    // OTP verified: delete entry and update user
-    await OTP.deleteOne({ _id: otpEntry._id });
+    if (!otpEntry || otpEntry.expiresAt < new Date()) {
+      if (otpEntry) await OTP.deleteOne({ _id: otpEntry._id });
+      return res.status(401).json({ error: "OTP expired, request a new code" });
+    }
+
+    if (otpEntry.attempts >= OTP_MAX_ATTEMPTS) {
+      await OTP.deleteOne({ _id: otpEntry._id });
+      return res.status(429).json({ error: "Too many wrong attempts, request a new code" });
+    }
+
+    const isValid = await otpEntry.verifyOtp(otp);
+
+    if (!isValid) {
+      // Atomic so parallel guesses all count.
+      await OTP.updateOne({ _id: otpEntry._id }, { $inc: { attempts: 1 } });
+      return res.status(401).json({ error: "Invalid OTP" });
+    }
+
+    // One-time use: only one request can consume the code.
+    const consumed = await OTP.deleteOne({ _id: otpEntry._id });
+
+    if (!consumed.deletedCount) {
+      return res.status(401).json({ error: "OTP expired, request a new code" });
+    }
+
+    await OTP.deleteMany({ email });
+
+    // Account is created on first successful verification (proves the email).
+    let user = await User.findOne({ email });
+
+    if (!user) {
+      user = await User.create({
+        email,
+        name: "New User",
+        provider: "local",
+        isVerified: true,
+      });
+    }
+
+    if (accountBlocked(user)) {
+      return res.status(403).json({ error: "Account disabled" });
+    }
+
     user.isVerified = true;
     user.lastLogin = new Date();
     await user.save();
 
-    const payload = { id: user._id.toString(), role: user.role, email: user.email, name: user.name };
-    res.json({
-      user: { id: payload.id, email: user.email, name: user.name, role: user.role },
-      accessToken: signAccessToken(payload),
-      refreshToken: signRefreshToken(payload),
-    });
+    const tokens = await startSession(req, res, user);
+
+    return res.json({ user: publicUser(user), ...tokens });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ error: 'OTP verification failed' });
+    console.error("OTP verify error:", e.message);
+    return res.status(500).json({ error: "OTP verification failed" });
   }
 });
 
-router.post("/change-password", async (req, res) => {
-  try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+/* ---------- CHANGE / SET PASSWORD ---------- */
 
-    const { currentPassword, newPassword, confirmPassword } = req.body;
-    if (!newPassword || !confirmPassword) {
+router.post("/change-password", requireAuth, authLimiter, async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmPassword } = req.body || {};
+
+    if (typeof newPassword !== "string" || typeof confirmPassword !== "string") {
       return res.status(400).json({ error: "newPassword and confirmPassword are required" });
     }
+
     if (newPassword !== confirmPassword) {
       return res.status(400).json({ error: "Passwords do not match" });
     }
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: "Password must be at least 8 characters long" });
+
+    if (newPassword.length < MIN_PASSWORD || newPassword.length > 128) {
+      return res
+        .status(400)
+        .json({ error: `Password must be at least ${MIN_PASSWORD} characters long` });
     }
 
-    // Load user and include password field (if your schema uses select:false)
-    const user = await User.findById(userId).select("+password +provider");
-    if (!user) return res.status(404).json({ error: "User not found%" });
+    const user = await User.findById(req.user.id).select("+passwordHash");
 
-    // If user already has a password -> require and verify currentPassword
-    if (user.password) {
-      if (!currentPassword) {
-        return res.status(400).json({ error: "currentPassword is required to change your password" });
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Accounts that already have a password must prove they know it.
+    // Google/OTP-only accounts (no password yet) can set one while logged in.
+    if (user.passwordHash) {
+      if (typeof currentPassword !== "string" || !currentPassword) {
+        return res
+          .status(400)
+          .json({ error: "currentPassword is required to change your password" });
       }
 
-      const match = await bcrypt.compare(currentPassword, user.password);
-      if (!match) {
+      if (!(await user.verifyPassword(currentPassword))) {
         return res.status(401).json({ error: "Current password is incorrect" });
       }
 
-      // Prevent reusing same password
-      const sameAsOld = await bcrypt.compare(newPassword, user.password);
-      if (sameAsOld) {
-        return res.status(400).json({ error: "New password must be different from the current password" });
+      if (await user.verifyPassword(newPassword)) {
+        return res
+          .status(400)
+          .json({ error: "New password must be different from the current password" });
       }
-    } else {
-      // No existing password (likely Google-only account)
-      // Optionally: extra checks here (e.g., require 2FA or recently logged-in)
-      // We allow setting password without currentPassword because user is authenticated via Google.
     }
 
-    // Hash and save the new password
-    const salt = await bcrypt.genSalt(10);
-    const hashed = await bcrypt.hash(newPassword, salt);
-    user.password = hashed;
-    user.provider = "local"; // optional: mark account as local-enabled
+    user.passwordHash = await User.hashPassword(newPassword);
     await user.save();
 
-    // Issue fresh tokens (so the client doesn't need to re-login)
-    const payload = {
-      id: user._id.toString(),
-      role: user.role,
-      email: user.email,
-      name: user.name,
-    };
-    const accessToken = signAccessToken(payload);
-    const refreshToken = signRefreshToken(payload);
+    // Log out every other device, then start a fresh session here.
+    await endAllSessions(user._id);
+    const tokens = await startSession(req, res, user);
 
-    return res.json({ message: "Password updated", accessToken, refreshToken });
+    return res.json({ message: "Password updated", ...tokens });
   } catch (err) {
-    console.error("change-password error:", err);
+    console.error("change-password error:", err.message);
     return res.status(500).json({ error: "Failed to change password" });
   }
 });
 
+/* ---------- CURRENT USER ---------- */
 
+router.get("/me", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-passwordHash").lean();
 
-router.get(
-  "/me",
-  requireAuth,
-  async (req, res) => {
-    try {
-      const user =
-        await User.findById(req.user.id)
-          .select("-passwordHash")
-          .lean();
-
-      if (!user) {
-        return res.status(404).json({
-          success: false,
-          message: "User not found",
-        });
-      }
-
-      return res.json({
-        success: true,
-        user,
-      });
-    } catch (error) {
-      console.error(
-        "GET /auth/me error:",
-        error
-      );
-
-      return res.status(500).json({
+    if (!user || accountBlocked(user)) {
+      return res.status(404).json({
         success: false,
-        message: "Server error",
+        message: "User not found",
       });
     }
+
+    return res.json({
+      success: true,
+      user,
+    });
+  } catch (error) {
+    console.error("GET /auth/me error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
   }
-);
+});
 
-router.post("/google", googleLogin);
-router.post("/google/mobile", googleLoginMobile);
+/* ---------- GOOGLE ---------- */
 
-export default router
+router.post("/google", authLimiter, googleLogin);
+router.post("/google/mobile", authLimiter, googleLoginMobile);
 
-
+export default router;

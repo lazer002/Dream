@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../state/AuthContext.jsx";
 import toast from "react-hot-toast";
 import { loadGoogleScript } from "../utils/loader.js";
+import { errorMessage } from "@/utils/session";
 
 export default function Login() {
   const { login, loginWithGoogle } = useAuth();
@@ -43,10 +44,11 @@ export default function Login() {
       setLoading(true);
       setError("");
 
-      const loggedInUser = await login(
+      const result = await login(
         form.email.trim(),
         form.password
       );
+      const loggedInUser = result?.user ?? result;
 
       toast.success("Welcome back!");
 
@@ -60,13 +62,10 @@ export default function Login() {
         });
       }
     } catch (error) {
-      console.error("LOGIN ERROR:", error);
-
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        error?.message ||
-        "Invalid email or password";
+      const message = errorMessage(
+        error,
+        error?.message || "Invalid email or password"
+      );
 
       setError(message);
       toast.error(message);
@@ -82,8 +81,9 @@ export default function Login() {
       setLoading(true);
       setError("");
 
-      const loggedInUser =
+      const result =
         await loginWithGoogle(res.credential);
+      const loggedInUser = result?.user ?? result;
 
       toast.success("Logged in with Google");
 
@@ -97,12 +97,10 @@ export default function Login() {
         });
       }
     } catch (error) {
-      console.error("GOOGLE LOGIN ERROR:", error);
-
-      const message =
-        error?.response?.data?.message ||
-        error?.response?.data?.error ||
-        "Google login failed";
+      const message = errorMessage(
+        error,
+        "Google login failed"
+      );
 
       setError(message);
       toast.error(message);

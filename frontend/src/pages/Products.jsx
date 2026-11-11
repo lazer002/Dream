@@ -189,9 +189,6 @@ const {
   refetchOnMountOrArgChange: true,
 });
 
-console.log("PRODUCT API PARAMS:", apiParams);
-console.log("PRODUCT API DATA:", productsData);
-console.log("PRODUCT API ERROR:", error);
   // ===================================================
   // PRODUCTS API
   // ===================================================

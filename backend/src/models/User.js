@@ -73,11 +73,11 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
 
- passwordHash: {
-  type: String,
-  required: true,
-  select: false,
-},
+    // Optional: OTP and Google accounts have no password until they set one.
+    passwordHash: {
+      type: String,
+      select: false,
+    },
 
     /* ================= AUTH ================= */
 

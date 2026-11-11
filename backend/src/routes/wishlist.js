@@ -1,7 +1,9 @@
+import { guestId as validGuestId } from "../utils/validate.js";
 import express from "express";
 import { User } from "../models/User.js";
 import { Guest } from "../models/Guest.js";
 import { Product } from "../models/Product.js";
+import { Bundle } from "../models/Bundle.js";
 import {
   requireAuth,
   optionalAuth,
@@ -17,36 +19,52 @@ function idsToStrings(arr) {
   if (!Array.isArray(arr)) return [];
 
   return arr
-    .map(String)
+    .map((id) => String(id))
     .filter(Boolean);
 }
 
 async function getWishlistOwner(req) {
   const userId = req.user?.id;
-  console.log('✌️userId --->', userId);
 
-  const guestId = req.headers["x-guest-id"];
-  console.log('✌️guestId --->', guestId);
+  const guestId = String(
+    validGuestId(req.headers["x-guest-id"]) || ""
+  ).trim();
 
+  
 
-  if (!userId && !guestId) {
-    throw new Error("No user or guest");
-  }
+  /*
+   * ===================================================
+   * LOGGED-IN USER
+   * ===================================================
+   */
 
   if (userId) {
+    const user =
+      await User.findById(userId);
+
     return {
       type: "user",
-      doc: await User.findById(userId),
+      doc: user,
     };
   }
 
+  /*
+   * ===================================================
+   * GUEST USER
+   * ===================================================
+   */
+
   if (guestId) {
-    let guest = await Guest.findOne({ guestId });
+    let guest =
+      await Guest.findOne({
+        guestId,
+      });
 
     if (!guest) {
       guest = await Guest.create({
         guestId,
         wishlist: [],
+        cart: [],
       });
     }
 
@@ -59,55 +77,75 @@ async function getWishlistOwner(req) {
   return null;
 }
 
-/*
- * Convert stored wishlist IDs to publicIds.
- *
- * Existing User wishlist may contain Mongo _ids.
- * New wishlist values should be publicIds.
- */
-async function normalizeWishlistToPublicIds(items = []) {
-  if (!Array.isArray(items) || !items.length) {
+/* =====================================================
+   NORMALIZE WISHLIST
+===================================================== */
+
+async function normalizeWishlistToPublicIds(
+  items = []
+) {
+  if (
+    !Array.isArray(items) ||
+    !items.length
+  ) {
     return [];
   }
 
-  const values = idsToStrings(items);
+  const values =
+    idsToStrings(items);
 
-  const objectIds = values.filter((id) =>
-    /^[a-f\d]{24}$/i.test(id)
-  );
+  const objectIds =
+    values.filter((id) =>
+      /^[a-f\d]{24}$/i.test(id)
+    );
 
-  const publicIds = values.filter(
-    (id) => !/^[a-f\d]{24}$/i.test(id)
-  );
+  const publicIds =
+    values.filter(
+      (id) =>
+        !/^[a-f\d]{24}$/i.test(id)
+    );
 
   if (!objectIds.length) {
-    return [...new Set(publicIds)];
+    return [
+      ...new Set(publicIds),
+    ];
   }
 
-  const products = await Product.find({
-    _id: { $in: objectIds },
-  })
-    .select("_id publicId")
-    .lean();
-
-  const objectIdToPublicId = new Map(
-    products.map((product) => [
-      String(product._id),
-      String(product.publicId),
-    ])
-  );
-
-  const normalized = values
-    .map((id) => {
-      if (objectIdToPublicId.has(id)) {
-        return objectIdToPublicId.get(id);
-      }
-
-      return id;
+  const products =
+    await Product.find({
+      _id: {
+        $in: objectIds,
+      },
     })
-    .filter(Boolean);
+      .select("_id publicId")
+      .lean();
 
-  return [...new Set(normalized)];
+  const objectIdToPublicId =
+    new Map(
+      products.map((product) => [
+        String(product._id),
+        String(product.publicId),
+      ])
+    );
+
+  const normalized =
+    values
+      .map((id) => {
+        if (
+          objectIdToPublicId.has(id)
+        ) {
+          return objectIdToPublicId.get(
+            id
+          );
+        }
+
+        return id;
+      })
+      .filter(Boolean);
+
+  return [
+    ...new Set(normalized),
+  ];
 }
 
 /* =====================================================
@@ -123,8 +161,9 @@ router.get(
         await getWishlistOwner(req);
 
       if (!owner?.doc) {
-        return res.status(401).json({
-          error: "Unauthorized",
+        return res.json({
+          success: true,
+          items: [],
         });
       }
 
@@ -134,33 +173,37 @@ router.get(
         );
 
       /*
-       * Automatically migrate old User wishlist
-       * from Mongo _id → publicId.
+       * Save normalized IDs for both
+       * guest and logged-in users.
        */
       if (
-        owner.type === "user" &&
         JSON.stringify(items) !==
-          JSON.stringify(
-            idsToStrings(
-              owner.doc.wishlist || []
-            )
+        JSON.stringify(
+          idsToStrings(
+            owner.doc.wishlist || []
           )
+        )
       ) {
         owner.doc.wishlist = items;
+
         await owner.doc.save();
       }
 
       return res.json({
+        success: true,
         items,
       });
-    } catch (err) {
+    } catch (error) {
       console.error(
-        "GET wishlist error",
-        err
+        "GET WISHLIST ERROR:",
+        error
       );
 
       return res.status(500).json({
-        error: "Server error",
+        success: false,
+        error:
+          error.message ||
+          "Failed to get wishlist",
       });
     }
   }
@@ -168,6 +211,7 @@ router.get(
 
 /* =====================================================
    ADD WISHLIST
+   PRODUCT + BUNDLE
 ===================================================== */
 
 router.post(
@@ -179,48 +223,101 @@ router.post(
         await getWishlistOwner(req);
 
       if (!owner?.doc) {
-        return res.status(401).json({
-          error: "Unauthorized",
+        return res.status(400).json({
+          success: false,
+          error:
+            "Missing user or guestId",
         });
       }
 
-      const productId =
-        String(req.body.productId || "").trim();
+      const publicId =
+        String(
+          req.body.productId ||
+          req.body.publicId ||
+          ""
+        ).trim();
 
-      if (!productId) {
+      if (!publicId) {
         return res.status(400).json({
-          error: "Product ID is required",
+          success: false,
+          error:
+            "Product or bundle publicId is required",
         });
       }
 
       /*
-       * IMPORTANT:
-       * Frontend now sends publicId.
+       * =================================================
+       * TRY PRODUCT
+       * =================================================
        */
+
       const product =
         await Product.findOne({
-          publicId: productId,
+          publicId,
           active: true,
         })
           .select("publicId")
           .lean();
 
-      if (!product) {
+      /*
+       * =================================================
+       * TRY BUNDLE
+       * =================================================
+       */
+
+      const bundle =
+        !product
+          ? await Bundle.findOne({
+              publicId,
+              active: true,
+            })
+              .select("publicId")
+              .lean()
+          : null;
+
+      /*
+       * Neither exists.
+       */
+
+      if (!product && !bundle) {
         return res.status(404).json({
-          error: "Product not found",
+          success: false,
+          error:
+            "Product or bundle not found",
         });
       }
 
-      const publicId =
-        String(product.publicId);
+      const finalPublicId =
+        String(
+          product?.publicId ||
+          bundle?.publicId
+        );
+
+      /*
+       * =================================================
+       * CURRENT WISHLIST
+       * =================================================
+       */
 
       const current =
         await normalizeWishlistToPublicIds(
           owner.doc.wishlist || []
         );
 
-      if (!current.includes(publicId)) {
-        current.push(publicId);
+      /*
+       * =================================================
+       * ADD
+       * =================================================
+       */
+
+      if (
+        !current.includes(
+          finalPublicId
+        )
+      ) {
+        current.push(
+          finalPublicId
+        );
       }
 
       owner.doc.wishlist = [
@@ -230,16 +327,24 @@ router.post(
       await owner.doc.save();
 
       return res.json({
-        items: owner.doc.wishlist,
+        success: true,
+        type: product
+          ? "product"
+          : "bundle",
+        items:
+          owner.doc.wishlist,
       });
-    } catch (err) {
+    } catch (error) {
       console.error(
-        "ADD wishlist error",
-        err
+        "ADD WISHLIST ERROR:",
+        error
       );
 
       return res.status(500).json({
-        error: "Server error",
+        success: false,
+        error:
+          error.message ||
+          "Failed to add wishlist",
       });
     }
   }
@@ -247,6 +352,7 @@ router.post(
 
 /* =====================================================
    REMOVE WISHLIST
+   PRODUCT + BUNDLE
 ===================================================== */
 
 router.post(
@@ -258,19 +364,56 @@ router.post(
         await getWishlistOwner(req);
 
       if (!owner?.doc) {
-        return res.status(401).json({
-          error: "Unauthorized",
-        });
-      }
-
-      const productId =
-        String(req.body.productId || "").trim();
-
-      if (!productId) {
         return res.status(400).json({
-          error: "Product ID is required",
+          success: false,
+          error:
+            "Missing user or guestId",
         });
       }
+
+      const publicId =
+        String(
+          req.body.productId ||
+          req.body.publicId ||
+          ""
+        ).trim();
+
+      if (!publicId) {
+        return res.status(400).json({
+          success: false,
+          error:
+            "Product or bundle publicId is required",
+        });
+      }
+
+      /*
+       * Verify that the ID belongs to
+       * either a product or bundle.
+       */
+
+      const product =
+        await Product.findOne({
+          publicId,
+          active: true,
+        })
+          .select("publicId")
+          .lean();
+
+      const bundle =
+        !product
+          ? await Bundle.findOne({
+              publicId,
+              active: true,
+            })
+              .select("publicId")
+              .lean()
+          : null;
+
+      /*
+       * If product/bundle was deleted or
+       * inactive, still remove the ID
+       * from wishlist.
+       */
 
       const current =
         await normalizeWishlistToPublicIds(
@@ -279,22 +422,33 @@ router.post(
 
       owner.doc.wishlist =
         current.filter(
-          (id) => id !== productId
+          (id) =>
+            id !== publicId
         );
 
       await owner.doc.save();
 
       return res.json({
-        items: owner.doc.wishlist,
+        success: true,
+        type: product
+          ? "product"
+          : bundle
+          ? "bundle"
+          : "unknown",
+        items:
+          owner.doc.wishlist,
       });
-    } catch (err) {
+    } catch (error) {
       console.error(
-        "REMOVE wishlist error",
-        err
+        "REMOVE WISHLIST ERROR:",
+        error
       );
 
       return res.status(500).json({
-        error: "Server error",
+        success: false,
+        error:
+          error.message ||
+          "Failed to remove wishlist",
       });
     }
   }
@@ -309,35 +463,111 @@ router.post(
   requireAuth,
   async (req, res) => {
     try {
-      const guestId = req.headers["x-guest-id"];
-      const userId = req.user?.id;
-      const user = await User.findById(userId);
+      const guestId =
+        String(
+          validGuestId(req.headers["x-guest-id"]) || ""
+        ).trim();
 
+      const userId =
+        req.user?.id;
 
-      const guest = guestId
-        ? await Guest.findOne({ guestId })
-        : null;
-
-
-      if (!user) {
-        return res.status(404).json({
-          error: "User not found",
+      if (!userId) {
+        return res.status(401).json({
+          success: false,
+          error:
+            "Unauthorized",
         });
       }
 
-      let existingWishlist =
-        Array.isArray(user.wishlist)
-          ? user.wishlist.map(String)
-          : [];
+      const user =
+        await User.findById(
+          userId
+        );
+
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          error:
+            "User not found",
+        });
+      }
+
+      /*
+       * =================================================
+       * NO GUEST ID
+       * =================================================
+       */
+
+      if (!guestId) {
+        const items =
+          await normalizeWishlistToPublicIds(
+            user.wishlist || []
+          );
+
+        return res.json({
+          success: true,
+          items,
+        });
+      }
+
+      /*
+       * =================================================
+       * FIND GUEST
+       * =================================================
+       */
+
+      const guest =
+        await Guest.findOne({
+          guestId,
+        });
+
+      /*
+       * No guest data.
+       */
+
+      if (!guest) {
+        const items =
+          await normalizeWishlistToPublicIds(
+            user.wishlist || []
+          );
+
+        return res.json({
+          success: true,
+          items,
+        });
+      }
+
+      /*
+       * =================================================
+       * USER WISHLIST
+       * =================================================
+       */
+
+      const existingWishlist =
+        await normalizeWishlistToPublicIds(
+          user.wishlist || []
+        );
+
+      /*
+       * =================================================
+       * GUEST WISHLIST
+       * =================================================
+       */
 
       let guestWishlist =
-        Array.isArray(guest?.wishlist)
-          ? guest.wishlist.map(String)
-          : [];
+        await normalizeWishlistToPublicIds(
+          guest.wishlist || []
+        );
 
+      /*
+       * =================================================
+       * VALIDATE GUEST PRODUCTS
+       * =================================================
+       */
 
-
-      if (guestWishlist.length) {
+      if (
+        guestWishlist.length
+      ) {
         const products =
           await Product.find({
             publicId: {
@@ -348,18 +578,57 @@ router.post(
             .select("publicId")
             .lean();
 
-        const validPublicIds =
+        const validProductIds =
           new Set(
-            products.map((p) =>
-              String(p.publicId)
+            products.map(
+              (product) =>
+                String(
+                  product.publicId
+                )
+            )
+          );
+
+        /*
+         * Bundles can also exist in wishlist.
+         */
+
+        const bundles =
+          await Bundle.find({
+            publicId: {
+              $in: guestWishlist,
+            },
+            active: true,
+          })
+            .select("publicId")
+            .lean();
+
+        const validBundleIds =
+          new Set(
+            bundles.map(
+              (bundle) =>
+                String(
+                  bundle.publicId
+                )
             )
           );
 
         guestWishlist =
-          guestWishlist.filter((id) =>
-            validPublicIds.has(id)
+          guestWishlist.filter(
+            (id) =>
+              validProductIds.has(
+                id
+              ) ||
+              validBundleIds.has(
+                id
+              )
           );
       }
+
+      /*
+       * =================================================
+       * MERGE
+       * =================================================
+       */
 
       const merged = [
         ...new Set([
@@ -368,28 +637,44 @@ router.post(
         ]),
       ];
 
-      user.wishlist = merged;
+      /*
+       * =================================================
+       * SAVE USER
+       * =================================================
+       */
+
+      user.wishlist =
+        merged;
 
       await user.save();
 
-      if (guestId) {
-        await Guest.deleteOne({
-          guestId,
-        });
-      }
+      /*
+       * =================================================
+       * DELETE GUEST
+       * =================================================
+       *
+       * Only after successful merge.
+       */
+
+      // Only the wishlist moved to the account: clear it, but keep the guest's
+      // other data (saved addresses) instead of deleting the whole document.
+      await Guest.updateOne({ guestId }, { $set: { wishlist: [] } });
 
       return res.json({
         success: true,
         items: merged,
       });
-    } catch (err) {
+    } catch (error) {
       console.error(
-        "SYNC wishlist error:",
-        err
+        "SYNC WISHLIST ERROR:",
+        error
       );
 
       return res.status(500).json({
-        error: "Server error",
+        success: false,
+        error:
+          error.message ||
+          "Failed to sync wishlist",
       });
     }
   }

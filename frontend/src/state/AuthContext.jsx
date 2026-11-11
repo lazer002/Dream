@@ -15,6 +15,8 @@ import {
   useGoogleLoginMutation,
 } from "@/store/api";
 
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:4000/api";
+
 const AuthContext = createContext(null);
 
 const getOrCreateGuestId = () => {
@@ -103,32 +105,11 @@ export function AuthProvider({ children }) {
     isUserError,
   ]);
 
-  /* =========================
-     GOOGLE CALLBACK
-  ========================= */
-
-  useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
-
-    const accessToken = params.get("accessToken");
-
-    if (!accessToken) return;
-
-    localStorage.setItem(
-      "ds_access",
-      accessToken
-    );
-
-    setAuthToken(accessToken);
-
-    window.history.replaceState(
-      {},
-      document.title,
-      window.location.pathname
-    );
-  }, []);
+  /*
+   * Never accept a token from the URL (?accessToken=...): anyone could send
+   * a link that silently logs the visitor into the sender's account.
+   * Google login returns the token in the API response instead.
+   */
 
   /* =========================
      LOGIN
@@ -286,9 +267,24 @@ export function AuthProvider({ children }) {
      LOGOUT
   ========================= */
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Tell the server first: it revokes the session and clears the httpOnly
+    // refresh cookie (JS can't remove that cookie itself).
+    try {
+      await fetch(`${API_URL}/auth/logout`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch {
+      // Offline: still log out locally.
+    }
+
     localStorage.removeItem("ds_access");
     localStorage.removeItem("ds_user");
+    // Don't show this person's address/email/order to the next user.
+    localStorage.removeItem("checkoutInfo");
+    localStorage.removeItem("track_order_last");
+    sessionStorage.removeItem("cart_merged");
 
     const newGuestId = crypto.randomUUID();
 
@@ -352,6 +348,8 @@ export function AuthProvider({ children }) {
     <AuthContext.Provider
       value={{
         user: authUser,
+
+        setUser: setAuthUser,
 
         guestId,
 

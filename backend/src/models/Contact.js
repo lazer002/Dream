@@ -7,11 +7,9 @@ const contactSchema = new mongoose.Schema(
     email: { type: String, required: true, trim: true, lowercase: true },
     phone: { type: String, trim: true },
 
-    // 💬 Message
     subject: { type: String, trim: true },
     message: { type: String, required: true },
 
-    // 🧠 System fields
     status: {
       type: String,
       enum: ["new", "open", "in_progress", "resolved", "closed"],
@@ -24,7 +22,6 @@ const contactSchema = new mongoose.Schema(
       default: "medium",
     },
 
-    // 🔗 Optional linking
     user: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     orderId: { type: mongoose.Schema.Types.ObjectId, ref: "Order" },
 
@@ -37,7 +34,6 @@ const contactSchema = new mongoose.Schema(
       },
     ],
 
-    // 🌐 Metadata (very useful)
     ipAddress: String,
     userAgent: String,
     source: {

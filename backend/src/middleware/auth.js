@@ -1,9 +1,15 @@
 // middleware/auth.js
+//
+// Same rules for web and app: identity comes from the Bearer access token;
+// guests are identified by the `x-guest-id` header (validated, see
+// utils/validate.js guestId).
 
 import { verifyAccessToken } from "../utils/jwt.js";
+import { guestId as validGuestId } from "../utils/validate.js";
+import { User } from "../models/User.js";
 
 /* =========================================================
-   GET BEARER TOKEN
+   HELPERS
 ========================================================= */
 
 function getBearerToken(req) {
@@ -16,6 +22,29 @@ function getBearerToken(req) {
   const token = authHeader.slice(7).trim();
 
   return token || null;
+}
+
+function userFromToken(token) {
+  const payload = verifyAccessToken(token);
+
+  const userId = payload?.id || payload?.userId || payload?._id;
+
+  if (!userId) return null;
+
+  return {
+    id: String(userId),
+    role: payload.role,
+    email: payload.email,
+    name: payload.name,
+  };
+}
+
+function attachGuest(req) {
+  const guestId = validGuestId(req.headers["x-guest-id"]);
+
+  if (guestId) {
+    req.guestId = guestId;
+  }
 }
 
 /* =========================================================
@@ -33,29 +62,20 @@ export function requireAuth(req, res, next) {
   }
 
   try {
-    const payload = verifyAccessToken(token);
+    const user = userFromToken(token);
 
-    const userId =
-      payload?.id ||
-      payload?.userId ||
-      payload?._id;
-
-    if (!userId) {
+    if (!user) {
       return res.status(401).json({
         error: "Invalid token payload",
         code: "INVALID_TOKEN_PAYLOAD",
       });
     }
 
-    req.user = {
-      id: String(userId),
-      role: payload.role,
-      email: payload.email,
-      name: payload.name,
-    };
+    req.user = user;
+    attachGuest(req);
 
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({
       error: "Invalid or expired token",
       code: "ACCESS_TOKEN_EXPIRED",
@@ -69,44 +89,36 @@ export function requireAuth(req, res, next) {
 
 export function optionalAuth(req, res, next) {
   const token = getBearerToken(req);
-  const guestId =
-    req.headers["x-guest-id"] || null;
 
   if (token) {
     try {
-      const payload =
-        verifyAccessToken(token);
-
-      const userId =
-        payload?.id ||
-        payload?.userId ||
-        payload?._id;
-
-      if (userId) {
-        req.user = {
-          id: String(userId),
-          role: payload.role,
-          email: payload.email,
-          name: payload.name,
-        };
-      }
+      req.user = userFromToken(token) || undefined;
     } catch {
       req.user = undefined;
     }
   }
 
-  if (guestId) {
-    req.guestId = String(guestId);
-  }
+  attachGuest(req);
 
   next();
 }
 
 /* ========================================================
    REQUIRE ADMIN
+   Re-checks the role in the database: a role in an old token is not enough
+   (demoted / suspended admins lose access immediately).
 ========================================================= */
 
-export function requireAdmin(req, res, next) {
+/** True only for an existing, active admin account (checked in the database). */
+export async function isActiveAdmin(userId) {
+  if (!userId) return false;
+
+  const user = await User.findById(userId).select("role status").lean();
+
+  return Boolean(user && user.role === "admin" && user.status === "active");
+}
+
+export async function requireAdmin(req, res, next) {
   if (!req.user?.id) {
     return res.status(401).json({
       error: "Unauthorized",
@@ -114,12 +126,21 @@ export function requireAdmin(req, res, next) {
     });
   }
 
-  if (req.user.role !== "admin") {
+  try {
+    if (!(await isActiveAdmin(req.user.id))) {
+      return res.status(403).json({
+        error: "Forbidden",
+        code: "ADMIN_REQUIRED",
+      });
+    }
+
+    req.user.role = "admin";
+
+    next();
+  } catch {
     return res.status(403).json({
       error: "Forbidden",
       code: "ADMIN_REQUIRED",
     });
   }
-
-  next();
 }

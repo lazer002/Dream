@@ -1,10 +1,19 @@
+import { guestId as validGuestId } from "../utils/validate.js";
 import express from "express";
 import mongoose from "mongoose";
 
 import { Notification } from "../models/Notification.js";
 import { DeviceToken } from "../models/DeviceToken.js";
 
-import { optionalAuth } from "../middleware/auth.js";
+import { optionalAuth, requireAuth, requireAdmin } from "../middleware/auth.js";
+import { str } from "../utils/validate.js";
+
+// Expo push tokens look like ExponentPushToken[xxxx] / ExpoPushToken[xxxx].
+const validPushToken = (value) => {
+  const token = str(value, 200);
+
+  return token && /^Expo(nent)?PushToken\[[A-Za-z0-9_-]+\]$/.test(token) ? token : null;
+};
 
 const router = express.Router();
 
@@ -17,7 +26,7 @@ function getOwner(req) {
 
   const guestId =
     req.guestId ||
-    req.headers["x-guest-id"] ||
+    validGuestId(req.headers["x-guest-id"]) ||
     null;
 
   if (userId) {
@@ -128,18 +137,18 @@ router.post(
         });
       }
 
-      const {
-        token,
-        platform = "unknown",
-        provider = "expo",
-        deviceId = null,
-        appVersion = null,
-      } = req.body;
+      const token = validPushToken(req.body?.token);
+      const platform = ["android", "ios", "web"].includes(req.body?.platform)
+        ? req.body.platform
+        : "unknown";
+      const provider = "expo";
+      const deviceId = str(req.body?.deviceId, 200);
+      const appVersion = str(req.body?.appVersion, 50);
 
       if (!token) {
         return res.status(400).json({
           success: false,
-          message: "Push token required",
+          message: "Valid push token required",
         });
       }
 
@@ -201,9 +210,8 @@ router.delete(
   optionalAuth,
   async (req, res) => {
     try {
-      const {
-        token,
-      } = req.body;
+      // Knowing the device's push token is the proof of owning that device.
+      const token = validPushToken(req.body?.token);
 
       if (!token) {
         return res.status(400).json({
@@ -250,7 +258,7 @@ router.post(
 
       const guestId =
         req.guestId ||
-        req.headers["x-guest-id"];
+        validGuestId(req.headers["x-guest-id"]);
 
       if (!userId || !guestId) {
         return res.status(400).json({
@@ -305,7 +313,9 @@ router.post(
 
 router.post(
   "/",
-  optionalAuth,
+  // Sending notifications/pushes to users is an admin/server action only.
+  requireAuth,
+  requireAdmin,
   async (req, res) => {
     try {
       const {

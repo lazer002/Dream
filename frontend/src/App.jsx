@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, Navigate, useLocation } from "react-router-dom";
 
 import Home from "./pages/Home.jsx";
@@ -8,13 +9,6 @@ import ProductDetail from "./pages/ProductDetail.jsx";
 import Cart from "./pages/Cart.jsx";
 import Login from "./pages/Login.jsx";
 import Register from "./pages/Register.jsx";
-import AdminDashboard from "./pages/admin/Dashboard.jsx";
-import AdminUsers from "./pages/admin/Users.jsx";
-import AdminProducts from "./pages/admin/Products.jsx";
-import AdminInventory from "./pages/admin/inventory.jsx";
-import AdminLayout from "./pages/admin/Layout.jsx";
-import AdminAddProduct from "./pages/admin/AddProduct.jsx";
-import CategoriesAdmin from "./pages/admin/Category.jsx";
 
 import { AuthProvider, useAuth } from "./state/AuthContext.jsx";
 import { CartProvider } from "./state/CartContext.jsx";
@@ -26,26 +20,40 @@ import { Toaster } from "react-hot-toast";
 import Checkout from "./pages/Checkout.jsx";
 import Profile from "./pages/Profile.jsx";
 import Collections from "./pages/Collections.jsx";
-import Bundle from "./pages/admin/Bundle.jsx";
-import ShowBundle from "./pages/admin/ShowBundle.jsx";
 import BundlePDP from "./pages/BundlePDP.jsx";
 import TrackOrder from "./pages/TrackOrder.jsx";
-import Orders from "./pages/admin/Orders.jsx";
 import UserOrders from "./pages/Orders.jsx";
-import OrderDetail from "./pages/admin/OrderDetail.jsx";
 import NewArrivals from "./pages/NewArrivals.jsx";
 import WishlistPage from "./pages/WishlistPage.jsx";
 import ReturnExchange from "./pages/ReturnExchange.jsx";
 import ReturnStatusPage from "./pages/ReturnStatusPage.jsx";
-import AdminReturns from "./pages/admin/ReturnList.jsx";
-import AdminReturnDetail from "./pages/admin/ReturnDetail.jsx";
 import ThankYouPage from "./pages/Thankyou.jsx";
 import SearchResultsPage from "./pages/Search.jsx";
 import BuildYourLookPage from "./pages/BuildYourLookPage.jsx";
-import AdminProductDetail from "@/pages/admin/ProductDetail";
-import AdminBundleDetail from "./pages/admin/BundleDetail.jsx";
 import ScrollManager from "./components/ScrollManager.jsx";
 import OrderDetails from "./pages/OrderDetails.jsx";
+
+// Admin pages are lazy-loaded so their code stays out of the storefront bundle.
+const AdminDashboard = lazy(() => import("./pages/admin/Dashboard.jsx"));
+const AdminUsers = lazy(() => import("./pages/admin/Users.jsx"));
+const AdminProducts = lazy(() => import("./pages/admin/Products.jsx"));
+const AdminInventory = lazy(() => import("./pages/admin/inventory.jsx"));
+const AdminLayout = lazy(() => import("./pages/admin/Layout.jsx"));
+const AdminAddProduct = lazy(() => import("./pages/admin/AddProduct.jsx"));
+const CategoriesAdmin = lazy(() => import("./pages/admin/Category.jsx"));
+const Bundle = lazy(() => import("./pages/admin/Bundle.jsx"));
+const ShowBundle = lazy(() => import("./pages/admin/ShowBundle.jsx"));
+const Orders = lazy(() => import("./pages/admin/Orders.jsx"));
+const OrderDetail = lazy(() => import("./pages/admin/OrderDetail.jsx"));
+const AdminReturns = lazy(() => import("./pages/admin/ReturnList.jsx"));
+const AdminReturnDetail = lazy(() => import("./pages/admin/ReturnDetail.jsx"));
+const AdminProductDetail = lazy(() => import("./pages/admin/ProductDetail.jsx"));
+const AdminBundleDetail = lazy(() => import("./pages/admin/BundleDetail.jsx"));
+
+// Suspense boundary per admin page (keeps the admin layout visible while a page loads)
+const adminPage = (page) => (
+  <Suspense fallback={null}>{page}</Suspense>
+);
 // ✅ Protect admin routes
 function AdminRoute({ children }) {
   const { user, loading } = useAuth();
@@ -120,24 +128,24 @@ export default function App() {
               path="/admin"
               element={
                 <AdminRoute>
-                  <AdminLayout />
+                  {adminPage(<AdminLayout />)}
                 </AdminRoute>
               }
             >
-              <Route index element={<AdminDashboard />} />
-              <Route path="products" element={<AdminProducts />} />
-              <Route path="inventory" element={<AdminInventory />} />
-              <Route path="new/bundles" element={<Bundle />} />
-              <Route path="bundles" element={<ShowBundle />} />
-              <Route path="new/products" element={<AdminAddProduct />} />
-              <Route path="users" element={<AdminUsers />} />
-              <Route path="category" element={<CategoriesAdmin />} />
-              <Route path="orders" element={<Orders />} />
-              <Route path="orders/:publicOrderId" element={<OrderDetail />} />
-              <Route path="returnslist" element={<AdminReturns />} />
-              <Route path="returnslist/:rmaNumber" element={<AdminReturnDetail />} />
-              <Route  path="/admin/products/:publicId"  element={<AdminProductDetail />}/>
-              <Route  path="bundles/:publicId"  element={<AdminBundleDetail />}
+              <Route index element={adminPage(<AdminDashboard />)} />
+              <Route path="products" element={adminPage(<AdminProducts />)} />
+              <Route path="inventory" element={adminPage(<AdminInventory />)} />
+              <Route path="new/bundles" element={adminPage(<Bundle />)} />
+              <Route path="bundles" element={adminPage(<ShowBundle />)} />
+              <Route path="new/products" element={adminPage(<AdminAddProduct />)} />
+              <Route path="users" element={adminPage(<AdminUsers />)} />
+              <Route path="category" element={adminPage(<CategoriesAdmin />)} />
+              <Route path="orders" element={adminPage(<Orders />)} />
+              <Route path="orders/:publicOrderId" element={adminPage(<OrderDetail />)} />
+              <Route path="returnslist" element={adminPage(<AdminReturns />)} />
+              <Route path="returnslist/:rmaNumber" element={adminPage(<AdminReturnDetail />)} />
+              <Route  path="/admin/products/:publicId"  element={adminPage(<AdminProductDetail />)}/>
+              <Route  path="bundles/:publicId"  element={adminPage(<AdminBundleDetail />)}
 />
             </Route>
           </Routes>

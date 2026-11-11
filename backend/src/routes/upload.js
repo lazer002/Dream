@@ -1,6 +1,6 @@
 import express from "express";
 import crypto from "crypto";
-import { upload } from "../middleware/upload.js";
+import { adminImages, sniffImage } from "../middleware/upload.js";
 import { supabase } from "../config/supabase.js";
 import { requireAuth, requireAdmin } from "../middleware/auth.js";
 import dotenv from "dotenv";
@@ -15,7 +15,7 @@ router.post(
   "/images",
   requireAuth,
   requireAdmin,
-  upload.array("files", 10),
+  adminImages("files", 10),
   async (req, res) => {
     try {
       if (!req.files?.length) {
@@ -27,18 +27,21 @@ router.post(
 
       const images = await Promise.all(
         req.files.map(async (file) => {
-          const ext =
-            file.originalname
-              ?.split(".")
-              .pop()
-              ?.toLowerCase() || "webp";
+          // Real type from the bytes (blocks .html/.svg disguised as images).
+          const real = sniffImage(file.buffer);
+
+          if (!real) {
+            throw new Error(`${file.originalname}: not a JPG/PNG/WEBP image`);
+          }
+
+          const ext = real.ext;
 
           const path = `products/${crypto.randomUUID()}.${ext}`;
 
           const { data, error } = await supabase.storage
             .from(BUCKET)
             .upload(path, file.buffer, {
-              contentType: file.mimetype,
+              contentType: real.mime,
               cacheControl: "31536000",
               upsert: false,
             });

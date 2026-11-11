@@ -1,11 +1,12 @@
+import { formLimiter } from "../middleware/rateLimit.js";
 import express from "express";
 import { Contact } from "../models/Contact.js";
-import { requireAdmin } from "../middleware/auth.js";
+import { requireAuth, requireAdmin } from "../middleware/auth.js";
 
 const router = express.Router();
 
 // Create contact message
-router.post("/", async (req, res) => {
+router.post("/", formLimiter, async (req, res) => {
   try {
     const { name, email, phone, subject, message } = req.body;
 
@@ -37,7 +38,7 @@ router.post("/", async (req, res) => {
 
 
 
-router.get("/", requireAdmin, async (req, res) => {
+router.get("/", requireAuth, requireAdmin, async (req, res) => {
   try {
     const contacts = await Contact.find()
       .sort({ createdAt: -1 })
@@ -50,7 +51,7 @@ router.get("/", requireAdmin, async (req, res) => {
 });
 
 
-router.patch("/:id", requireAdmin, async (req, res) => {
+router.patch("/:id", requireAuth, requireAdmin, async (req, res) => {
   try {
     const { status, priority } = req.body;
 

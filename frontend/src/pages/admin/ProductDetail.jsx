@@ -26,6 +26,8 @@ import {
   useUploadAdminImagesMutation,
   useDeleteAdminProductImageMutation,
 } from "@/store/api";
+import { errorMessage } from "@/utils/session";
+import { IMAGE_ACCEPT, pickImageFiles } from "./imageUpload";
 
 export default function AdminProductDetail() {
   const { publicId } = useParams();
@@ -122,8 +124,10 @@ export default function AdminProductDetail() {
     setSelectedImage(0);
   }, [product]);
 
-  async function uploadProductImages(files) {
-    if (!files?.length || !product?._id) return;
+  async function uploadProductImages(selected) {
+    const files = pickImageFiles(selected);
+
+    if (!files.length || !product?._id) return;
 
     try {
       const fd = new FormData();
@@ -166,10 +170,10 @@ export default function AdminProductDetail() {
       console.error("UPLOAD PRODUCT IMAGES ERROR:", error);
 
       window.alert(
-        error?.data?.message ||
-          error?.data?.error ||
-          error?.message ||
-          "Failed to upload images"
+        errorMessage(
+          error,
+          error?.message || "Failed to upload images"
+        )
       );
     }
   }
@@ -590,7 +594,7 @@ export default function AdminProductDetail() {
                     <input
                       type="file"
                       multiple
-                      accept="image/*"
+                      accept={IMAGE_ACCEPT}
                       className="hidden"
                       disabled={
                         uploadingImages
@@ -778,7 +782,7 @@ export default function AdminProductDetail() {
                         <input
                           type="file"
                           multiple
-                          accept="image/*"
+                          accept={IMAGE_ACCEPT}
                           className="hidden"
                           disabled={
                             uploadingImages
@@ -1304,14 +1308,14 @@ export default function AdminProductDetail() {
             {/* STOREFRONT */}
             <button
               type="button"
-              disabled={!product.slug}
+              disabled={!product.publicId}
               onClick={() => {
-                if (!product.slug) {
+                if (!product.publicId) {
                   return;
                 }
 
                 window.open(
-                  `/product/${product.slug}`,
+                  `/product/${encodeURIComponent(product.publicId)}`,
                   "_blank",
                   "noopener,noreferrer"
                 );

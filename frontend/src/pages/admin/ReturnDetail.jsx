@@ -550,11 +550,11 @@ async function handleUpdateStatus() {
               {photos.length > 1 && (
                 <div className="flex max-w-[120px] items-center gap-1 overflow-x-auto">
                   {photos.map((url, idx2) => (
-                    <Link
+                    <a
                       key={idx2}
                       href={url}
                       target="_blank"
-                      rel="noreferrer"
+                      rel="noopener noreferrer"
                       className="h-7 w-7 flex-shrink-0 overflow-hidden rounded border border-neutral-200 bg-muted"
                     >
                       <img
@@ -562,7 +562,7 @@ async function handleUpdateStatus() {
                         alt={`${item.title} ${idx2 + 1}`}
                         className="h-full w-full object-cover"
                       />
-                    </Link>
+                    </a>
                   ))}
                 </div>
               )}

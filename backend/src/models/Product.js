@@ -2,10 +2,7 @@ import mongoose from "mongoose";
 import crypto from "crypto";
 import { getNextProductSeq } from "./Counter.js";
 
-const SIZE_TYPES = {
-  apparel: ["XS", "S", "M", "L", "XL", "XXL"],
-  pants: ["28", "30", "32", "34", "36", "38", "40"],
-};
+
 
 const productSchema = new mongoose.Schema(
   {
